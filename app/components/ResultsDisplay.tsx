@@ -14,6 +14,9 @@ import {
 import { Button } from "@heroui/button";
 import { TrashIcon } from "./TrashIcon";
 import { Textarea } from "@heroui/input";
+import { Input } from "@heroui/input";
+import { Checkbox } from "@heroui/checkbox";
+import { Card, CardBody } from "@heroui/card";
 
 interface ScrapedDataItem {
   url: string;
@@ -40,6 +43,13 @@ interface ResultsDisplayProps {
   handleCreateWorkflow: () => void;
   handleDeleteItem: (url: string, domain: string) => void;
   setPrompt: (prompt: string) => void;
+  showAddMorePages: boolean;
+  onShowAddMorePages: () => void;
+  additionalUrls: { url: string; selected: boolean }[];
+  onToggleAdditionalUrl: (url: string) => void;
+  onAddAdditionalUrl: (url: string) => void;
+  onScrapeAdditionalPages: () => void;
+  onCancelAddMorePages: () => void;
 }
 
 const columns = [
@@ -59,11 +69,19 @@ export default function ResultsDisplay({
   retryLoading,
   setPrompt,
   url,
+  showAddMorePages,
+  onShowAddMorePages,
+  additionalUrls,
+  onToggleAdditionalUrl,
+  onAddAdditionalUrl,
+  onScrapeAdditionalPages,
+  onCancelAddMorePages,
 }: ResultsDisplayProps) {
   const [sortDescriptor, setSortDescriptor] = React.useState<SortDescriptor>({
     column: "url",
     direction: "ascending",
   });
+  const [newAdditionalUrl, setNewAdditionalUrl] = React.useState("");
 
   const sortedItems = React.useMemo(() => {
     return [...scrapedData].sort((a, b) => {
@@ -123,6 +141,13 @@ export default function ResultsDisplay({
     [handleDeleteItem, url]
   );
 
+  const handleAddAdditionalUrl = () => {
+    if (newAdditionalUrl) {
+      onAddAdditionalUrl(newAdditionalUrl);
+      setNewAdditionalUrl("");
+    }
+  };
+
   if (scrapedData.length === 0 && !prompt && !workflowResult) {
     return null;
   }
@@ -131,9 +156,98 @@ export default function ResultsDisplay({
     <div className="w-full flex flex-col gap-4">
       {scrapedData.length > 0 && (
         <div>
-          <h3 className="text-xl font-bold mb-2">
-            Scraped Pages ({scrapedData.length})
-          </h3>
+          <div className="flex justify-between items-center mb-2">
+            <h3 className="text-xl font-bold">
+              Scraped Pages ({scrapedData.length})
+            </h3>
+            <Button
+              size="sm"
+              variant="bordered"
+              onClick={onShowAddMorePages}
+              isLoading={retryLoading === "additional"}
+              disabled={!!retryLoading || showAddMorePages}
+            >
+              Add More Pages
+            </Button>
+          </div>
+
+          {showAddMorePages && (
+            <Card className="mb-4">
+              <CardBody>
+                <h4 className="text-lg font-semibold mb-2">
+                  Add Additional Pages
+                </h4>
+                <div className="flex gap-2 mb-2">
+                  <Button
+                    size="sm"
+                    onClick={() => {
+                      additionalUrls.forEach((item) => {
+                        if (!item.selected) onToggleAdditionalUrl(item.url);
+                      });
+                    }}
+                  >
+                    Select All
+                  </Button>
+                  <Button
+                    size="sm"
+                    onClick={() => {
+                      additionalUrls.forEach((item) => {
+                        if (item.selected) onToggleAdditionalUrl(item.url);
+                      });
+                    }}
+                  >
+                    Deselect All
+                  </Button>
+                </div>
+                <div className="max-h-48 overflow-y-auto border rounded-md p-2 flex flex-col gap-2 mb-2">
+                  {additionalUrls.length > 0 ? (
+                    additionalUrls.map((item) => (
+                      <Checkbox
+                        key={item.url}
+                        isSelected={item.selected}
+                        onValueChange={() => onToggleAdditionalUrl(item.url)}
+                        size="sm"
+                      >
+                        <span className="text-sm truncate">{item.url}</span>
+                      </Checkbox>
+                    ))
+                  ) : (
+                    <p className="text-sm text-gray-500">
+                      No additional pages found in sitemap
+                    </p>
+                  )}
+                </div>
+                <div className="flex gap-2 mb-2">
+                  <Input
+                    value={newAdditionalUrl}
+                    onChange={(e) => setNewAdditionalUrl(e.target.value)}
+                    placeholder="Add custom URL"
+                    onKeyDown={(e) => e.key === "Enter" && handleAddAdditionalUrl()}
+                  />
+                  <Button onClick={handleAddAdditionalUrl}>Add</Button>
+                </div>
+                <div className="flex gap-2">
+                  <Button
+                    color="primary"
+                    onClick={onScrapeAdditionalPages}
+                    isLoading={retryLoading === "additional"}
+                    disabled={additionalUrls.filter((u) => u.selected).length === 0}
+                  >
+                    Scrape{" "}
+                    {additionalUrls.filter((u) => u.selected).length} Selected Pages
+                  </Button>
+                  <Button
+                    variant="bordered"
+                    onClick={onCancelAddMorePages}
+                    disabled={retryLoading === "additional"}
+                  >
+                    Cancel
+                  </Button>
+                </div>
+              </CardBody>
+            </Card>
+          )}
+
           <Table
             aria-label="Scraped data table"
             sortDescriptor={sortDescriptor}

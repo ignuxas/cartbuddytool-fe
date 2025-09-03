@@ -17,6 +17,7 @@ import { Textarea } from "@heroui/input";
 import { Input } from "@heroui/input";
 import { Checkbox } from "@heroui/checkbox";
 import { Card, CardBody } from "@heroui/card";
+import { Chip } from "@heroui/chip";
 
 interface ScrapedDataItem {
   url: string;
@@ -28,7 +29,7 @@ interface ScrapedDataItem {
 interface WorkflowResult {
   workflow_id: string;
   workflow_url: string;
-  sheet_id: string;
+  webhook_url?: string;
 }
 
 interface ResultsDisplayProps {
@@ -59,6 +60,16 @@ const columns = [
   { key: "actions", label: "Actions" },
 ];
 
+// Enhanced error logging for component
+const logComponentError = (context: string, error: any, additionalData?: any) => {
+  console.error(`[ResultsDisplay:${context}] Error:`, {
+    message: error.message,
+    stack: error.stack,
+    timestamp: new Date().toISOString(),
+    additionalData
+  });
+};
+
 export default function ResultsDisplay({
   scrapedData,
   prompt,
@@ -82,69 +93,165 @@ export default function ResultsDisplay({
     direction: "ascending",
   });
   const [newAdditionalUrl, setNewAdditionalUrl] = React.useState("");
+  const [copyFeedback, setCopyFeedback] = React.useState<string>("");
 
   const sortedItems = React.useMemo(() => {
-    return [...scrapedData].sort((a, b) => {
-      const first = a[sortDescriptor.column as keyof ScrapedDataItem];
-      const second = b[sortDescriptor.column as keyof ScrapedDataItem];
-      let cmp =
-        (parseInt(first as string) || first) <
-        (parseInt(second as string) || second)
-          ? -1
-          : 1;
+    try {
+      // Remove duplicates based on URL before sorting
+      const uniqueData = scrapedData.reduce((acc, item) => {
+        if (!acc.find(existing => existing.url === item.url)) {
+          acc.push(item);
+        }
+        return acc;
+      }, [] as ScrapedDataItem[]);
 
-      if (sortDescriptor.direction === "descending") {
-        cmp *= -1;
-      }
+      return [...uniqueData].sort((a, b) => {
+        const first = a[sortDescriptor.column as keyof ScrapedDataItem];
+        const second = b[sortDescriptor.column as keyof ScrapedDataItem];
+        let cmp =
+          (parseInt(first as string) || first) <
+          (parseInt(second as string) || second)
+            ? -1
+            : 1;
 
-      return cmp;
-    });
+        if (sortDescriptor.direction === "descending") {
+          cmp *= -1;
+        }
+
+        return cmp;
+      });
+    } catch (error: any) {
+      logComponentError("sortedItems", error, { sortDescriptor, dataLength: scrapedData.length });
+      return scrapedData; // Return unsorted data as fallback
+    }
   }, [sortDescriptor, scrapedData]);
 
   const renderCell = React.useCallback(
     (item: ScrapedDataItem, columnKey: React.Key) => {
-      const cellValue = getKeyValue(item, columnKey as keyof ScrapedDataItem);
+      try {
+        const cellValue = getKeyValue(item, columnKey as keyof ScrapedDataItem);
 
-      switch (columnKey) {
-        case "url":
-          return (
-            <a
-              href={item.url}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="text-blue-500 hover:underline truncate"
-            >
-              {item.url}
-            </a>
-          );
-        case "title":
-          return <span className="truncate">{item.title}</span>;
-        case "actions":
-          return (
-            <Button
-              isIconOnly
-              size="sm"
-              variant="light"
-              onPress={() => {
-                const domain = new URL(url).hostname;
-                handleDeleteItem(item.url, domain);
-              }}
-              aria-label={`Delete item ${item.url}`}
-            >
-              <TrashIcon className="text-lg text-danger" />
-            </Button>
-          );
-        default:
-          return cellValue;
+        switch (columnKey) {
+          case "url":
+            return (
+              <a
+                href={item.url}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="text-blue-500 hover:underline truncate"
+                onClick={(e) => {
+                  // Additional error handling for link clicks
+                  try {
+                    new URL(item.url); // Validate URL before opening
+                  } catch {
+                    e.preventDefault();
+                    console.error("Invalid URL:", item.url);
+                  }
+                }}
+              >
+                {item.url}
+              </a>
+            );
+          case "title":
+            return <span className="truncate" title={item.title}>{item.title}</span>;
+          case "actions":
+            return (
+              <Button
+                isIconOnly
+                size="sm"
+                variant="light"
+                onPress={() => {
+                  try {
+                    const domain = new URL(url).hostname;
+                    handleDeleteItem(item.url, domain);
+                  } catch (error: any) {
+                    logComponentError("deleteItem", error, { itemUrl: item.url, url });
+                    console.error("Failed to delete item:", error.message);
+                  }
+                }}
+                aria-label={`Delete item ${item.url}`}
+              >
+                <TrashIcon className="text-lg text-danger" />
+              </Button>
+            );
+          default:
+            return cellValue;
+        }
+      } catch (error: any) {
+        logComponentError("renderCell", error, { item, columnKey });
+        return <span className="text-red-500">Error rendering cell</span>;
       }
     },
     [handleDeleteItem, url]
   );
 
   const handleAddAdditionalUrl = () => {
-    if (newAdditionalUrl) {
+    try {
+      if (!newAdditionalUrl.trim()) {
+        return;
+      }
+
+      // Validate URL format
+      try {
+        new URL(newAdditionalUrl);
+      } catch {
+        console.error("Invalid URL format:", newAdditionalUrl);
+        return;
+      }
+
       onAddAdditionalUrl(newAdditionalUrl);
       setNewAdditionalUrl("");
+    } catch (error: any) {
+      logComponentError("handleAddAdditionalUrl", error, { newAdditionalUrl });
+    }
+  };
+
+  const handleCopyEmbedCode = async () => {
+    try {
+      if (!workflowResult?.webhook_url) {
+        throw new Error("No webhook URL available");
+      }
+
+      const embedCode = `<script src="https://cdn.jsdelivr.net/npm/n8n-embedded-chat-interface@latest/output/index.js"></script>
+<n8n-embedded-chat-interface 
+  label="${new URL(url).hostname} Assistant" 
+  description="Get instant help with your questions" 
+  hostname="${workflowResult.webhook_url}" 
+  mode="n8n" 
+  open-on-start="false">
+</n8n-embedded-chat-interface>`;
+      
+      await navigator.clipboard.writeText(embedCode);
+      setCopyFeedback("Copied to clipboard!");
+      setTimeout(() => setCopyFeedback(""), 3000);
+    } catch (error: any) {
+      logComponentError("copyEmbedCode", error, { workflowResult });
+      setCopyFeedback("Failed to copy to clipboard");
+      setTimeout(() => setCopyFeedback(""), 3000);
+    }
+  };
+
+  const handleTestChat = () => {
+    try {
+      if (!workflowResult?.webhook_url) {
+        throw new Error("No webhook URL available");
+      }
+      window.open(workflowResult.webhook_url, '_blank');
+    } catch (error: any) {
+      logComponentError("testChat", error, { workflowResult });
+      console.error("Failed to open chat:", error.message);
+    }
+  };
+
+  const handleViewWorkflow = () => {
+    try {
+      if (!workflowResult?.workflow_url) {
+        throw new Error("No workflow URL available");
+      }
+      window.open(workflowResult.workflow_url, '_blank');
+    } catch (error: any) {
+      logComponentError("viewWorkflow", error, { workflowResult });
+      console.error("Failed to open workflow:", error.message);
     }
   };
 
@@ -181,9 +288,13 @@ export default function ResultsDisplay({
                   <Button
                     size="sm"
                     onClick={() => {
-                      additionalUrls.forEach((item) => {
-                        if (!item.selected) onToggleAdditionalUrl(item.url);
-                      });
+                      try {
+                        additionalUrls.forEach((item) => {
+                          if (!item.selected) onToggleAdditionalUrl(item.url);
+                        });
+                      } catch (error: any) {
+                        logComponentError("selectAll", error);
+                      }
                     }}
                   >
                     Select All
@@ -191,9 +302,13 @@ export default function ResultsDisplay({
                   <Button
                     size="sm"
                     onClick={() => {
-                      additionalUrls.forEach((item) => {
-                        if (item.selected) onToggleAdditionalUrl(item.url);
-                      });
+                      try {
+                        additionalUrls.forEach((item) => {
+                          if (item.selected) onToggleAdditionalUrl(item.url);
+                        });
+                      } catch (error: any) {
+                        logComponentError("deselectAll", error);
+                      }
                     }}
                   >
                     Deselect All
@@ -201,14 +316,20 @@ export default function ResultsDisplay({
                 </div>
                 <div className="max-h-48 overflow-y-auto border rounded-md p-2 flex flex-col gap-2 mb-2">
                   {additionalUrls.length > 0 ? (
-                    additionalUrls.map((item) => (
+                    additionalUrls.map((item, index) => (
                       <Checkbox
-                        key={item.url}
+                        key={`${item.url}-${index}`} // Use index as fallback for unique keys
                         isSelected={item.selected}
-                        onValueChange={() => onToggleAdditionalUrl(item.url)}
+                        onValueChange={() => {
+                          try {
+                            onToggleAdditionalUrl(item.url);
+                          } catch (error: any) {
+                            logComponentError("toggleAdditionalUrl", error, { url: item.url });
+                          }
+                        }}
                         size="sm"
                       >
-                        <span className="text-sm truncate">{item.url}</span>
+                        <span className="text-sm truncate" title={item.url}>{item.url}</span>
                       </Checkbox>
                     ))
                   ) : (
@@ -221,10 +342,38 @@ export default function ResultsDisplay({
                   <Input
                     value={newAdditionalUrl}
                     onChange={(e) => setNewAdditionalUrl(e.target.value)}
-                    placeholder="Add custom URL"
+                    placeholder="Add custom URL (include http:// or https://)"
                     onKeyDown={(e) => e.key === "Enter" && handleAddAdditionalUrl()}
+                    isInvalid={newAdditionalUrl.trim() !== "" && (() => {
+                      try {
+                        new URL(newAdditionalUrl);
+                        return false;
+                      } catch {
+                        return true;
+                      }
+                    })()}
+                    errorMessage={newAdditionalUrl.trim() !== "" && (() => {
+                      try {
+                        new URL(newAdditionalUrl);
+                        return "";
+                      } catch {
+                        return "Please enter a valid URL";
+                      }
+                    })()}
                   />
-                  <Button onClick={handleAddAdditionalUrl}>Add</Button>
+                  <Button 
+                    onClick={handleAddAdditionalUrl}
+                    disabled={newAdditionalUrl.trim() === "" || (() => {
+                      try {
+                        new URL(newAdditionalUrl);
+                        return false;
+                      } catch {
+                        return true;
+                      }
+                    })()}
+                  >
+                    Add
+                  </Button>
                 </div>
                 <div className="flex gap-2">
                   <Button
@@ -268,7 +417,7 @@ export default function ResultsDisplay({
               emptyContent={"No pages scraped yet."}
             >
               {(item) => (
-                <TableRow key={item.url}>
+                <TableRow key={`${item.url}-${item.textLength}`}>
                   {(columnKey) => (
                     <TableCell>{renderCell(item, columnKey)}</TableCell>
                   )}
@@ -285,14 +434,26 @@ export default function ResultsDisplay({
           <Textarea
             label="Editable Prompt"
             value={prompt}
-            onValueChange={setPrompt}
+            onValueChange={(value) => {
+              try {
+                setPrompt(value);
+              } catch (error: any) {
+                logComponentError("setPrompt", error, { promptLength: value.length });
+              }
+            }}
             minRows={10}
             maxRows={20}
             className="text-sm"
           />
           <div className="flex gap-2 mt-2">
             <Button
-              onClick={handleRegeneratePrompt}
+              onClick={() => {
+                try {
+                  handleRegeneratePrompt();
+                } catch (error: any) {
+                  logComponentError("regeneratePrompt", error);
+                }
+              }}
               isLoading={retryLoading === "prompt"}
               disabled={!!retryLoading}
             >
@@ -300,9 +461,19 @@ export default function ResultsDisplay({
             </Button>
             <Button
               color="secondary"
-              onClick={handleCreateWorkflow}
+              onClick={() => {
+                try {
+                  if (!prompt.trim()) {
+                    console.warn("Cannot create workflow with empty prompt");
+                    return;
+                  }
+                  handleCreateWorkflow();
+                } catch (error: any) {
+                  logComponentError("createWorkflow", error);
+                }
+              }}
               isLoading={retryLoading === "workflow"}
-              disabled={!!retryLoading}
+              disabled={!!retryLoading || !prompt.trim()}
             >
               Create n8n Workflow
             </Button>
@@ -312,18 +483,100 @@ export default function ResultsDisplay({
 
       {workflowResult && (
         <div>
-          <h3 className="text-xl font-bold">Workflow Created</h3>
-          <p>Workflow ID: {workflowResult.workflow_id}</p>
-          <p>
-            <a
-              href={workflowResult.workflow_url}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="text-blue-500 hover:underline"
-            >
-              View Workflow
-            </a>
-          </p>
+          <h3 className="text-xl font-bold mb-4">
+            🎉 AI Workflow Created Successfully!
+          </h3>
+
+          <Card className="mb-4">
+            <CardBody>
+              <div className="space-y-4">
+                <div>
+                  <h4 className="text-lg font-semibold mb-2">Workflow Details</h4>
+                    <div className="flex gap-2">
+                      <p className="text-sm text-gray-600 mb-2">Workflow ID:</p>
+                      <Chip 
+                        color="primary" 
+                        variant="flat" 
+                        className="font-mono"
+                        size="sm"
+                      >
+                        {workflowResult.workflow_id}
+                      </Chip>
+                    <Button
+                      size="sm"
+                      color="primary"
+                      variant="ghost"
+                      onClick={handleViewWorkflow}
+                      className="h-8"
+                    >
+                      View & Manage Workflow →
+                    </Button>
+                  </div>
+                </div>
+
+                {workflowResult.webhook_url && (
+                  <div>
+                    <h4 className="text-lg font-semibold mb-2">💬 Embed Chat Widget</h4>
+                    <p className="text-sm text-gray-600 mb-2">
+                      Copy and paste this code into your website to add the AI chat interface:
+                    </p>
+                    <div className="bg-gray-900 text-gray-100 p-4 rounded-lg text-sm font-mono overflow-x-auto">
+                      <pre>{`<script src="https://cdn.jsdelivr.net/npm/n8n-embedded-chat-interface@latest/output/index.js"></script>
+<n8n-embedded-chat-interface 
+  label="${(() => {
+    try {
+      return new URL(url).hostname;
+    } catch {
+      return 'Website';
+    }
+  })()} Assistant" 
+  description="Get instant help with your questions" 
+  hostname="${workflowResult.webhook_url}" 
+  mode="n8n" 
+  open-on-start="false">
+</n8n-embedded-chat-interface>`}</pre>
+                    </div>
+                    <div className="flex gap-2 mt-2">
+                      <Button
+                        size="sm"
+                        variant="bordered"
+                        onClick={handleCopyEmbedCode}
+                        disabled={!workflowResult.webhook_url}
+                      >
+                        📋 Copy Embed Code
+                      </Button>
+                      <Button
+                        size="sm"
+                        color="primary"
+                        onClick={handleTestChat}
+                        disabled={!workflowResult.webhook_url}
+                      >
+                        🚀 Test Chat
+                      </Button>
+                      {copyFeedback && (
+                        <Chip 
+                          color={copyFeedback.includes("Failed") ? "danger" : "success"} 
+                          size="sm"
+                        >
+                          {copyFeedback}
+                        </Chip>
+                      )}
+                    </div>
+                  </div>
+                )}
+
+                <div className="bg-gray-900 p-4 rounded-lg">
+                  <h4 className="text-md font-semibold mb-2 text-blue-400">💡 Next Steps</h4>
+                  <ul className="text-sm text-blue-300 space-y-1">
+                    <li>• Test your AI assistant using the "Test Chat" button above</li>
+                    <li>• Customize the chat widget appearance in the n8n workflow</li>
+                    <li>• Add the embed code to your website</li>
+                    <li>• Monitor conversations and improve responses</li>
+                  </ul>
+                </div>
+              </div>
+            </CardBody>
+          </Card>
         </div>
       )}
     </div>

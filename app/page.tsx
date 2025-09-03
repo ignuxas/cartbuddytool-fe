@@ -25,8 +25,55 @@ interface ScrapedDataItem {
 interface WorkflowResult {
   workflow_id: string;
   workflow_url: string;
-  sheet_id: string;
+  webhook_url?: string;
 }
+
+// Enhanced error logging
+const logError = (context: string, error: any, additionalData?: any) => {
+  console.error(`[${context}] Error:`, {
+    message: error.message,
+    stack: error.stack,
+    timestamp: new Date().toISOString(),
+    additionalData
+  });
+};
+
+// Enhanced API call wrapper with better error handling
+const makeApiCall = async (url: string, options: RequestInit, context: string) => {
+  try {
+    console.log(`[${context}] Making API call to:`, url);
+    const response = await fetch(url, options);
+    
+    if (!response.ok) {
+      const errorText = await response.text();
+      let errorData;
+      try {
+        errorData = JSON.parse(errorText);
+      } catch {
+        errorData = { error: errorText || `HTTP ${response.status}` };
+      }
+      
+      logError(context, new Error(`API call failed: ${response.status}`), {
+        url,
+        status: response.status,
+        statusText: response.statusText,
+        errorData
+      });
+      
+      throw new Error(errorData.error || `Request failed with status ${response.status}`);
+    }
+    
+    const data = await response.json();
+    console.log(`[${context}] API call successful`);
+    return data;
+  } catch (error: any) {
+    if (error.name === 'TypeError' && error.message.includes('fetch')) {
+      logError(context, error, { url, note: 'Network/CORS error' });
+      throw new Error('Network error. Please check your connection and try again.');
+    }
+    throw error;
+  }
+};
 
 export default function Home() {
   const { isAuthenticated, authKey, isLoading, login, logout } = useAuth();
@@ -47,6 +94,7 @@ export default function Home() {
     count: number;
     existing_data: ScrapedDataItem[];
     existing_prompt?: string;
+    existing_workflow?: WorkflowResult;
   } | null>(null);
   const [showAddMorePages, setShowAddMorePages] = useState(false);
   const [additionalUrls, setAdditionalUrls] = useState<{ url: string; selected: boolean }[]>([]);
@@ -64,6 +112,20 @@ export default function Home() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    
+    if (!url.trim()) {
+      setErrorMessage("Please enter a valid URL");
+      return;
+    }
+
+    // Validate URL format
+    try {
+      new URL(url);
+    } catch {
+      setErrorMessage("Please enter a valid URL (including http:// or https://)");
+      return;
+    }
+
     setLoading(true);
     clearMessages();
     setScrapedData([]);
@@ -75,58 +137,75 @@ export default function Home() {
     setShowAddMorePages(false);
 
     try {
+      console.log("[handleSubmit] Starting submission process for URL:", url);
+      
       // First check if domain already has data
-      const checkResponse = await fetch(`${config.serverUrl}/api/scrape/check-existing/`, {
-        method: "POST",
-        headers: getAuthHeaders(),
-        body: JSON.stringify({ url }),
-      });
-
-      const checkData = await checkResponse.json();
-
-      if (!checkResponse.ok) {
-        throw new Error(checkData.error || "Something went wrong");
-      }
-
-      if (checkData.has_existing_data) {
-        setExistingDataInfo({
-          count: checkData.count,
-          existing_data: checkData.existing_data,
-          existing_prompt: checkData.existing_prompt
-        });
-        setStep("existing");
-      } else {
-        // No existing data, proceed with normal flow
-        const response = await fetch(`${config.serverUrl}/api/scrape/get-urls/`, {
+      const checkData = await makeApiCall(
+        `${config.serverUrl}/api/scrape/check-existing/`,
+        {
           method: "POST",
           headers: getAuthHeaders(),
           body: JSON.stringify({ url }),
+        },
+        "check-existing"
+      );
+
+      if (checkData.has_existing_data) {
+        console.log("[handleSubmit] Found existing data, showing existing data step");
+        setExistingDataInfo({
+          count: checkData.count,
+          existing_data: checkData.existing_data,
+          existing_prompt: checkData.existing_prompt,
+          existing_workflow: checkData.existing_workflow
         });
+        setStep("existing");
+      } else {
+        console.log("[handleSubmit] No existing data, fetching sitemap URLs");
+        // No existing data, proceed with normal flow
+        const data = await makeApiCall(
+          `${config.serverUrl}/api/scrape/get-urls/`,
+          {
+            method: "POST",
+            headers: getAuthHeaders(),
+            body: JSON.stringify({ url }),
+          },
+          "get-urls"
+        );
 
-        const data = await response.json();
-
-        if (!response.ok) {
-          throw new Error(data.error || "Something went wrong");
+        if (!data.urls || data.urls.length === 0) {
+          throw new Error("No URLs found in sitemap. The website might not have a sitemap or it might be empty.");
         }
 
         setSitemapUrls(data.urls.map((u: string) => ({ url: u, selected: true })));
         setStep("selection");
       }
     } catch (error: any) {
-      setErrorMessage(error.message);
+      logError("handleSubmit", error, { url });
+      setErrorMessage(error.message || "An unexpected error occurred while processing your request");
     } finally {
       setLoading(false);
     }
   };
 
   const handleUseExistingData = () => {
-    if (existingDataInfo) {
+    try {
+      if (!existingDataInfo) {
+        throw new Error("No existing data available");
+      }
+
+      console.log("[handleUseExistingData] Loading existing data");
       setScrapedData(existingDataInfo.existing_data);
       if (existingDataInfo.existing_prompt) {
         setPrompt(existingDataInfo.existing_prompt);
       }
+      if (existingDataInfo.existing_workflow) {
+        setWorkflowResult(existingDataInfo.existing_workflow);
+      }
       setMessage(`Loaded ${existingDataInfo.count} existing pages.`);
       setStep("results");
+    } catch (error: any) {
+      logError("handleUseExistingData", error);
+      setErrorMessage("Failed to load existing data");
     }
   };
 
@@ -136,22 +215,26 @@ export default function Home() {
     setExistingDataInfo(null);
 
     try {
-      const response = await fetch(`${config.serverUrl}/api/scrape/get-urls/`, {
-        method: "POST",
-        headers: getAuthHeaders(),
-        body: JSON.stringify({ url }),
-      });
+      console.log("[handleRescanWebsite] Rescanning website");
+      const data = await makeApiCall(
+        `${config.serverUrl}/api/scrape/get-urls/`,
+        {
+          method: "POST",
+          headers: getAuthHeaders(),
+          body: JSON.stringify({ url }),
+        },
+        "rescan-website"
+      );
 
-      const data = await response.json();
-
-      if (!response.ok) {
-        throw new Error(data.error || "Something went wrong");
+      if (!data.urls || data.urls.length === 0) {
+        throw new Error("No URLs found in sitemap during rescan");
       }
 
       setSitemapUrls(data.urls.map((u: string) => ({ url: u, selected: true })));
       setStep("selection");
     } catch (error: any) {
-      setErrorMessage(error.message);
+      logError("handleRescanWebsite", error, { url });
+      setErrorMessage(error.message || "Failed to rescan website");
     } finally {
       setLoading(false);
     }
@@ -169,37 +252,44 @@ export default function Home() {
     clearMessages();
 
     try {
-      const response = await fetch(`${config.serverUrl}/api/scrape/additional/`, {
-        method: "POST",
-        headers: getAuthHeaders(),
-        body: JSON.stringify({ 
-          url, 
-          additional_urls: selectedAdditionalUrls 
-        }),
-      });
+      console.log("[handleScrapeAdditionalPages] Scraping additional pages:", selectedAdditionalUrls.length);
+      const data = await makeApiCall(
+        `${config.serverUrl}/api/scrape/additional/`,
+        {
+          method: "POST",
+          headers: getAuthHeaders(),
+          body: JSON.stringify({ 
+            url, 
+            additional_urls: selectedAdditionalUrls 
+          }),
+        },
+        "scrape-additional"
+      );
 
-      const data = await response.json();
-
-      if (!response.ok) {
-        throw new Error(data.error || "Failed to scrape additional pages");
-      }
-
-      setScrapedData(data.all_data);
-      setPrompt(data.prompt);
-      setMessage(data.message);
+      setScrapedData(data.all_data || []);
+      setPrompt(data.prompt || "");
+      setMessage(data.message || "Additional pages scraped successfully");
       if (data.warnings) {
         setWarnings(data.warnings);
       }
       setShowAddMorePages(false);
       setAdditionalUrls([]);
     } catch (error: any) {
-      setErrorMessage(error.message);
+      logError("handleScrapeAdditionalPages", error, { url, selectedUrls: selectedAdditionalUrls });
+      setErrorMessage(error.message || "Failed to scrape additional pages");
     } finally {
       setRetryLoading(null);
     }
   };
 
   const handleStartScraping = async () => {
+    const selectedUrls = sitemapUrls.filter(item => item.selected).map(item => item.url);
+
+    if (selectedUrls.length === 0) {
+      setErrorMessage("Please select at least one URL to scrape.");
+      return;
+    }
+
     setLoading(true);
     clearMessages();
     setScrapedData([]);
@@ -208,29 +298,19 @@ export default function Home() {
     setSheetId(null);
     setStep("results");
 
-    const selectedUrls = sitemapUrls.filter(item => item.selected).map(item => item.url);
-
-    if (selectedUrls.length === 0) {
-      setErrorMessage("Please select at least one URL to scrape.");
-      setLoading(false);
-      setStep("selection");
-      return;
-    }
-
     try {
-      const response = await fetch(`${config.serverUrl}/api/scrape/`, {
-        method: "POST",
-        headers: getAuthHeaders(),
-        body: JSON.stringify({ url, urls_to_scrape: selectedUrls }),
-      });
+      console.log("[handleStartScraping] Starting scraping process for", selectedUrls.length, "URLs");
+      const data = await makeApiCall(
+        `${config.serverUrl}/api/scrape/`,
+        {
+          method: "POST",
+          headers: getAuthHeaders(),
+          body: JSON.stringify({ url, urls_to_scrape: selectedUrls }),
+        },
+        "start-scraping"
+      );
 
-      const data = await response.json();
-
-      if (!response.ok) {
-        throw new Error(data.error || "Something went wrong");
-      }
-
-      setMessage(data.message);
+      setMessage(data.message || "Scraping completed successfully");
       if (data.warnings) {
         setWarnings(data.warnings);
       }
@@ -244,7 +324,8 @@ export default function Home() {
         setSheetId(data.sheet_id);
       }
     } catch (error: any) {
-      setErrorMessage(error.message);
+      logError("handleStartScraping", error, { url, selectedUrls });
+      setErrorMessage(error.message || "Failed to scrape the selected pages");
     } finally {
       setLoading(false);
     }
@@ -255,26 +336,31 @@ export default function Home() {
     clearMessages();
 
     try {
-      const response = await fetch(`${config.serverUrl}/api/scrape/get-urls/`, {
-        method: "POST",
-        headers: getAuthHeaders(),
-        body: JSON.stringify({ url }),
-      });
-
-      const data = await response.json();
-
-      if (!response.ok) {
-        throw new Error(data.error || "Something went wrong");
-      }
+      console.log("[handleShowAddMorePages] Fetching additional URLs");
+      const data = await makeApiCall(
+        `${config.serverUrl}/api/scrape/get-urls/`,
+        {
+          method: "POST",
+          headers: getAuthHeaders(),
+          body: JSON.stringify({ url }),
+        },
+        "show-add-more-pages"
+      );
 
       // Filter out URLs that are already scraped
       const existingUrls = new Set(scrapedData.map(item => item.url));
-      const newUrls = data.urls.filter((u: string) => !existingUrls.has(u));
+      const newUrls = (data.urls || []).filter((u: string) => !existingUrls.has(u));
+      
+      if (newUrls.length === 0) {
+        setMessage("No additional pages found that haven't been scraped yet.");
+        return;
+      }
       
       setAdditionalUrls(newUrls.map((u: string) => ({ url: u, selected: false })));
       setShowAddMorePages(true);
     } catch (error: any) {
-      setErrorMessage(error.message);
+      logError("handleShowAddMorePages", error, { url });
+      setErrorMessage(error.message || "Failed to fetch additional pages");
     } finally {
       setLoading(false);
     }
@@ -285,19 +371,18 @@ export default function Home() {
     clearMessages();
 
     try {
-      const response = await fetch(`${config.serverUrl}/api/scrape/retry/`, {
-        method: "POST",
-        headers: getAuthHeaders(),
-        body: JSON.stringify({ url, force_rescrape: forceRescrape }),
-      });
+      console.log("[handleRetryScraping] Retrying scraping, force:", forceRescrape);
+      const data = await makeApiCall(
+        `${config.serverUrl}/api/scrape/retry/`,
+        {
+          method: "POST",
+          headers: getAuthHeaders(),
+          body: JSON.stringify({ url, force_rescrape: forceRescrape }),
+        },
+        "retry-scraping"
+      );
 
-      const data = await response.json();
-
-      if (!response.ok) {
-        throw new Error(data.error || "Failed to retry scraping");
-      }
-
-      setMessage(data.message);
+      setMessage(data.message || "Scraping retry completed");
       if (data.warnings) {
         setWarnings(data.warnings);
       }
@@ -311,7 +396,8 @@ export default function Home() {
         setSheetId(data.sheet_id);
       }
     } catch (error: any) {
-      setErrorMessage(error.message);
+      logError("handleRetryScraping", error, { url, forceRescrape });
+      setErrorMessage(error.message || "Failed to retry scraping");
     } finally {
       setRetryLoading(null);
     }
@@ -320,89 +406,138 @@ export default function Home() {
   const handleRegeneratePrompt = async () => {
     setRetryLoading('prompt');
     clearMessages();
+    
     try {
       const domain = new URL(url).hostname;
-      const response = await fetch(`${config.serverUrl}/api/scrape/regenerate/`, {
-        method: "POST",
-        headers: getAuthHeaders(),
-        body: JSON.stringify({ domain }),
-      });
+      console.log("[handleRegeneratePrompt] Regenerating prompt for domain:", domain);
+      
+      const data = await makeApiCall(
+        `${config.serverUrl}/api/scrape/regenerate/`,
+        {
+          method: "POST",
+          headers: getAuthHeaders(),
+          body: JSON.stringify({ domain }),
+        },
+        "regenerate-prompt"
+      );
 
-      const data = await response.json();
-
-      if (!response.ok) {
-        throw new Error(data.error || "Failed to regenerate prompt");
-      }
-
-      setPrompt(data.prompt);
-      setMessage(data.message);
+      setPrompt(data.prompt || "");
+      setMessage(data.message || "Prompt regenerated successfully");
     } catch (error: any) {
-      setErrorMessage(error.message);
+      logError("handleRegeneratePrompt", error, { url });
+      setErrorMessage(error.message || "Failed to regenerate prompt");
     } finally {
       setRetryLoading(null);
     }
   };
 
   const handleCreateWorkflow = async () => {
+    if (!prompt.trim()) {
+      setErrorMessage("Please generate a prompt first before creating a workflow");
+      return;
+    }
+
     setRetryLoading('workflow');
     clearMessages();
+    
     try {
       const domain = new URL(url).hostname;
-      const response = await fetch(`${config.serverUrl}/api/workflow/create/`, {
-        method: "POST",
-        headers: getAuthHeaders(),
-        body: JSON.stringify({ domain, prompt }),
-      });
-
-      const data = await response.json();
-
-      if (!response.ok) {
-        throw new Error(data.error || "Failed to create workflow");
-      }
+      console.log("[handleCreateWorkflow] Creating workflow for domain:", domain);
+      
+      const data = await makeApiCall(
+        `${config.serverUrl}/api/workflow/create/`,
+        {
+          method: "POST",
+          headers: getAuthHeaders(),
+          body: JSON.stringify({ domain, prompt }),
+        },
+        "create-workflow"
+      );
 
       setWorkflowResult({
         workflow_id: data.workflow_id,
         workflow_url: data.workflow_url,
-        sheet_id: data.sheet_id
+        webhook_url: data.webhook_url
       });
-      setMessage(data.message);
+      setMessage(data.message || "Workflow created successfully");
     } catch (error: any) {
-      setErrorMessage(error.message);
+      logError("handleCreateWorkflow", error, { url, promptLength: prompt.length });
+      setErrorMessage(error.message || "Failed to create workflow");
     } finally {
       setRetryLoading(null);
     }
   };
 
   const handleDeleteItem = async (urlToDelete: string, domain: string) => {
-    setScrapedData(prevData => prevData.filter(item => item.url !== urlToDelete));
     try {
-      await fetch(`${config.serverUrl}/api/scrape/item/delete/`, {
-        method: "DELETE",
-        headers: getAuthHeaders(),
-        body: JSON.stringify({ url: urlToDelete, domain }),
-      });
+      console.log("[handleDeleteItem] Deleting item:", urlToDelete);
+      
+      // Optimistically remove from UI first
+      setScrapedData(prevData => prevData.filter(item => item.url !== urlToDelete));
+      
+      await makeApiCall(
+        `${config.serverUrl}/api/scrape/item/delete/`,
+        {
+          method: "DELETE",
+          headers: getAuthHeaders(),
+          body: JSON.stringify({ url: urlToDelete, domain }),
+        },
+        "delete-item"
+      );
+      
+      setMessage("Item deleted successfully");
     } catch (error: any) {
-      setErrorMessage("Failed to delete item on the server. It has been removed from the view.");
+      logError("handleDeleteItem", error, { urlToDelete, domain });
+      setErrorMessage("Failed to delete item from server, but it has been removed from the view");
     }
   };
 
   const handleToggleUrlSelection = (urlToToggle: string) => {
-    setSitemapUrls(prev =>
-      prev.map(item =>
-        item.url === urlToToggle ? { ...item, selected: !item.selected } : item
-      )
-    );
+    try {
+      setSitemapUrls(prev =>
+        prev.map(item =>
+          item.url === urlToToggle ? { ...item, selected: !item.selected } : item
+        )
+      );
+    } catch (error: any) {
+      logError("handleToggleUrlSelection", error, { urlToToggle });
+    }
   };
 
   const handleAddUrl = () => {
-    if (newUrl && !sitemapUrls.some(item => item.url === newUrl)) {
+    try {
+      if (!newUrl.trim()) {
+        return;
+      }
+
+      // Validate URL format
+      try {
+        new URL(newUrl);
+      } catch {
+        setErrorMessage("Please enter a valid URL (including http:// or https://)");
+        return;
+      }
+
+      // Check for duplicates
+      if (sitemapUrls.some(item => item.url === newUrl)) {
+        setErrorMessage("This URL is already in the list");
+        return;
+      }
+
       setSitemapUrls(prev => [...prev, { url: newUrl, selected: true }]);
       setNewUrl("");
+    } catch (error: any) {
+      logError("handleAddUrl", error, { newUrl });
+      setErrorMessage("Failed to add URL");
     }
   };
 
   const handleSelectAll = (select: boolean) => {
-    setSitemapUrls(prev => prev.map(item => ({ ...item, selected: select })));
+    try {
+      setSitemapUrls(prev => prev.map(item => ({ ...item, selected: select })));
+    } catch (error: any) {
+      logError("handleSelectAll", error, { select });
+    }
   };
 
   const handleProjectSelect = async (selectedUrl: string) => {
@@ -420,23 +555,26 @@ export default function Home() {
     setShowAddMorePages(false);
 
     try {
-      const checkResponse = await fetch(`${config.serverUrl}/api/scrape/check-existing/`, {
-        method: "POST",
-        headers: getAuthHeaders(),
-        body: JSON.stringify({ url: selectedUrl }),
-      });
-
-      const checkData = await checkResponse.json();
-
-      if (!checkResponse.ok) {
-        throw new Error(checkData.error || "Something went wrong");
-      }
+      console.log("[handleProjectSelect] Loading project data for:", selectedUrl);
+      
+      const checkData = await makeApiCall(
+        `${config.serverUrl}/api/scrape/check-existing/`,
+        {
+          method: "POST",
+          headers: getAuthHeaders(),
+          body: JSON.stringify({ url: selectedUrl }),
+        },
+        "project-select"
+      );
 
       if (checkData.has_existing_data) {
         // Directly load the data instead of showing the existing data card
-        setScrapedData(checkData.existing_data);
+        setScrapedData(checkData.existing_data || []);
         if (checkData.existing_prompt) {
           setPrompt(checkData.existing_prompt);
+        }
+        if (checkData.existing_workflow) {
+          setWorkflowResult(checkData.existing_workflow);
         }
         setMessage(`Loaded ${checkData.count} existing pages for ${new URL(selectedUrl).hostname}.`);
         setStep("results");
@@ -445,7 +583,8 @@ export default function Home() {
         setStep("form");
       }
     } catch (error: any) {
-      setErrorMessage(error.message);
+      logError("handleProjectSelect", error, { selectedUrl });
+      setErrorMessage(error.message || "Failed to load project data");
       setStep("form");
     } finally {
       setLoading(false);
@@ -536,14 +675,14 @@ export default function Home() {
               <Button size="sm" onClick={() => handleSelectAll(false)}>Deselect All</Button>
             </div>
             <div className="max-h-64 overflow-y-auto border rounded-md p-2 flex flex-col gap-2">
-              {sitemapUrls.map(item => (
+              {sitemapUrls.map((item, index) => (
                 <Checkbox
-                  key={item.url}
+                  key={`${item.url}-${index}`} // Use index as fallback for unique keys
                   isSelected={item.selected}
                   onValueChange={() => handleToggleUrlSelection(item.url)}
                   size="sm"
                 >
-                  <span className="text-sm truncate">{item.url}</span>
+                  <span className="text-sm truncate" title={item.url}>{item.url}</span>
                 </Checkbox>
               ))}
             </div>
@@ -551,10 +690,41 @@ export default function Home() {
               <Input
                 value={newUrl}
                 onChange={(e) => setNewUrl(e.target.value)}
-                placeholder="Add another URL"
+                placeholder="Add another URL (include http:// or https://)"
                 onKeyDown={(e) => e.key === 'Enter' && handleAddUrl()}
+                isInvalid={newUrl.trim() !== "" && (() => {
+                  try {
+                    new URL(newUrl);
+                    return false;
+                  } catch {
+                    return true;
+                  }
+                })()}
+                errorMessage={newUrl.trim() !== "" && (() => {
+                  try {
+                    new URL(newUrl);
+                    if (sitemapUrls.some(item => item.url === newUrl)) {
+                      return "This URL is already in the list";
+                    }
+                    return "";
+                  } catch {
+                    return "Please enter a valid URL";
+                  }
+                })()}
               />
-              <Button onClick={handleAddUrl}>Add</Button>
+              <Button 
+                onClick={handleAddUrl}
+                disabled={newUrl.trim() === "" || (() => {
+                  try {
+                    new URL(newUrl);
+                    return sitemapUrls.some(item => item.url === newUrl);
+                  } catch {
+                    return true;
+                  }
+                })()}
+              >
+                Add
+              </Button>
             </div>
             <Button
               color="primary"

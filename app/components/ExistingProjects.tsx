@@ -1,23 +1,22 @@
 "use client";
 
 import React, { useEffect, useState } from "react";
-import ProjectCard from "./ProjectCard";
 import { Spinner } from "@heroui/spinner";
+import { Card, CardBody, CardHeader } from "@heroui/card";
+import { Button } from "@heroui/button";
 import { config } from "@/lib/config";
+import Link from "next/link";
 
 interface Project {
   domain: string;
-  table_name: string;
   page_count: number;
-  last_updated?: string;
 }
 
 interface ExistingProjectsProps {
-  authKey: string;
-  onProjectSelect: (url: string) => void;
+  authKey: string | null;
 }
 
-export default function ExistingProjects({ authKey, onProjectSelect }: ExistingProjectsProps) {
+const ExistingProjects: React.FC<ExistingProjectsProps> = ({ authKey }) => {
   const [projects, setProjects] = useState<Project[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string>("");
@@ -32,7 +31,7 @@ export default function ExistingProjects({ authKey, onProjectSelect }: ExistingP
         method: "GET",
         headers: {
           "Content-Type": "application/json",
-          "X-Auth-Key": authKey,
+          "X-Auth-Key": authKey!,
         },
       });
 
@@ -82,15 +81,31 @@ export default function ExistingProjects({ authKey, onProjectSelect }: ExistingP
   return (
     <div className="w-full max-w-4xl">
       <h3 className="text-lg font-semibold mb-4">Existing Projects ({projects.length})</h3>
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-        {projects.map((project) => (
-          <ProjectCard
-            key={project.table_name}
-            project={project}
-            onSelect={onProjectSelect}
-          />
-        ))}
-      </div>
+      {projects.length > 0 && (
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+          {projects.map((project) => (
+            <Card key={project.domain}>
+              <CardHeader>
+                <h4 className="font-bold text-lg">{project.domain}</h4>
+              </CardHeader>
+              <CardBody>
+                <p className="text-sm text-muted-foreground">
+                  {project.page_count} pages scraped
+                </p>
+                <div className="mt-4">
+                  <Link href={`/project/${project.domain}`}>
+                    <Button color="primary" size="sm">
+                      View Project
+                    </Button>
+                  </Link>
+                </div>
+              </CardBody>
+            </Card>
+          ))}
+        </div>
+      )}
     </div>
   );
-}
+};
+
+export default ExistingProjects;

@@ -24,6 +24,7 @@ interface ScrapedDataItem {
   title: string;
   content: string;
   textLength: number;
+  selected: boolean;
 }
 
 interface WorkflowResult {
@@ -43,6 +44,7 @@ interface ResultsDisplayProps {
   handleRegeneratePrompt: () => void;
   handleCreateWorkflow: () => void;
   handleDeleteItem: (url: string, domain: string) => void;
+  handleToggleSelect: (url: string) => void;
   setPrompt: (prompt: string) => void;
   showAddMorePages: boolean;
   onShowAddMorePages: () => void;
@@ -51,9 +53,12 @@ interface ResultsDisplayProps {
   onAddAdditionalUrl: (url: string) => void;
   onScrapeAdditionalPages: () => void;
   onCancelAddMorePages: () => void;
+  handleDeleteSelected: () => void;
+  numSelected: number;
 }
 
 const columns = [
+  { key: "select", label: "Select" },
   { key: "url", label: "URL" },
   { key: "title", label: "Title" },
   { key: "textLength", label: "Text Length" },
@@ -87,6 +92,9 @@ export default function ResultsDisplay({
   onAddAdditionalUrl,
   onScrapeAdditionalPages,
   onCancelAddMorePages,
+  handleToggleSelect,
+  handleDeleteSelected,
+  numSelected,
 }: ResultsDisplayProps) {
   const [sortDescriptor, setSortDescriptor] = React.useState<SortDescriptor>({
     column: "url",
@@ -106,8 +114,9 @@ export default function ResultsDisplay({
       }, [] as ScrapedDataItem[]);
 
       return [...uniqueData].sort((a, b) => {
-        const first = a[sortDescriptor.column as keyof ScrapedDataItem];
-        const second = b[sortDescriptor.column as keyof ScrapedDataItem];
+        if (sortDescriptor.column === 'select') return 0; // Don't sort by select column
+        const first = a[sortDescriptor.column as keyof Omit<ScrapedDataItem, 'selected'>];
+        const second = b[sortDescriptor.column as keyof Omit<ScrapedDataItem, 'selected'>];
         let cmp =
           (parseInt(first as string) || first) <
           (parseInt(second as string) || second)
@@ -132,6 +141,14 @@ export default function ResultsDisplay({
         const cellValue = getKeyValue(item, columnKey as keyof ScrapedDataItem);
 
         switch (columnKey) {
+          case "select":
+            return (
+              <Checkbox
+                isSelected={item.selected}
+                onValueChange={() => handleToggleSelect(item.url)}
+                aria-label={`Select row ${item.url}`}
+              />
+            );
           case "url":
             return (
               <a
@@ -182,7 +199,7 @@ export default function ResultsDisplay({
         return <span className="text-red-500">Error rendering cell</span>;
       }
     },
-    [handleDeleteItem, url]
+    [handleDeleteItem, url, handleToggleSelect]
   );
 
   const handleAddAdditionalUrl = () => {
@@ -267,15 +284,28 @@ export default function ResultsDisplay({
             <h3 className="text-xl font-bold">
               Scraped Pages ({scrapedData.length})
             </h3>
-            <Button
-              size="sm"
-              variant="bordered"
-              onClick={onShowAddMorePages}
-              isLoading={retryLoading === "additional"}
-              disabled={!!retryLoading || showAddMorePages}
-            >
-              Add More Pages
-            </Button>
+            <div className="flex gap-2">
+              {numSelected > 0 && (
+                <Button
+                  size="sm"
+                  color="danger"
+                  variant="solid"
+                  onPress={handleDeleteSelected}
+                  disabled={retryLoading !== null}
+                >
+                  {`Delete Selected (${numSelected})`}
+                </Button>
+              )}
+              <Button
+                size="sm"
+                variant="bordered"
+                onClick={onShowAddMorePages}
+                isLoading={retryLoading === "additional"}
+                disabled={!!retryLoading || showAddMorePages}
+              >
+                Add More Pages
+              </Button>
+            </div>
           </div>
 
           {showAddMorePages && (
@@ -403,14 +433,41 @@ export default function ResultsDisplay({
             onSortChange={setSortDescriptor}
           >
             <TableHeader columns={columns}>
-              {(column) => (
-                <TableColumn
-                  key={column.key}
-                  allowsSorting={column.key !== "actions"}
-                >
-                  {column.label}
-                </TableColumn>
-              )}
+              {(column) => {
+                if (column.key === "select") {
+                  return (
+                    <TableColumn key={column.key} allowsSorting={false}>
+                      <Checkbox
+                        isSelected={
+                          scrapedData.length > 0 &&
+                          scrapedData.every((item) => item.selected)
+                        }
+                        isIndeterminate={
+                          scrapedData.length > 0 &&
+                          !scrapedData.every((item) => item.selected) &&
+                          scrapedData.some((item) => item.selected)
+                        }
+                        onValueChange={(isSelected) => {
+                          scrapedData.forEach((item) => {
+                            if (item.selected !== isSelected) {
+                              handleToggleSelect(item.url);
+                            }
+                          });
+                        }}
+                        aria-label="Select all rows"
+                      />
+                    </TableColumn>
+                  );
+                }
+                return (
+                  <TableColumn
+                    key={column.key}
+                    allowsSorting={column.key !== "actions"}
+                  >
+                    {column.label}
+                  </TableColumn>
+                );
+              }}
             </TableHeader>
             <TableBody
               items={sortedItems}
@@ -516,7 +573,19 @@ export default function ResultsDisplay({
 
                 {workflowResult.webhook_url && (
                   <div>
-                    <h4 className="text-lg font-semibold mb-2">💬 Embed Chat Widget</h4>
+                    <h4 className="text-lg font-semibold mb-2">💬 Live Chat Widget</h4>
+                    <div className="bg-green-800 rounded-lg p-4 mb-4">
+                      <div className="flex items-center gap-2 mb-2">
+                        <div className="w-3 h-3 bg-green-500 rounded-full animate-pulse"></div>
+                        <span className="text-green-400 font-medium">Chat widget is now live on this page!</span>
+                      </div>
+                      <p className="text-sm text-green-400">
+                        Look for the chat icon in the bottom-right corner to test your AI assistant. 
+                        This is exactly how it will appear on your website.
+                      </p>
+                    </div>
+
+                    <h4 className="text-lg font-semibold mb-2">📋 Embed Code</h4>
                     <p className="text-sm text-gray-600 mb-2">
                       Copy and paste this code into your website to add the AI chat interface:
                     </p>
@@ -551,7 +620,7 @@ export default function ResultsDisplay({
                         onClick={handleTestChat}
                         disabled={!workflowResult.webhook_url}
                       >
-                        🚀 Test Chat
+                        🚀 Open in New Tab
                       </Button>
                       {copyFeedback && (
                         <Chip 

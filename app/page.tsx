@@ -162,6 +162,11 @@ export default function Home() {
     existing_prompt?: string;
     existing_workflow?: WorkflowResult;
   } | null>(null);
+  const [pageInfo, setPageInfo] = useState<{
+    totalFound: number;
+    limitedTo: number;
+    methodUsed: string;
+  } | null>(null);
 
   const clearMessages = () => {
     setErrorMessage("");
@@ -193,6 +198,7 @@ export default function Home() {
     clearMessages();
     setSitemapUrls([]);
     setExistingDataInfo(null);
+    setPageInfo(null);
 
     try {
       console.log("[handleSubmit] Starting submission process for URL:", url);
@@ -235,6 +241,17 @@ export default function Home() {
         }
 
         setSitemapUrls(data.urls.map((u: string) => ({ url: u, selected: true })));
+        setPageInfo({
+          totalFound: data.total_found || data.urls.length,
+          limitedTo: data.limited_to || data.urls.length,
+          methodUsed: data.method_used || 'sitemap'
+        });
+        
+        // Set warning if pages were limited
+        if (data.page_limit_warning) {
+          setWarnings(data.page_limit_warning);
+        }
+        
         setStep("selection");
       }
     } catch (error: any) {
@@ -262,6 +279,7 @@ export default function Home() {
     setLoading(true);
     clearMessages();
     setExistingDataInfo(null);
+    setPageInfo(null);
 
     try {
       console.log("[handleRescanWebsite] Rescanning website");
@@ -280,6 +298,17 @@ export default function Home() {
       }
 
       setSitemapUrls(data.urls.map((u: string) => ({ url: u, selected: true })));
+      setPageInfo({
+        totalFound: data.total_found || data.urls.length,
+        limitedTo: data.limited_to || data.urls.length,
+        methodUsed: data.method_used || 'sitemap'
+      });
+      
+      // Set warning if pages were limited
+      if (data.page_limit_warning) {
+        setWarnings(data.page_limit_warning);
+      }
+      
       setStep("selection");
     } catch (error: any) {
       logError("handleRescanWebsite", error, { url });
@@ -489,10 +518,70 @@ export default function Home() {
 
         {step === 'selection' && (
           <div className="w-full flex flex-col gap-4">
-            <h3 className="text-xl font-bold">Select pages to scrape</h3>
+            <div className="flex flex-col gap-2">
+              <h3 className="text-xl font-bold">Select pages to scrape</h3>
+              {pageInfo && (
+                <div className="text-sm text-muted-foreground">
+                  Found {pageInfo.totalFound} pages using {pageInfo.methodUsed === 'fallback_crawling' ? 'fallback crawling' : 'sitemap'}
+                  {pageInfo.totalFound !== pageInfo.limitedTo && (
+                    <span>, limited to {pageInfo.limitedTo} pages</span>
+                  )}
+                </div>
+              )}
+              <Card className="border-blue-200 dark:border-blue-800 bg-blue-50 dark:bg-blue-950/30">
+                <CardBody className="py-3">
+                  <div className="flex items-start gap-2">
+                    <div className="text-blue-600 dark:text-blue-400 mt-0.5">
+                      <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
+                        <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clipRule="evenodd" />
+                      </svg>
+                    </div>
+                    <div className="text-sm">
+                      <p className="font-medium text-blue-800 dark:text-blue-200 mb-1">💡 Page Selection Tips</p>
+                      <ul className="text-blue-700 dark:text-blue-300 space-y-1 list-disc list-inside">
+                        <li><strong>Select main pages</strong>: Home, About, Services, Contact, FAQ</li>
+                        <li><strong>Skip individual posts/products</strong>: The AI can access these via your website's API or search</li>
+                        <li><strong>Focus on static content</strong>: Policy pages, company info, service descriptions</li>
+                        <li><strong>Limit: 200 pages maximum</strong> for optimal performance</li>
+                      </ul>
+                    </div>
+                  </div>
+                </CardBody>
+              </Card>
+            </div>
             <div className="flex gap-2">
               <Button size="sm" onClick={() => handleSelectAll(true)}>Select All</Button>
               <Button size="sm" onClick={() => handleSelectAll(false)}>Deselect All</Button>
+              <Button 
+                size="sm" 
+                variant="bordered"
+                onClick={() => {
+                  // Smart selection: try to select main pages and deselect blog/product pages
+                  setSitemapUrls(prev => prev.map(item => {
+                    const url = item.url.toLowerCase();
+                    const isMainPage = url.includes('/about') || 
+                                     url.includes('/contact') || 
+                                     url.includes('/service') || 
+                                     url.includes('/home') || 
+                                     url.includes('/faq') || 
+                                     url.includes('/privacy') || 
+                                     url.includes('/terms') ||
+                                     url.includes('/policy') ||
+                                     url === new URL(url).origin + '/' ||
+                                     (!url.includes('/blog/') && 
+                                      !url.includes('/product/') && 
+                                      !url.includes('/post/') && 
+                                      !url.includes('/item/') &&
+                                      !url.includes('/category/') &&
+                                      !url.includes('/tag/') &&
+                                      !url.match(/\/\d{4}\//) && // year in URL
+                                      !url.match(/\/page\/\d+/)); // pagination
+                    return { ...item, selected: isMainPage };
+                  }));
+                }}
+              >
+                Smart Select
+              </Button>
             </div>
             <div className="max-h-64 overflow-y-auto border rounded-md">
               <table className="w-full">
@@ -578,10 +667,28 @@ export default function Home() {
                   </h4>
                   <div className="text-sm space-y-2">
                     <p>• Some websites block automated scraping to protect their content</p>
-                    <p>• Try selecting fewer pages (5-10 pages) instead of all pages</p>
+                    <p>• Try selecting fewer pages (5-10 main pages) instead of all pages</p>
+                    <p>• Focus on static pages like About, Services, Contact rather than blog posts</p>
                     <p>• Government and news websites often have stronger protection</p>
                     <p>• Consider trying a different website that's more scraping-friendly</p>
                     <p>• Blogs, documentation sites, and business websites typically work better</p>
+                  </div>
+                </CardBody>
+              </Card>
+            )}
+            
+            {/* Show page limit guidance */}
+            {warnings && warnings.includes('limited to') && (
+              <Card className="mt-4">
+                <CardBody className="flex flex-col gap-3">
+                  <h4 className="text-lg font-semibold text-blue-600 dark:text-blue-400">
+                    📄 Page Limit Reached
+                  </h4>
+                  <div className="text-sm space-y-2">
+                    <p>• <strong>200 page limit</strong> helps ensure fast performance and quality results</p>
+                    <p>• <strong>Use "Smart Select"</strong> to automatically choose main pages</p>
+                    <p>• <strong>Deselect blog posts/products</strong> - the AI can access these dynamically via your API</p>
+                    <p>• <strong>Focus on core content</strong> that defines your business and services</p>
                   </div>
                 </CardBody>
               </Card>

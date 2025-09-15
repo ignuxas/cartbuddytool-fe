@@ -43,6 +43,7 @@ interface ResultsDisplayProps {
   retryLoading: string | null;
   handleRegeneratePrompt: () => void;
   handleCreateWorkflow: () => void;
+  handleForceRegenerateWorkflow?: () => void;
   handleDeleteItem: (url: string, domain: string) => void;
   handleToggleSelect: (url: string) => void;
   setPrompt: (prompt: string) => void;
@@ -81,6 +82,7 @@ export default function ResultsDisplay({
   workflowResult,
   handleRegeneratePrompt,
   handleCreateWorkflow,
+  handleForceRegenerateWorkflow,
   handleDeleteItem,
   retryLoading,
   setPrompt,
@@ -550,12 +552,12 @@ export default function ResultsDisplay({
                 <div>
                   <h4 className="text-lg font-semibold mb-2">Workflow Details</h4>
                     <div className="flex gap-2">
-                      <p className="text-sm text-gray-600 mb-2">Workflow ID:</p>
+                      <p className="text-lg text-gray-600 mb-2">Workflow ID:</p>
                       <Chip 
                         color="primary" 
                         variant="flat" 
                         className="font-mono"
-                        size="sm"
+                        size="lg"
                       >
                         {workflowResult.workflow_id}
                       </Chip>
@@ -568,7 +570,26 @@ export default function ResultsDisplay({
                     >
                       View & Manage Workflow →
                     </Button>
+                    {handleForceRegenerateWorkflow && (
+                      <Button
+                        size="sm"
+                        color="warning"
+                        variant="bordered"
+                        onClick={() => {
+                          try {
+                            handleForceRegenerateWorkflow();
+                          } catch (error: any) {
+                            logComponentError("forceRegenerateWorkflow", error);
+                          }
+                        }}
+                        isLoading={retryLoading === "workflow"}
+                        disabled={!!retryLoading}
+                      >
+                        🔄 Force Regenerate Workflow
+                      </Button>
+                    )}
                   </div>
+
                 </div>
 
                 {workflowResult.webhook_url && (
@@ -614,14 +635,6 @@ export default function ResultsDisplay({
                       >
                         📋 Copy Embed Code
                       </Button>
-                      <Button
-                        size="sm"
-                        color="primary"
-                        onClick={handleTestChat}
-                        disabled={!workflowResult.webhook_url}
-                      >
-                        🚀 Open in New Tab
-                      </Button>
                       {copyFeedback && (
                         <Chip 
                           color={copyFeedback.includes("Failed") ? "danger" : "success"} 
@@ -633,16 +646,6 @@ export default function ResultsDisplay({
                     </div>
                   </div>
                 )}
-
-                <div className="bg-gray-900 p-4 rounded-lg">
-                  <h4 className="text-md font-semibold mb-2 text-blue-400">💡 Next Steps</h4>
-                  <ul className="text-sm text-blue-300 space-y-1">
-                    <li>• Test your AI assistant using the "Test Chat" button above</li>
-                    <li>• Customize the chat widget appearance in the n8n workflow</li>
-                    <li>• Add the embed code to your website</li>
-                    <li>• Monitor conversations and improve responses</li>
-                  </ul>
-                </div>
               </div>
             </CardBody>
           </Card>

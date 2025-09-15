@@ -329,6 +329,42 @@ export default function ProjectPage() {
     }
   };
 
+  const handleForceRegenerateWorkflow = async () => {
+    if (!prompt.trim()) {
+      setErrorMessage("Please generate a prompt first before creating a workflow");
+      return;
+    }
+
+    setRetryLoading('workflow');
+    clearMessages();
+    
+    try {
+      console.log("[handleForceRegenerateWorkflow] Force regenerating workflow for domain:", domain);
+      
+      const data = await makeApiCall(
+        `${config.serverUrl}/api/workflow/create/`,
+        {
+          method: "POST",
+          headers: getAuthHeaders(),
+          body: JSON.stringify({ domain, prompt, force_regenerate: true }),
+        },
+        "force-regenerate-workflow"
+      );
+
+      setWorkflowResult({
+        workflow_id: data.workflow_id,
+        workflow_url: data.workflow_url,
+        webhook_url: data.webhook_url
+      });
+      setMessage(data.message || "Workflow regenerated successfully");
+    } catch (error: any) {
+      logError("handleForceRegenerateWorkflow", error, { url, promptLength: prompt.length });
+      setErrorMessage(error.message || "Failed to regenerate workflow");
+    } finally {
+      setRetryLoading(null);
+    }
+  };
+
   const handleDeleteSelected = async () => {
     const urlsToDelete = scrapedData.filter(item => item.selected).map(item => item.url);
     if (urlsToDelete.length === 0) {
@@ -450,6 +486,7 @@ export default function ProjectPage() {
               retryLoading={retryLoading}
               handleRegeneratePrompt={handleRegeneratePrompt}
               handleCreateWorkflow={handleCreateWorkflow}
+              handleForceRegenerateWorkflow={handleForceRegenerateWorkflow}
               handleDeleteItem={handleDeleteItem}
               handleToggleSelect={handleToggleSelect}
               setPrompt={setPrompt}

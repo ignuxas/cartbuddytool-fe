@@ -10,6 +10,7 @@ import {
 } from "@heroui/modal";
 import { Button } from "@heroui/button";
 import { Input } from "@heroui/input";
+import { addToast } from '@heroui/toast';
 
 interface AuthModalProps {
   isOpen: boolean;
@@ -18,15 +19,17 @@ interface AuthModalProps {
 
 export default function AuthModal({ isOpen, onAuthenticate }: AuthModalProps) {
   const [authKey, setAuthKey] = useState('');
-  const [error, setError] = useState('');
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (!authKey.trim()) {
-      setError('Please enter an authentication key');
+      addToast({
+        title: 'Authentication Error',
+        description: 'Please enter an authentication key',
+        color: 'danger',
+      });
       return;
     }
-    setError('');
     onAuthenticate(authKey.trim());
   };
 
@@ -57,8 +60,6 @@ export default function AuthModal({ isOpen, onAuthenticate }: AuthModalProps) {
               value={authKey}
               onValueChange={setAuthKey}
               variant="bordered"
-              isInvalid={!!error}
-              errorMessage={error}
             />
           </ModalBody>
           <ModalFooter>

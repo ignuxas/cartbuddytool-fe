@@ -19,6 +19,7 @@ import { Checkbox } from "@heroui/checkbox";
 import { Card, CardBody } from "@heroui/card";
 import { Chip } from "@heroui/chip";
 import { getChatWidgetScript } from "@/app/utils/chatWidgetGenerator";
+import { addToast } from "@heroui/toast";
 
 interface ScrapedDataItem {
   url: string;
@@ -104,7 +105,6 @@ export default function ResultsDisplay({
     direction: "ascending",
   });
   const [newAdditionalUrl, setNewAdditionalUrl] = React.useState("");
-  const [copyFeedback, setCopyFeedback] = React.useState<string>("");
 
   const sortedItems = React.useMemo(() => {
     try {
@@ -134,6 +134,11 @@ export default function ResultsDisplay({
       });
     } catch (error: any) {
       logComponentError("sortedItems", error, { sortDescriptor, dataLength: scrapedData.length });
+      addToast({
+        title: "Error",
+        description: "An error occurred while sorting the data.",
+        color: "danger",
+      });
       return scrapedData; // Return unsorted data as fallback
     }
   }, [sortDescriptor, scrapedData]);
@@ -165,7 +170,9 @@ export default function ResultsDisplay({
                     new URL(item.url); // Validate URL before opening
                   } catch {
                     e.preventDefault();
-                    console.error("Invalid URL:", item.url);
+                    const message = `Invalid URL: ${item.url}`;
+                    console.error(message);
+                    addToast({ title: "Error", description: message, color: "danger" });
                   }
                 }}
               >
@@ -185,8 +192,10 @@ export default function ResultsDisplay({
                     const domain = new URL(url).hostname;
                     handleDeleteItem(item.url, domain);
                   } catch (error: any) {
+                    const message = "Failed to delete item.";
                     logComponentError("deleteItem", error, { itemUrl: item.url, url });
-                    console.error("Failed to delete item:", error.message);
+                    console.error(message, error.message);
+                    addToast({ title: "Error", description: message, color: "danger" });
                   }
                 }}
                 aria-label={`Delete item ${item.url}`}
@@ -199,7 +208,12 @@ export default function ResultsDisplay({
         }
       } catch (error: any) {
         logComponentError("renderCell", error, { item, columnKey });
-        return <span className="text-red-500">Error rendering cell</span>;
+        addToast({
+          title: "Error",
+          description: "An error occurred while rendering a cell.",
+          color: "danger",
+        });
+        return <span className="text-red-500">Error</span>;
       }
     },
     [handleDeleteItem, url, handleToggleSelect]
@@ -216,6 +230,11 @@ export default function ResultsDisplay({
         new URL(newAdditionalUrl);
       } catch {
         console.error("Invalid URL format:", newAdditionalUrl);
+        addToast({
+          title: "Error",
+          description: "Invalid URL format.",
+          color: "danger",
+        });
         return;
       }
 
@@ -223,6 +242,11 @@ export default function ResultsDisplay({
       setNewAdditionalUrl("");
     } catch (error: any) {
       logComponentError("handleAddAdditionalUrl", error, { newAdditionalUrl });
+      addToast({
+        title: "Error",
+        description: "Failed to add the URL.",
+        color: "danger",
+      });
     }
   };
 
@@ -247,12 +271,18 @@ export default function ResultsDisplay({
       });
       
       await navigator.clipboard.writeText(embedCode);
-      setCopyFeedback("Copied to clipboard!");
-      setTimeout(() => setCopyFeedback(""), 3000);
+      addToast({
+        title: "Success",
+        description: "Copied to clipboard!",
+        color: "success",
+      });
     } catch (error: any) {
       logComponentError("copyEmbedCode", error, { workflowResult });
-      setCopyFeedback("Failed to copy to clipboard");
-      setTimeout(() => setCopyFeedback(""), 3000);
+      addToast({
+        title: "Error",
+        description: "Failed to copy to clipboard.",
+        color: "danger",
+      });
     }
   };
 
@@ -265,6 +295,11 @@ export default function ResultsDisplay({
     } catch (error: any) {
       logComponentError("testChat", error, { workflowResult });
       console.error("Failed to open chat:", error.message);
+      addToast({
+        title: "Error",
+        description: "Failed to open chat.",
+        color: "danger",
+      });
     }
   };
 
@@ -277,6 +312,11 @@ export default function ResultsDisplay({
     } catch (error: any) {
       logComponentError("viewWorkflow", error, { workflowResult });
       console.error("Failed to open workflow:", error.message);
+      addToast({
+        title: "Error",
+        description: "Failed to open workflow.",
+        color: "danger",
+      });
     }
   };
 
@@ -332,6 +372,7 @@ export default function ResultsDisplay({
                         });
                       } catch (error: any) {
                         logComponentError("selectAll", error);
+                        addToast({ title: "Error", description: "Failed to select all.", color: "danger" });
                       }
                     }}
                   >
@@ -346,6 +387,7 @@ export default function ResultsDisplay({
                         });
                       } catch (error: any) {
                         logComponentError("deselectAll", error);
+                        addToast({ title: "Error", description: "Failed to deselect all.", color: "danger" });
                       }
                     }}
                   >
@@ -363,6 +405,7 @@ export default function ResultsDisplay({
                             onToggleAdditionalUrl(item.url);
                           } catch (error: any) {
                             logComponentError("toggleAdditionalUrl", error, { url: item.url });
+                            addToast({ title: "Error", description: "Failed to toggle selection.", color: "danger" });
                           }
                         }}
                         size="sm"
@@ -517,6 +560,7 @@ export default function ResultsDisplay({
                   handleRegeneratePrompt();
                 } catch (error: any) {
                   logComponentError("regeneratePrompt", error);
+                  addToast({ title: "Error", description: "Failed to regenerate prompt.", color: "danger" });
                 }
               }}
               isLoading={retryLoading === "prompt"}
@@ -530,11 +574,13 @@ export default function ResultsDisplay({
                 try {
                   if (!prompt.trim()) {
                     console.warn("Cannot create workflow with empty prompt");
+                    addToast({ title: "Warning", description: "Cannot create workflow with empty prompt.", color: "warning" });
                     return;
                   }
                   handleCreateWorkflow();
                 } catch (error: any) {
                   logComponentError("createWorkflow", error);
+                  addToast({ title: "Error", description: "Failed to create workflow.", color: "danger" });
                 }
               }}
               isLoading={retryLoading === "workflow"}
@@ -586,6 +632,7 @@ export default function ResultsDisplay({
                             handleForceRegenerateWorkflow();
                           } catch (error: any) {
                             logComponentError("forceRegenerateWorkflow", error);
+                            addToast({ title: "Error", description: "Failed to regenerate workflow.", color: "danger" });
                           }
                         }}
                         isLoading={retryLoading === "workflow"}
@@ -637,14 +684,6 @@ export default function ResultsDisplay({
                       >
                         📋 Copy Full Embed Code
                       </Button>
-                      {copyFeedback && (
-                        <Chip 
-                          color={copyFeedback.includes("Failed") ? "danger" : "success"} 
-                          size="sm"
-                        >
-                          {copyFeedback}
-                        </Chip>
-                      )}
                     </div>
                   </div>
                 )}

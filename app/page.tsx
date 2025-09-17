@@ -3,14 +3,14 @@
 import { useState } from "react";
 import UrlForm from "./components/UrlForm";
 import AuthModal from "./components/AuthModal";
-import { useAuth } from "./hooks/useAuth";
 import { Button } from "@heroui/button";
 import { Input } from "@heroui/input";
 import { Card, CardBody } from "@heroui/card";
 import ExistingProjects from "./components/ExistingProjects";
 import { config } from "@/lib/config";
 import { useRouter } from "next/navigation";
-import StatusDisplays from "./components/StatusDisplays";
+import { addToast } from "@heroui/toast";
+import { useAuthContext } from "./contexts/AuthContext";
 
 interface ScrapedDataItem {
   url: string;
@@ -147,12 +147,11 @@ const makeApiCall = async (url: string, options: RequestInit, context: string) =
 };
 
 export default function Home() {
-  const { isAuthenticated, authKey, isLoading, login, logout } = useAuth();
+  const { isAuthenticated, authKey, isLoading, login, logout } = useAuthContext();
   const router = useRouter();
   const [url, setUrl] = useState("");
   const [loading, setLoading] = useState(false);
   const [errorMessage, setErrorMessage] = useState("");
-  const [warnings, setWarnings] = useState("");
   const [step, setStep] = useState<"form" | "existing" | "selection">("form");
   const [sitemapUrls, setSitemapUrls] = useState<{ url: string; selected: boolean }[]>([]);
   const [newUrl, setNewUrl] = useState("");
@@ -167,22 +166,24 @@ export default function Home() {
     limitedTo: number;
     methodUsed: string;
   } | null>(null);
+  const [showPageLimitTips, setShowPageLimitTips] = useState(false);
 
   const clearMessages = () => {
     setErrorMessage("");
-    setWarnings("");
   };
 
   const getAuthHeaders = () => ({
     "Content-Type": "application/json",
-    "X-Auth-Key": authKey,
+    "X-Auth-Key": authKey!,
   });
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
     if (!url.trim()) {
-      setErrorMessage("Please enter a valid URL");
+      const message = "Please enter a valid URL";
+      addToast({ title: "Error", description: message, color: "danger" });
+      setErrorMessage(message);
       return;
     }
 
@@ -190,7 +191,9 @@ export default function Home() {
     try {
       new URL(url);
     } catch {
-      setErrorMessage("Please enter a valid URL (including http:// or https://)");
+      const message = "Please enter a valid URL (including http:// or https://)";
+      addToast({ title: "Error", description: message, color: "danger" });
+      setErrorMessage(message);
       return;
     }
 
@@ -199,6 +202,7 @@ export default function Home() {
     setSitemapUrls([]);
     setExistingDataInfo(null);
     setPageInfo(null);
+    setShowPageLimitTips(false);
 
     try {
       console.log("[handleSubmit] Starting submission process for URL:", url);
@@ -249,14 +253,17 @@ export default function Home() {
         
         // Set warning if pages were limited
         if (data.page_limit_warning) {
-          setWarnings(data.page_limit_warning);
+          addToast({ title: "Warning", description: data.page_limit_warning, color: "warning" });
+          setShowPageLimitTips(true);
         }
         
         setStep("selection");
       }
     } catch (error: any) {
       logError("handleSubmit", error, { url });
-      setErrorMessage(error.message || "An unexpected error occurred while processing your request");
+      const message = error.message || "An unexpected error occurred while processing your request";
+      addToast({ title: "Error", description: message, color: "danger" });
+      setErrorMessage(message);
     } finally {
       setLoading(false);
     }
@@ -271,7 +278,9 @@ export default function Home() {
       router.push(`/project/${domain}`);
     } catch (error: any) {
       logError("handleUseExistingData", error);
-      setErrorMessage("Failed to load existing data");
+      const message = "Failed to load existing data";
+      addToast({ title: "Error", description: message, color: "danger" });
+      setErrorMessage(message);
     }
   };
 
@@ -280,6 +289,7 @@ export default function Home() {
     clearMessages();
     setExistingDataInfo(null);
     setPageInfo(null);
+    setShowPageLimitTips(false);
 
     try {
       console.log("[handleRescanWebsite] Rescanning website");
@@ -306,13 +316,16 @@ export default function Home() {
       
       // Set warning if pages were limited
       if (data.page_limit_warning) {
-        setWarnings(data.page_limit_warning);
+        addToast({ title: "Warning", description: data.page_limit_warning, color: "warning" });
+        setShowPageLimitTips(true);
       }
       
       setStep("selection");
     } catch (error: any) {
       logError("handleRescanWebsite", error, { url });
-      setErrorMessage(error.message || "Failed to rescan website");
+      const message = error.message || "Failed to rescan website";
+      addToast({ title: "Error", description: message, color: "danger" });
+      setErrorMessage(message);
     } finally {
       setLoading(false);
     }
@@ -322,7 +335,9 @@ export default function Home() {
     const selectedUrls = sitemapUrls.filter(item => item.selected).map(item => item.url);
 
     if (selectedUrls.length === 0) {
-      setErrorMessage("Please select at least one URL to scrape.");
+      const message = "Please select at least one URL to scrape.";
+      addToast({ title: "Error", description: message, color: "danger" });
+      setErrorMessage(message);
       return;
     }
 
@@ -388,6 +403,7 @@ export default function Home() {
         }
       }
       
+      addToast({ title: "Error", description: userMessage, color: "danger" });
       setErrorMessage(userMessage);
       setStep("selection"); // Revert to selection on error
     } finally {
@@ -417,13 +433,17 @@ export default function Home() {
       try {
         new URL(newUrl);
       } catch {
-        setErrorMessage("Please enter a valid URL (including http:// or https://)");
+        const message = "Please enter a valid URL (including http:// or https://)";
+        addToast({ title: "Error", description: message, color: "danger" });
+        setErrorMessage(message);
         return;
       }
 
       // Check for duplicates
       if (sitemapUrls.some(item => item.url === newUrl)) {
-        setErrorMessage("This URL is already in the list");
+        const message = "This URL is already in the list";
+        addToast({ title: "Error", description: message, color: "danger" });
+        setErrorMessage(message);
         return;
       }
 
@@ -431,7 +451,9 @@ export default function Home() {
       setNewUrl("");
     } catch (error: any) {
       logError("handleAddUrl", error, { newUrl });
-      setErrorMessage("Failed to add URL");
+      const message = "Failed to add URL";
+      addToast({ title: "Error", description: message, color: "danger" });
+      setErrorMessage(message);
     }
   };
 
@@ -646,13 +668,8 @@ export default function Home() {
           </div>
         )}
 
-        {(errorMessage || warnings) && (
+        {errorMessage && (
           <div className="w-full max-w-2xl">
-            <StatusDisplays
-              message={""}
-              errorMessage={errorMessage}
-              warnings={warnings}
-            />
             
             {/* Show helpful tips for common scraping issues */}
             {errorMessage && (
@@ -678,7 +695,7 @@ export default function Home() {
             )}
             
             {/* Show page limit guidance */}
-            {warnings && warnings.includes('limited to') && (
+            {showPageLimitTips && (
               <Card className="mt-4">
                 <CardBody className="flex flex-col gap-3">
                   <h4 className="text-lg font-semibold text-blue-600 dark:text-blue-400">

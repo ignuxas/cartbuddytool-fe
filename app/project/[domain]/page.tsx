@@ -1,14 +1,14 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { useAuth } from "@/app/hooks/useAuth";
 import { config } from "@/lib/config";
 import ActionButtons from "@/app/components/ActionButtons";
-import StatusDisplays from "@/app/components/StatusDisplays";
 import ResultsDisplay from "@/app/components/ResultsDisplay";
 import AuthModal from "@/app/components/AuthModal";
 import ChatWidget from "@/app/components/ChatWidget";
 import { useRouter, useParams } from "next/navigation";
+import { addToast } from "@heroui/toast";
+import { useAuthContext } from "@/app/contexts/AuthContext";
 
 interface ScrapedDataItem {
   url: string;
@@ -77,13 +77,11 @@ const makeApiCall = async (url: string, options: RequestInit, context: string) =
 export default function ProjectPage() {
   const params = useParams();
   const domain = params.domain as string;
-  const { isAuthenticated, authKey, isLoading: authIsLoading, login } = useAuth();
+  const { isAuthenticated, authKey, isLoading: authIsLoading, login } = useAuthContext();
   const router = useRouter();
   const [loading, setLoading] = useState(true);
   const [retryLoading, setRetryLoading] = useState<string | null>(null);
-  const [message, setMessage] = useState("");
   const [errorMessage, setErrorMessage] = useState("");
-  const [warnings, setWarnings] = useState("");
   const [scrapedData, setScrapedData] = useState<SelectedScrapedDataItem[]>([]);
   const [prompt, setPrompt] = useState("");
   const [workflowResult, setWorkflowResult] = useState<WorkflowResult | null>(null);
@@ -94,14 +92,12 @@ export default function ProjectPage() {
   const url = `http://${domain}`;
 
   const clearMessages = () => {
-    setMessage("");
     setErrorMessage("");
-    setWarnings("");
   };
 
   const getAuthHeaders = () => ({
     "Content-Type": "application/json",
-    "X-Auth-Key": authKey,
+    "X-Auth-Key": authKey!,
   });
 
   useEffect(() => {
@@ -132,14 +128,22 @@ export default function ProjectPage() {
           if (checkData.existing_workflow) {
             setWorkflowResult(checkData.existing_workflow);
           }
-          setMessage(`Loaded ${checkData.count} existing pages for ${domain}.`);
+          addToast({
+            title: "Success",
+            description: `Loaded ${checkData.count} existing pages for ${domain}.`,
+            color: "success",
+          });
         } else {
-          setErrorMessage("No data found for this project. Redirecting to home page.");
+          const message = "No data found for this project. Redirecting to home page.";
+          addToast({ title: "Error", description: message, color: "danger" });
+          setErrorMessage(message);
           setTimeout(() => router.push('/'), 3000);
         }
       } catch (error: any) {
         logError("loadProjectData", error, { domain });
-        setErrorMessage(error.message || "Failed to load project data");
+        const message = error.message || "Failed to load project data";
+        addToast({ title: "Error", description: message, color: "danger" });
+        setErrorMessage(message);
       } finally {
         setLoading(false);
       }
@@ -154,7 +158,9 @@ export default function ProjectPage() {
     const selectedAdditionalUrls = additionalUrls.filter(item => item.selected).map(item => item.url);
     
     if (selectedAdditionalUrls.length === 0) {
-      setErrorMessage("Please select at least one additional URL to scrape.");
+      const message = "Please select at least one additional URL to scrape.";
+      addToast({ title: "Error", description: message, color: "danger" });
+      setErrorMessage(message);
       return;
     }
 
@@ -178,15 +184,25 @@ export default function ProjectPage() {
 
       setScrapedData((data.all_data || []).map((item: ScrapedDataItem) => ({ ...item, selected: false })));
       setPrompt(data.prompt || "");
-      setMessage(data.message || "Additional pages scraped successfully");
+      addToast({
+        title: "Success",
+        description: data.message || "Additional pages scraped successfully",
+        color: "success",
+      });
       if (data.warnings) {
-        setWarnings(data.warnings);
+        addToast({
+          title: "Warning",
+          description: data.warnings,
+          color: "warning",
+        });
       }
       setShowAddMorePages(false);
       setAdditionalUrls([]);
     } catch (error: any) {
       logError("handleScrapeAdditionalPages", error, { url, selectedUrls: selectedAdditionalUrls });
-      setErrorMessage(error.message || "Failed to scrape additional pages");
+      const message = error.message || "Failed to scrape additional pages";
+      addToast({ title: "Error", description: message, color: "danger" });
+      setErrorMessage(message);
     } finally {
       setRetryLoading(null);
     }
@@ -213,7 +229,11 @@ export default function ProjectPage() {
       const newUrls = (data.urls || []).filter((u: string) => !existingUrls.has(u));
       
       if (newUrls.length === 0) {
-        setMessage("No new pages found in the sitemap that haven't been scraped yet.");
+        addToast({
+          title: "Info",
+          description: "No new pages found in the sitemap that haven't been scraped yet.",
+          color: "primary",
+        });
         setShowAddMorePages(true); // Still show the UI to allow manual entry
         setAdditionalUrls([]);
         return;
@@ -223,7 +243,9 @@ export default function ProjectPage() {
       setShowAddMorePages(true);
     } catch (error: any) {
       logError("handleShowAddMorePages", error, { url });
-      setErrorMessage(error.message || "Failed to fetch additional pages");
+      const message = error.message || "Failed to fetch additional pages";
+      addToast({ title: "Error", description: message, color: "danger" });
+      setErrorMessage(message);
     } finally {
       setLoading(false);
     }
@@ -245,9 +267,17 @@ export default function ProjectPage() {
         "retry-scraping"
       );
 
-      setMessage(data.message || "Scraping retry completed");
+      addToast({
+        title: "Success",
+        description: data.message || "Scraping retry completed",
+        color: "success",
+      });
       if (data.warnings) {
-        setWarnings(data.warnings);
+        addToast({
+          title: "Warning",
+          description: data.warnings,
+          color: "warning",
+        });
       }
       if (data.scraped_data) {
         setScrapedData(data.scraped_data.map((item: ScrapedDataItem) => ({ ...item, selected: false })));
@@ -260,7 +290,9 @@ export default function ProjectPage() {
       }
     } catch (error: any) {
       logError("handleRetryScraping", error, { url, forceRescrape });
-      setErrorMessage(error.message || "Failed to retry scraping");
+      const message = error.message || "Failed to retry scraping";
+      addToast({ title: "Error", description: message, color: "danger" });
+      setErrorMessage(message);
     } finally {
       setRetryLoading(null);
     }
@@ -284,10 +316,16 @@ export default function ProjectPage() {
       );
 
       setPrompt(data.prompt || "");
-      setMessage(data.message || "Prompt regenerated successfully");
+      addToast({
+        title: "Success",
+        description: data.message || "Prompt regenerated successfully",
+        color: "success",
+      });
     } catch (error: any) {
       logError("handleRegeneratePrompt", error, { url });
-      setErrorMessage(error.message || "Failed to regenerate prompt");
+      const message = error.message || "Failed to regenerate prompt";
+      addToast({ title: "Error", description: message, color: "danger" });
+      setErrorMessage(message);
     } finally {
       setRetryLoading(null);
     }
@@ -295,7 +333,9 @@ export default function ProjectPage() {
 
   const handleCreateWorkflow = async () => {
     if (!prompt.trim()) {
-      setErrorMessage("Please generate a prompt first before creating a workflow");
+      const message = "Please generate a prompt first before creating a workflow";
+      addToast({ title: "Error", description: message, color: "danger" });
+      setErrorMessage(message);
       return;
     }
 
@@ -320,10 +360,16 @@ export default function ProjectPage() {
         workflow_url: data.workflow_url,
         webhook_url: data.webhook_url
       });
-      setMessage(data.message || "Workflow created successfully");
+      addToast({
+        title: "Success",
+        description: data.message || "Workflow created successfully",
+        color: "success",
+      });
     } catch (error: any) {
       logError("handleCreateWorkflow", error, { url, promptLength: prompt.length });
-      setErrorMessage(error.message || "Failed to create workflow");
+      const message = error.message || "Failed to create workflow";
+      addToast({ title: "Error", description: message, color: "danger" });
+      setErrorMessage(message);
     } finally {
       setRetryLoading(null);
     }
@@ -331,7 +377,9 @@ export default function ProjectPage() {
 
   const handleForceRegenerateWorkflow = async () => {
     if (!prompt.trim()) {
-      setErrorMessage("Please generate a prompt first before creating a workflow");
+      const message = "Please generate a prompt first before creating a workflow";
+      addToast({ title: "Error", description: message, color: "danger" });
+      setErrorMessage(message);
       return;
     }
 
@@ -356,10 +404,16 @@ export default function ProjectPage() {
         workflow_url: data.workflow_url,
         webhook_url: data.webhook_url
       });
-      setMessage(data.message || "Workflow regenerated successfully");
+      addToast({
+        title: "Success",
+        description: data.message || "Workflow regenerated successfully",
+        color: "success",
+      });
     } catch (error: any) {
       logError("handleForceRegenerateWorkflow", error, { url, promptLength: prompt.length });
-      setErrorMessage(error.message || "Failed to regenerate workflow");
+      const message = error.message || "Failed to regenerate workflow";
+      addToast({ title: "Error", description: message, color: "danger" });
+      setErrorMessage(message);
     } finally {
       setRetryLoading(null);
     }
@@ -368,7 +422,9 @@ export default function ProjectPage() {
   const handleDeleteSelected = async () => {
     const urlsToDelete = scrapedData.filter(item => item.selected).map(item => item.url);
     if (urlsToDelete.length === 0) {
-      setErrorMessage("No items selected for deletion.");
+      const message = "No items selected for deletion.";
+      addToast({ title: "Warning", description: message, color: "warning" });
+      setErrorMessage(message);
       return;
     }
 
@@ -388,10 +444,16 @@ export default function ProjectPage() {
         "delete-selected-items"
       );
       
-      setMessage(`${urlsToDelete.length} item(s) deleted successfully`);
+      addToast({
+        title: "Success",
+        description: `${urlsToDelete.length} item(s) deleted successfully`,
+        color: "success",
+      });
     } catch (error: any) {
       logError("handleDeleteSelected", error, { urlsToDelete, domain });
-      setErrorMessage("Failed to delete items from server, but they have been removed from the view. You may want to reload.");
+      const message = "Failed to delete items from server, but they have been removed from the view. You may want to reload.";
+      addToast({ title: "Error", description: message, color: "danger" });
+      setErrorMessage(message);
     }
   };
 
@@ -420,10 +482,16 @@ export default function ProjectPage() {
         "delete-item"
       );
       
-      setMessage("Item deleted successfully");
+      addToast({
+        title: "Success",
+        description: "Item deleted successfully",
+        color: "success",
+      });
     } catch (error: any) {
       logError("handleDeleteItem", error, { urlToDelete, domain });
-      setErrorMessage("Failed to delete item from server, but it has been removed from the view");
+      const message = "Failed to delete item from server, but it has been removed from the view";
+      addToast({ title: "Error", description: message, color: "danger" });
+      setErrorMessage(message);
     }
   };
 
@@ -469,12 +537,6 @@ export default function ProjectPage() {
               handleRetryScraping={handleRetryScraping}
               loading={loading}
               retryLoading={retryLoading}
-            />
-
-            <StatusDisplays
-              message={message}
-              errorMessage={errorMessage}
-              warnings={warnings}
             />
 
             <ResultsDisplay

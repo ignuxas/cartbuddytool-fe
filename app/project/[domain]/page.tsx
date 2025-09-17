@@ -448,6 +448,7 @@ export default function ProjectPage() {
           webhookUrl={workflowResult.webhook_url}
           label={`${domain} Assistant`}
           description="Get instant help with your questions"
+          siteName={domain}
         />
       )}
       

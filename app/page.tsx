@@ -152,8 +152,9 @@ export default function Home() {
   const [url, setUrl] = useState("");
   const [loading, setLoading] = useState(false);
   const [errorMessage, setErrorMessage] = useState("");
-  const [step, setStep] = useState<"form" | "existing" | "selection">("form");
+  const [step, setStep] = useState<"form" | "existing" | "selection" | "main_selection">("form");
   const [sitemapUrls, setSitemapUrls] = useState<{ url: string; selected: boolean }[]>([]);
+  const [mainPageUrls, setMainPageUrls] = useState<{ url: string; main: boolean }[]>([]);
   const [newUrl, setNewUrl] = useState("");
   const [existingDataInfo, setExistingDataInfo] = useState<{
     count: number;
@@ -200,6 +201,7 @@ export default function Home() {
     setLoading(true);
     clearMessages();
     setSitemapUrls([]);
+    setMainPageUrls([]);
     setExistingDataInfo(null);
     setPageInfo(null);
     setShowPageLimitTips(false);
@@ -287,6 +289,7 @@ export default function Home() {
   const handleRescanWebsite = async () => {
     setLoading(true);
     clearMessages();
+    setMainPageUrls([]);
     setExistingDataInfo(null);
     setPageInfo(null);
     setShowPageLimitTips(false);
@@ -331,8 +334,45 @@ export default function Home() {
     }
   };
 
+  const handleProceedToMainSelection = () => {
+    const selectedUrls = sitemapUrls.filter(item => item.selected).map(item => item.url);
+
+    if (selectedUrls.length === 0) {
+      const message = "Please select at least one URL to scrape.";
+      addToast({ title: "Error", description: message, color: "danger" });
+      setErrorMessage(message);
+      return;
+    }
+
+    // Initialize main page selection with smart defaults
+    setMainPageUrls(selectedUrls.map(url => {
+      const urlLower = url.toLowerCase();
+      const isMainPage = urlLower.includes('/about') || 
+                       urlLower.includes('/contact') || 
+                       urlLower.includes('/service') || 
+                       urlLower.includes('/home') || 
+                       urlLower.includes('/faq') || 
+                       urlLower.includes('/privacy') || 
+                       urlLower.includes('/terms') ||
+                       urlLower.includes('/policy') ||
+                       url === new URL(url).origin + '/' ||
+                       (!urlLower.includes('/blog/') && 
+                        !urlLower.includes('/product/') && 
+                        !urlLower.includes('/post/') && 
+                        !urlLower.includes('/item/') &&
+                        !urlLower.includes('/category/') &&
+                        !urlLower.includes('/tag/') &&
+                        !urlLower.match(/\/\d{4}\//) && // year in URL
+                        !urlLower.match(/\/page\/\d+/)); // pagination
+      return { url, main: isMainPage };
+    }));
+    
+    setStep("main_selection");
+  };
+
   const handleStartScraping = async () => {
     const selectedUrls = sitemapUrls.filter(item => item.selected).map(item => item.url);
+    const mainUrls = mainPageUrls.filter(item => item.main).map(item => item.url);
 
     if (selectedUrls.length === 0) {
       const message = "Please select at least one URL to scrape.";
@@ -350,7 +390,7 @@ export default function Home() {
       console.log("[handleStartScraping] Base URL:", url);
       console.log("[handleStartScraping] Auth headers:", getAuthHeaders());
       
-      const requestBody = { url, urls_to_scrape: selectedUrls };
+      const requestBody = { url, urls_to_scrape: selectedUrls, main_page_urls: mainUrls };
       console.log("[handleStartScraping] Request body:", requestBody);
       
       const result = await makeApiCall(
@@ -462,6 +502,26 @@ export default function Home() {
       setSitemapUrls(prev => prev.map(item => ({ ...item, selected: select })));
     } catch (error: any) {
       logError("handleSelectAll", error, { select });
+    }
+  };
+
+  const handleToggleMainSelection = (urlToToggle: string) => {
+    try {
+      setMainPageUrls(prev =>
+        prev.map(item =>
+          item.url === urlToToggle ? { ...item, main: !item.main } : item
+        )
+      );
+    } catch (error: any) {
+      logError("handleToggleMainSelection", error, { urlToToggle });
+    }
+  };
+
+  const handleSelectAllMain = (select: boolean) => {
+    try {
+      setMainPageUrls(prev => prev.map(item => ({ ...item, main: select })));
+    } catch (error: any) {
+      logError("handleSelectAllMain", error, { select });
     }
   };
 
@@ -659,12 +719,138 @@ export default function Home() {
             </div>
             <Button
               color="primary"
-              onClick={handleStartScraping}
-              isLoading={loading}
+              onClick={handleProceedToMainSelection}
               disabled={loading}
             >
-              Scrape {sitemapUrls.filter(u => u.selected).length} Selected Pages
+              Next: Select Main Pages ({sitemapUrls.filter(u => u.selected).length} pages)
             </Button>
+          </div>
+        )}
+
+        {step === 'main_selection' && (
+          <div className="w-full flex flex-col gap-4">
+            <div className="flex flex-col gap-2">
+              <h3 className="text-xl font-bold">Select Main Pages</h3>
+              <p className="text-sm text-muted-foreground">
+                Main pages will be always available to the shopping assistant as context, while other pages will be vectorized for semantic search.
+              </p>
+              <Card className="border-green-200 dark:border-green-800 bg-green-50 dark:bg-green-950/30">
+                <CardBody className="py-3">
+                  <div className="flex items-start gap-2">
+                    <div className="text-green-600 dark:text-green-400 mt-0.5">
+                      <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
+                        <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clipRule="evenodd" />
+                      </svg>
+                    </div>
+                    <div className="text-sm">
+                      <p className="font-medium text-green-800 dark:text-green-200 mb-1">💡 Main Pages Guidelines</p>
+                      <ul className="text-green-700 dark:text-green-300 space-y-1 list-disc list-inside">
+                        <li><strong>Always available</strong>: Main pages are always accessible to the AI as context</li>
+                        <li><strong>Static content</strong>: Choose pages with core business information</li>
+                        <li><strong>Essential pages</strong>: Home, About, Services, Contact, FAQ, Policies</li>
+                        <li><strong>Limit recommendation</strong>: 5-15 main pages for optimal performance</li>
+                      </ul>
+                    </div>
+                  </div>
+                </CardBody>
+              </Card>
+            </div>
+            <div className="flex gap-2">
+              <Button size="sm" onClick={() => handleSelectAllMain(true)}>Select All as Main</Button>
+              <Button size="sm" onClick={() => handleSelectAllMain(false)}>Deselect All Main</Button>
+              <Button 
+                size="sm" 
+                variant="bordered"
+                onClick={() => {
+                  // Smart selection for main pages
+                  setMainPageUrls(prev => prev.map(item => {
+                    const url = item.url.toLowerCase();
+                    const isMainPage = url.includes('/about') || 
+                                     url.includes('/contact') || 
+                                     url.includes('/service') || 
+                                     url.includes('/home') || 
+                                     url.includes('/faq') || 
+                                     url.includes('/privacy') || 
+                                     url.includes('/terms') ||
+                                     url.includes('/policy') ||
+                                     item.url === new URL(item.url).origin + '/' ||
+                                     (!url.includes('/blog/') && 
+                                      !url.includes('/product/') && 
+                                      !url.includes('/post/') && 
+                                      !url.includes('/item/') &&
+                                      !url.includes('/category/') &&
+                                      !url.includes('/tag/') &&
+                                      !url.match(/\/\d{4}\//) && // year in URL
+                                      !url.match(/\/page\/\d+/)); // pagination
+                    return { ...item, main: isMainPage };
+                  }));
+                }}
+              >
+                Smart Select Main
+              </Button>
+            </div>
+            <div className="max-h-64 overflow-y-auto border rounded-md">
+              <table className="w-full">
+                <thead className="sticky top-0 bg-gray-800 dark:bg-gray-900 border-b border-gray-600">
+                  <tr>
+                    <th className="w-12 text-left">
+                      <input
+                        type="checkbox"
+                        checked={mainPageUrls.length > 0 && mainPageUrls.every(item => item.main)}
+                        onChange={(e) => handleSelectAllMain(e.target.checked)}
+                        className="rounded ml-2"
+                        aria-label="Select all URLs as main"
+                      />
+                    </th>
+                    <th className="text-left text-sm font-medium pl-2">URL</th>
+                    <th className="text-left text-sm font-medium pl-2">Type</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {mainPageUrls.map((item, index) => (
+                    <tr key={`${item.url}-${index}`} className="border-b border-gray-600 hover:bg-gray-700 dark:hover:bg-gray-800">
+                      <td>
+                        <input
+                          type="checkbox"
+                          checked={item.main}
+                          onChange={() => handleToggleMainSelection(item.url)}
+                          className="rounded ml-2"
+                          aria-label={`Select ${item.url} as main`}
+                        />
+                      </td>
+                      <td className="text-sm pl-2" title={item.url}>
+                        {item.url}
+                      </td>
+                      <td className="text-sm pl-2">
+                        <span className={`px-2 py-1 rounded text-xs ${
+                          item.main 
+                            ? 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200' 
+                            : 'bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200'
+                        }`}>
+                          {item.main ? 'Main' : 'Vectorized'}
+                        </span>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+            <div className="flex gap-2 justify-between">
+              <Button
+                variant="bordered"
+                onClick={() => setStep("selection")}
+              >
+                Back to Page Selection
+              </Button>
+              <Button
+                color="primary"
+                onClick={handleStartScraping}
+                isLoading={loading}
+                disabled={loading}
+              >
+                Scrape {sitemapUrls.filter(u => u.selected).length} Pages ({mainPageUrls.filter(u => u.main).length} main, {mainPageUrls.filter(u => !u.main).length} vectorized)
+              </Button>
+            </div>
           </div>
         )}
 

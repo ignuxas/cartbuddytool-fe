@@ -10,7 +10,7 @@ export function getChatWidgetScript({ webhookUrl, siteName, baseUrl = '' }: Chat
 (function() {
     // CSS to be injected
     const css = \`
-        .chat-widget-container{position:fixed;bottom:20px;right:20px;z-index:9999}.chat-bubble{display:flex;align-items:flex-end;cursor:pointer}.chat-bubble-message{background-color:white;padding:15px;border-radius:15px;box-shadow:0 4px 12px rgba(0,0,0,0.15);max-width:250px;margin-right:15px;animation:fadeIn 0.3s ease-in-out}.chat-bubble-message p{margin:0;font-family:sans-serif;color:#333;line-height:1.5}.chat-bubble-message .consultant-button{background-color:#ff4081;color:white;border:none;padding:10px 15px;border-radius:20px;margin-top:10px;cursor:pointer;font-weight:bold;font-family:sans-serif}.avatar{width:64px;height:64px;border-radius:50%;overflow:hidden;display:flex;align-items:center;justify-content:center;box-shadow:0 4px 12px rgba(0,0,0,0.15);background:linear-gradient(135deg,#667eea 0%,#764ba2 100%)}.avatar img{width:100%;height:100%;object-fit:cover;border-radius:50%}.chat-window{width:400px;height:600px;background:linear-gradient(180deg,#f9f3ff 0%,#e9e3ff 100%);border-radius:20px;box-shadow:0 10px 30px rgba(0,0,0,0.1);display:flex;flex-direction:column;overflow:hidden;font-family:sans-serif;animation:slideIn 0.4s cubic-bezier(0.25,0.46,0.45,0.94)}.chat-header{padding:20px;text-align:center;position:relative}.chat-header .avatar{width:80px;height:80px;margin:0 auto 10px;font-size:32px}.chat-header h2{margin:0;font-size:1.2em;color:#333}.chat-header p{margin:5px 0 0;color:#666}.close-button{position:absolute;top:20px;right:20px;background:rgba(0,0,0,0.05);border:none;color:#666;width:28px;height:28px;border-radius:50%;cursor:pointer;font-size:16px;line-height:28px;text-align:center;transition:background-color 0.2s}.close-button:hover{background:rgba(0,0,0,0.1)}.chat-body{flex:1;padding:0 20px;overflow-y:auto;scroll-behavior:smooth}.suggestion-chips{display:flex;flex-wrap:wrap;justify-content:center;gap:10px;margin-top:20px;padding-bottom:10px}.chip{background-color:rgba(255,255,255,0.7);border:1px solid #ddd;padding:10px 15px;border-radius:20px;cursor:pointer;transition:background-color 0.2s;color:#333}.chip:hover{background-color:white}.chat-footer{padding:15px;background-color:rgba(255,255,255,0.5)}.input-area{display:flex;align-items:center;background-color:white;border-radius:25px;padding:5px 15px}.input-area input{flex:1;border:none;outline:none;background:transparent;padding:10px 0;font-size:1em;color:#333}.input-area button{background:none;border:none;cursor:pointer;padding:5px;color:#666}.send-button{background:#3b82f6;border-radius:50%;padding:8px;display:flex;align-items:center;justify-content:center;color:white;transition:background-color 0.2s}.send-button:hover{background:#2563eb}.message-list{display:flex;flex-direction:column;gap:10px;margin-bottom:20px}.message{padding:15px 18px;border-radius:18px;max-width:85%;word-wrap:break-word;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Oxygen,Ubuntu,Cantarell,sans-serif;line-height:1.6;font-size:14px}.message strong{font-weight:600;color:#1a1a1a}.message em{font-style:italic;color:#555}.message code{background:#f1f3f4;padding:3px 6px;border-radius:4px;font-family:'SF Mono',Monaco,Consolas,monospace;font-size:13px;color:#d63384}.message pre{background:#f8f9fa;padding:12px;border-radius:6px;overflow-x:auto;white-space:pre-wrap;border-left:3px solid #3b82f6}.message ul{margin:8px 0;padding-left:0;list-style:none}.message li{margin:6px 0;padding-left:20px;position:relative;color:#444}.message li:before{content:'•';color:#3b82f6;font-weight:bold;position:absolute;left:0;font-size:16px}.message ol{margin:8px 0;padding-left:20px}.message a{color:#3b82f6;text-decoration:underline}.user-message{background-color:#3b82f6;color:white;align-self:flex-end;border-bottom-right-radius:4px}.user-message strong{color:#fff}.user-message a{color:#e0f2fe}.bot-message{background-color:#ffffff;color:#2d3748;align-self:flex-start;border-bottom-left-radius:4px;box-shadow:0 2px 8px rgba(0,0,0,0.08);border:1px solid rgba(0,0,0,0.05)}.product-button{display:inline-block;background-color:#28a745;color:white;padding:8px 16px;border-radius:20px;text-decoration:none;margin:5px 5px 5px 0;font-size:0.9em;font-weight:bold;transition:background-color 0.3s}.product-button:hover{background-color:#218838;color:white;text-decoration:none}
+        .chat-widget-container{position:fixed;bottom:20px;right:20px;z-index:9999}.chat-bubble{display:flex;align-items:flex-end;cursor:pointer}.chat-bubble-message{background-color:white;padding:15px;border-radius:15px;box-shadow:0 4px 12px rgba(0,0,0,0.15);max-width:250px;margin-right:15px;animation:fadeIn 0.3s ease-in-out}.chat-bubble-message p{margin:0;font-family:sans-serif;color:#333;line-height:1.5}.chat-bubble-message .consultant-button{background-color:#ff4081;color:white;border:none;padding:10px 15px;border-radius:20px;margin-top:10px;cursor:pointer;font-weight:bold;font-family:sans-serif}.avatar{width:64px;height:64px;border-radius:50%;overflow:hidden;display:flex;align-items:center;justify-content:center;box-shadow:0 4px 12px rgba(0,0,0,0.15);background:linear-gradient(135deg,#667eea 0%,#764ba2 100%)}.avatar img{width:100%;height:100%;object-fit:cover;border-radius:50%}.chat-window{width:400px;height:600px;background:linear-gradient(180deg,#f9f3ff 0%,#e9e3ff 100%);border-radius:20px;box-shadow:0 10px 30px rgba(0,0,0,0.1);display:flex;flex-direction:column;overflow:hidden;font-family:sans-serif;animation:slideIn 0.4s cubic-bezier(0.25,0.46,0.45,0.94)}.chat-mini-header{display:flex;padding:12px 20px;text-align:center;background:rgba(255,255,255,0.9);border-bottom:1px solid rgba(0,0,0,0.1);align-items:center;justify-content:center;gap:10px;position:relative}.chat-mini-header .mini-avatar{width:28px;height:28px;border-radius:50%;background:linear-gradient(135deg,#667eea 0%,#764ba2 100%);display:flex;align-items:center;justify-content:center;font-size:14px;overflow:hidden}.chat-mini-header .mini-avatar img{width:100%;height:100%;object-fit:cover;border-radius:50%}.chat-mini-header span{font-size:16px;font-weight:600;color:#333}.close-button{position:absolute;top:50%;right:15px;transform:translateY(-50%);background:rgba(0,0,0,0.05);border:none;color:#666;width:24px;height:24px;border-radius:50%;cursor:pointer;font-size:14px;line-height:24px;text-align:center;transition:background-color 0.2s}.close-button:hover{background:rgba(0,0,0,0.1)}.chat-body{flex:1;padding:15px 20px 0 20px;overflow-y:auto;scroll-behavior:smooth}.suggestion-chips{display:flex;flex-wrap:wrap;justify-content:center;gap:10px;margin-top:20px;padding-bottom:10px}.chip{background-color:rgba(255,255,255,0.7);border:1px solid #ddd;padding:10px 15px;border-radius:20px;cursor:pointer;transition:background-color 0.2s;color:#333}.chip:hover{background-color:white}.chat-footer{padding:15px;background-color:rgba(255,255,255,0.5)}.input-area{display:flex;align-items:center;background-color:white;border-radius:25px;padding:5px 15px}.input-area input{flex:1;border:none;outline:none;background:transparent;padding:10px 0;font-size:1em;color:#333}.input-area button{background:none;border:none;cursor:pointer;padding:5px;color:#666}.send-button{background:#3b82f6;border-radius:50%;padding:8px;display:flex;align-items:center;justify-content:center;color:white;transition:background-color 0.2s}.send-button:hover{background:#2563eb}.message-list{display:flex;flex-direction:column;gap:10px;margin-bottom:20px}.message{padding:15px 18px;border-radius:18px;max-width:85%;word-wrap:break-word;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Oxygen,Ubuntu,Cantarell,sans-serif;line-height:1.6;font-size:14px}.message strong{font-weight:600;color:#1a1a1a}.message em{font-style:italic;color:#555}.message code{background:#f1f3f4;padding:3px 6px;border-radius:4px;font-family:'SF Mono',Monaco,Consolas,monospace;font-size:13px;color:#d63384}.message pre{background:#f8f9fa;padding:12px;border-radius:6px;overflow-x:auto;white-space:pre-wrap;border-left:3px solid #3b82f6}.message ul{margin:8px 0;padding-left:0;list-style:none}.message li{margin:6px 0;padding-left:20px;position:relative;color:#444}.message li:before{content:'•';color:#3b82f6;font-weight:bold;position:absolute;left:0;font-size:16px}.message ol{margin:8px 0;padding-left:20px}.message ul.compact-list{margin:16px 0;padding:4px 0 16px 0;border-bottom:1px solid rgba(0,0,0,0.05)}.message ul.compact-list:last-child{border-bottom:none;margin-bottom:16px}.message ul.compact-list li{margin:0;line-height:1.4}.message a{color:#3b82f6;text-decoration:underline}.user-message{background-color:#3b82f6;color:white;align-self:flex-end;border-bottom-right-radius:4px}.user-message strong{color:#fff}.user-message a{color:#e0f2fe}.bot-message{background-color:#ffffff;color:#2d3748;align-self:flex-start;border-bottom-left-radius:4px;box-shadow:0 2px 8px rgba(0,0,0,0.08);border:1px solid rgba(0,0,0,0.05)}.product-button{display:inline-block;background-color:#28a745;color:white;padding:8px 16px;border-radius:20px;text-decoration:none;margin:5px 5px 5px 0;font-size:0.9em;font-weight:bold;transition:background-color 0.3s}.product-button:hover{background-color:#218838;color:white;text-decoration:none}
         .loading-spinner {
             border: 4px solid rgba(0, 0, 0, 0.1);
             width: 16px;
@@ -66,13 +66,12 @@ export function getChatWidgetScript({ webhookUrl, siteName, baseUrl = '' }: Chat
         const windowDiv = document.createElement('div');
         windowDiv.className = 'chat-window';
         windowDiv.innerHTML = \`
-            <div class="chat-header">
-                <button class="close-button" onclick="window.toggleAIAssistant()">&times;</button>
-                <div class="avatar">
+            <div class="chat-mini-header">
+                <div class="mini-avatar">
                     <img src="${baseUrl}/lukas.png" alt="AI Assistant" onerror="this.style.display='none'; this.parentElement.innerHTML='🤖';">
                 </div>
-                <h2>Hi, I'm your ${siteName} AI assistant</h2>
-                <p>How can I help you today?</p>
+                <span>Assistant</span>
+                <button class="close-button" onclick="window.toggleAIAssistant()">&times;</button>
             </div>
             <div class="chat-body">
                 <div class="message-list" id="messageList"></div>
@@ -127,16 +126,82 @@ export function getChatWidgetScript({ webhookUrl, siteName, baseUrl = '' }: Chat
     }
 
     function processMarkdownAndLinks(text, sender) {
-        let processedText = text.replace(/(https?:\\/\\/[^\\s]+)/g, (url) => {
+        let processedText = text;
+        
+        // Handle bold text first (before URL processing)
+        processedText = processedText.replace(/\\*\\*(.*?)\\*\\*/g, '<strong>$1</strong>');
+        
+        // Handle code blocks
+        processedText = processedText.replace(/\`(.*?)\`/g, '<code>$1</code>');
+        
+        // Remove bullet point asterisks at the beginning of lines and convert to proper list items
+        const lines = processedText.split('\\n');
+        let inList = false;
+        let result = [];
+        
+        for (let i = 0; i < lines.length; i++) {
+            const line = lines[i].trim();
+            
+            // Check if line starts with asterisk bullet point
+            if (line.match(/^\\*\\s+(.+)/)) {
+                const content = line.replace(/^\\*\\s+/, '');
+                if (!inList) {
+                    result.push('<ul class="compact-list">');
+                    inList = true;
+                }
+                result.push(\`<li>\${content}</li>\`);
+            } else {
+                // If we were in a list and this line doesn't start with *, close the list
+                if (inList) {
+                    result.push('</ul>');
+                    inList = false;
+                }
+                if (line) {
+                    result.push(line);
+                }
+            }
+        }
+        
+        // Close list if we ended while in one
+        if (inList) {
+            result.push('</ul>');
+        }
+        
+        let finalResult = [];
+        for (let i = 0; i < result.length; i++) {
+            const current = result[i];
+            const next = result[i + 1];
+            
+            finalResult.push(current);
+            
+            // Don't add <br> if current is <li> or next is <li>, </ul>, or <ul>
+            if (i < result.length - 1 && 
+                !current.startsWith('<li>') && 
+                !current.startsWith('</ul>') &&
+                !next.startsWith('<li>') && 
+                !next.startsWith('<ul>') &&
+                !next.startsWith('</ul>')) {
+                finalResult.push('<br>');
+            }
+        }
+        
+        processedText = finalResult.join('');
+        
+        // Clean up any remaining formatting issues
+        processedText = processedText.replace(/(<br>){3,}/g, '<br><br>');
+        
+        // Handle URLs LAST to avoid double processing
+        // First, handle URLs wrapped in angle brackets like <https://example.com>
+        processedText = processedText.replace(/<(https?:\\/\\/[^>\\s]+)>/g, (match, url) => {
             const cleanUrl = url.replace(/[.,;!?]+$/, '');
             return \`<a href="\${cleanUrl}" target="_blank">\${cleanUrl}</a>\`;
         });
-
-        processedText = processedText.replace(/\\*\\*(.*?)\\*\\*/g, '<strong>$1</strong>');
-        processedText = processedText.replace(/\\*(.*?)\\*/g, '<em>$1</em>');
-        processedText = processedText.replace(/\`(.*?)\`/g, '<code>$1</code>');
-        processedText = processedText.replace(/\\n\\s*-\\s(.+)/g, '<ul><li>$1</li></ul>');
-        processedText = processedText.replace(/\\n/g, '<br>');
+        
+        // Then handle regular URLs (but avoid already processed ones)
+        processedText = processedText.replace(/(^|[^"'>])(https?:\\/\\/[^\\s<>"']+)/g, (match, prefix, url) => {
+            const cleanUrl = url.replace(/[.,;!?]+$/, '');
+            return \`\${prefix}<a href="\${cleanUrl}" target="_blank">\${cleanUrl}</a>\`;
+        });
 
         return processedText;
     }

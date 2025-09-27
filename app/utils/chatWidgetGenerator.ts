@@ -101,39 +101,30 @@ export function getChatWidgetScript({ webhookUrl, siteName, baseUrl = '' }: Chat
         const messageDiv = document.createElement('div');
         messageDiv.className = \`message \${sender}-message\`;
         messageDiv.innerHTML = processMarkdownAndLinks(text, sender);
-        
-        // Handle product cards after DOM insertion
-        setTimeout(() => {
-            if (window.pendingProductCards) {
-                window.pendingProductCards.forEach(card => {
-                    const cardElement = messageDiv.querySelector(\`#\${card.id}\`);
-                    if (cardElement) {
-                        cardElement.outerHTML = createProductCard(card.data);
-                    }
-                });
-                delete window.pendingProductCards;
-            }
-        }, 0);
-        
         return messageDiv;
     }
 
     function processMarkdownAndLinks(text, sender) {
         let processedText = text;
         
-        // First, extract and process product cards
+        // Debug: log the raw text to see what we're working with
+        if (text.includes('PRODUCT_CARD')) {
+            console.log('Raw text with product cards:', text);
+        }
+        
+        // Handle literal \\n characters that might come from the API
+        processedText = processedText.replace(/\\\\n/g, '\\n');
+        
+        // First, extract and process product cards - fix the regex pattern
         const productCardRegex = /\\[PRODUCT_CARD\\]([\\s\\S]*?)\\[\\/PRODUCT_CARD\\]/g;
-        const productCards = [];
-        let cardIndex = 0;
         
         processedText = processedText.replace(productCardRegex, (match, cardData) => {
             try {
                 const card = JSON.parse(cardData.trim());
-                const cardId = \`product-card-\${cardIndex++}\`;
-                productCards.push({ id: cardId, data: card });
-                return \`<div id="\${cardId}"></div>\`;
+                console.log('Successfully parsed product card:', card);
+                return createProductCard(card);
             } catch (e) {
-                console.warn('Failed to parse product card:', e);
+                console.warn('Failed to parse product card:', e, 'Raw data:', cardData);
                 return match;
             }
         });
@@ -207,7 +198,7 @@ export function getChatWidgetScript({ webhookUrl, siteName, baseUrl = '' }: Chat
                 }
                 
                 if (line) {
-                    // Don't wrap headings, blockquotes, or HTML elements in paragraphs
+                    // Don't wrap headings, blockquotes, product cards, or HTML elements in paragraphs
                     if (!line.match(/^<(h[1-6]|blockquote|div|ul|ol|li|pre)/)) {
                         result.push(\`<p>\${line}</p>\`);
                     } else {
@@ -233,11 +224,6 @@ export function getChatWidgetScript({ webhookUrl, siteName, baseUrl = '' }: Chat
             const cleanUrl = url.replace(/[.,;!?]+$/, '');
             return \`\${prefix}<a href="\${cleanUrl}" target="_blank">\${cleanUrl}</a>\`;
         });
-
-        // Store product cards for later rendering
-        if (productCards.length > 0) {
-            processedText += '<script>window.pendingProductCards = ' + JSON.stringify(productCards) + ';</script>';
-        }
 
         return processedText;
     }

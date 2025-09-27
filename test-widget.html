@@ -1,17 +1,99 @@
-interface ChatWidgetConfig {
-  webhookUrl: string;
-  siteName: string;
-  baseUrl?: string; // Base URL for external website deployment
-}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Enhanced Chat Widget Test</title>
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            margin: 0;
+            padding: 20px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            color: white;
+        }
+        .container {
+            max-width: 800px;
+            margin: 0 auto;
+            text-align: center;
+        }
+        h1 {
+            font-size: 2.5rem;
+            margin-bottom: 1rem;
+        }
+        p {
+            font-size: 1.2rem;
+            margin-bottom: 2rem;
+            opacity: 0.9;
+        }
+        .demo-button {
+            background: white;
+            color: #667eea;
+            border: none;
+            padding: 12px 24px;
+            border-radius: 25px;
+            font-size: 1rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: transform 0.2s;
+        }
+        .demo-button:hover {
+            transform: translateY(-2px);
+        }
+        .features {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 20px;
+            margin-top: 3rem;
+        }
+        .feature {
+            background: rgba(255, 255, 255, 0.1);
+            padding: 20px;
+            border-radius: 15px;
+            backdrop-filter: blur(10px);
+        }
+        .feature h3 {
+            margin-top: 0;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Enhanced Chat Widget</h1>
+        <p>Experience the new and improved chat widget with beautiful markdown support and product cards!</p>
+        
+        <button class="demo-button" onclick="simulateProductResponse()">
+            Test Product Card Response
+        </button>
+        
+        <div class="features">
+            <div class="feature">
+                <h3>🎨 Beautiful Design</h3>
+                <p>Modern, clean interface with improved typography and spacing</p>
+            </div>
+            <div class="feature">
+                <h3>📝 Markdown Support</h3>
+                <p>Full markdown formatting including headings, lists, code blocks, and more</p>
+            </div>
+            <div class="feature">
+                <h3>🛍️ Product Cards</h3>
+                <p>Rich product displays with images, prices, and direct links</p>
+            </div>
+            <div class="feature">
+                <h3>📱 Responsive</h3>
+                <p>Works perfectly on desktop and mobile devices</p>
+            </div>
+        </div>
+    </div>
 
-// The single source of truth for the chat widget script
-export function getChatWidgetScript({ webhookUrl, siteName, baseUrl = '' }: ChatWidgetConfig): string {
-  return `<script>
+    <!-- Enhanced Chat Widget -->
+    <script>
 (function() {
     // CSS to be injected
-    const css = \`
+    const css = `
         .chat-widget-container{position:fixed;bottom:20px;right:20px;z-index:9999}.chat-bubble{display:flex;align-items:flex-end;cursor:pointer}.chat-bubble-message{background-color:white;padding:15px;border-radius:15px;box-shadow:0 4px 12px rgba(0,0,0,0.15);max-width:250px;margin-right:15px;animation:fadeIn 0.3s ease-in-out}.chat-bubble-message p{margin:0;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;color:#333;line-height:1.5}.chat-bubble-message .consultant-button{background-color:#3b82f6;color:white;border:none;padding:10px 15px;border-radius:20px;margin-top:10px;cursor:pointer;font-weight:600;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;transition:background-color 0.2s}.chat-bubble-message .consultant-button:hover{background-color:#2563eb}.avatar{width:64px;height:64px;border-radius:50%;overflow:hidden;display:flex;align-items:center;justify-content:center;box-shadow:0 4px 12px rgba(0,0,0,0.15);background:linear-gradient(135deg,#3b82f6 0%,#1d4ed8 100%)}.avatar img{width:100%;height:100%;object-fit:cover;border-radius:50%}.chat-window{width:420px;height:650px;background:#ffffff;border-radius:20px;box-shadow:0 20px 60px rgba(0,0,0,0.15);display:flex;flex-direction:column;overflow:hidden;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;animation:slideIn 0.4s cubic-bezier(0.25,0.46,0.45,0.94)}.chat-mini-header{display:flex;padding:16px 20px;background:linear-gradient(135deg,#3b82f6 0%,#1d4ed8 100%);color:white;align-items:center;justify-content:center;gap:12px;position:relative}.chat-mini-header .mini-avatar{width:32px;height:32px;border-radius:50%;background:rgba(255,255,255,0.2);display:flex;align-items:center;justify-content:center;font-size:16px;overflow:hidden}.chat-mini-header .mini-avatar img{width:100%;height:100%;object-fit:cover;border-radius:50%}.chat-mini-header span{font-size:16px;font-weight:600}.close-button{position:absolute;top:50%;right:15px;transform:translateY(-50%);background:rgba(255,255,255,0.1);border:none;color:white;width:28px;height:28px;border-radius:50%;cursor:pointer;font-size:16px;line-height:28px;text-align:center;transition:background-color 0.2s}.close-button:hover{background:rgba(255,255,255,0.2)}.chat-body{flex:1;padding:20px;overflow-y:auto;scroll-behavior:smooth;background:#f8fafc}.suggestion-chips{display:flex;flex-wrap:wrap;justify-content:center;gap:8px;margin-top:20px;padding-bottom:15px}.chip{background-color:white;border:1px solid #e2e8f0;padding:8px 16px;border-radius:20px;cursor:pointer;transition:all 0.2s;color:#475569;font-size:14px;font-weight:500;box-shadow:0 1px 3px rgba(0,0,0,0.1)}.chip:hover{background-color:#3b82f6;color:white;transform:translateY(-1px);box-shadow:0 4px 12px rgba(59,130,246,0.3)}.chat-footer{padding:16px 20px;background-color:white;border-top:1px solid #e2e8f0}.input-area{display:flex;align-items:center;background-color:#f1f5f9;border-radius:25px;padding:8px 16px;border:2px solid transparent;transition:border-color 0.2s}.input-area:focus-within{border-color:#3b82f6}.input-area input{flex:1;border:none;outline:none;background:transparent;padding:8px 0;font-size:14px;color:#1e293b}.input-area input::placeholder{color:#94a3b8}.send-button{background:#3b82f6;border-radius:50%;padding:10px;display:flex;align-items:center;justify-content:center;color:white;transition:all 0.2s;margin-left:8px}.send-button:hover{background:#2563eb;transform:scale(1.05)}.message-list{display:flex;flex-direction:column;gap:16px;margin-bottom:20px}.message{padding:16px 20px;border-radius:16px;max-width:85%;word-wrap:break-word;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;line-height:1.6;font-size:14px;box-shadow:0 2px 8px rgba(0,0,0,0.08)}.message h1,.message h2,.message h3,.message h4,.message h5,.message h6{margin:16px 0 8px 0;font-weight:600;color:#1e293b}.message h1{font-size:20px}.message h2{font-size:18px}.message h3{font-size:16px}.message p{margin:8px 0;color:#334155;line-height:1.6}.message strong{font-weight:600;color:#1e293b}.message em{font-style:italic;color:#64748b}.message code{background:#f1f5f9;padding:2px 6px;border-radius:4px;font-family:'SF Mono',Monaco,Consolas,monospace;font-size:13px;color:#e11d48;border:1px solid #e2e8f0}.message pre{background:#f8fafc;padding:16px;border-radius:8px;overflow-x:auto;white-space:pre-wrap;border:1px solid #e2e8f0;margin:12px 0}.message pre code{background:none;padding:0;border:none;color:#475569}.message ul{margin:12px 0;padding-left:0;list-style:none}.message li{margin:6px 0;padding-left:24px;position:relative;color:#475569}.message li:before{content:'•';color:#3b82f6;font-weight:bold;position:absolute;left:8px;font-size:16px}.message ol{margin:12px 0;padding-left:24px}.message ol li{list-style:decimal;padding-left:8px}.message ol li:before{display:none}.message blockquote{border-left:4px solid #3b82f6;padding-left:16px;margin:16px 0;color:#64748b;font-style:italic}.message a{color:#3b82f6;text-decoration:none;font-weight:500}.message a:hover{text-decoration:underline}.user-message{background:linear-gradient(135deg,#3b82f6 0%,#1d4ed8 100%);color:white;align-self:flex-end;border-bottom-right-radius:4px}.user-message p,.user-message strong,.user-message em{color:white}.user-message a{color:#bfdbfe}.user-message code{background:rgba(255,255,255,0.2);color:white;border:1px solid rgba(255,255,255,0.3)}.bot-message{background-color:#ffffff;color:#334155;align-self:flex-start;border-bottom-left-radius:4px;border:1px solid #e2e8f0}.product-card{background:linear-gradient(135deg,#ffffff 0%,#f8fafc 100%);border:1px solid #e2e8f0;border-radius:12px;padding:16px;margin:12px 0;box-shadow:0 4px 12px rgba(0,0,0,0.08);transition:all 0.2s}.product-card:hover{transform:translateY(-2px);box-shadow:0 8px 24px rgba(0,0,0,0.12)}.product-card-header{display:flex;align-items:flex-start;gap:12px;margin-bottom:12px}.product-card-image{width:60px;height:60px;border-radius:8px;object-fit:cover;background:#f1f5f9;display:flex;align-items:center;justify-content:center;color:#94a3b8;font-size:24px;flex-shrink:0}.product-card-info{flex:1}.product-card-title{font-size:16px;font-weight:600;color:#1e293b;margin:0 0 4px 0;line-height:1.3}.product-card-description{font-size:13px;color:#64748b;margin:0 0 8px 0;line-height:1.4;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}.product-card-price{font-size:15px;font-weight:700;color:#059669;margin:0}.product-card-footer{display:flex;justify-content:space-between;align-items:center;margin-top:12px}.product-card-button{background:linear-gradient(135deg,#3b82f6 0%,#1d4ed8 100%);color:white;border:none;padding:8px 16px;border-radius:8px;font-size:13px;font-weight:600;cursor:pointer;transition:all 0.2s;text-decoration:none;display:inline-flex;align-items:center;gap:6px}.product-card-button:hover{transform:translateY(-1px);box-shadow:0 4px 12px rgba(59,130,246,0.3);color:white;text-decoration:none}.product-card-meta{font-size:12px;color:#94a3b8}.loading-spinner{border:3px solid #f1f5f9;width:20px;height:20px;border-radius:50%;border-left-color:#3b82f6;animation:spin 1s ease infinite}.bot-message.loading{display:flex;align-items:center;justify-content:center;padding:20px}@keyframes spin{0%{transform:rotate(0deg)}100%{transform:rotate(360deg)}}@keyframes fadeIn{from{opacity:0}to{opacity:1}}@keyframes slideIn{from{transform:translateY(20px);opacity:0}to{transform:translateY(0);opacity:1}}
-    \`;
+    `;
     const style = document.createElement('style');
     style.textContent = css;
     style.setAttribute('data-chat-widget', 'true');
@@ -29,26 +111,24 @@ export function getChatWidgetScript({ webhookUrl, siteName, baseUrl = '' }: Chat
         const bubble = document.createElement('div');
         bubble.className = 'chat-bubble';
         bubble.onclick = () => window.toggleAIAssistant?.();
-        bubble.innerHTML = \`
+        bubble.innerHTML = `
             <div class="chat-bubble-message">
-                <p><strong>Welcome to ${siteName}</strong><br>I'm your AI assistant. Need help finding information?</p>
+                <p><strong>Welcome to Test Site</strong><br>I'm your AI assistant. Need help finding information?</p>
                 <button class="consultant-button">Chat with AI assistant</button>
             </div>
             <div class="avatar">
-                <img src="${baseUrl}/lukas.png" alt="AI Assistant" onerror="this.style.display='none'; this.parentElement.innerHTML='🤖';">
+                🤖
             </div>
-        \`;
+        `;
         return bubble;
     }
 
     function createChatWindow() {
         const windowDiv = document.createElement('div');
         windowDiv.className = 'chat-window';
-        windowDiv.innerHTML = \`
+        windowDiv.innerHTML = `
             <div class="chat-mini-header">
-                <div class="mini-avatar">
-                    <img src="${baseUrl}/lukas.png" alt="AI Assistant" onerror="this.style.display='none'; this.parentElement.innerHTML='🤖';">
-                </div>
+                <div class="mini-avatar">🤖</div>
                 <span>Assistant</span>
                 <button class="close-button" onclick="window.toggleAIAssistant()">&times;</button>
             </div>
@@ -66,7 +146,7 @@ export function getChatWidgetScript({ webhookUrl, siteName, baseUrl = '' }: Chat
                 </div>
                 <p style="text-align:center;font-size:0.8em;color:#999;margin-top:10px">Ask me anything about this website</p>
             </div>
-        \`;
+        `;
 
         messageList = windowDiv.querySelector('#messageList');
         messages.forEach(msg => {
@@ -76,10 +156,10 @@ export function getChatWidgetScript({ webhookUrl, siteName, baseUrl = '' }: Chat
 
         if (messages.length === 0) {
             const suggestions = [
+                'Show me some products',
                 'What can you help me with?',
                 'Tell me about this website',
                 'How does this work?',
-                'Show me popular content',
                 'Contact information'
             ];
             const suggestionChips = document.createElement('div');
@@ -99,14 +179,14 @@ export function getChatWidgetScript({ webhookUrl, siteName, baseUrl = '' }: Chat
 
     function createMessageElement(text, sender) {
         const messageDiv = document.createElement('div');
-        messageDiv.className = \`message \${sender}-message\`;
+        messageDiv.className = `message ${sender}-message`;
         messageDiv.innerHTML = processMarkdownAndLinks(text, sender);
         
         // Handle product cards after DOM insertion
         setTimeout(() => {
             if (window.pendingProductCards) {
                 window.pendingProductCards.forEach(card => {
-                    const cardElement = messageDiv.querySelector(\`#\${card.id}\`);
+                    const cardElement = messageDiv.querySelector(`#${card.id}`);
                     if (cardElement) {
                         cardElement.outerHTML = createProductCard(card.data);
                     }
@@ -122,16 +202,16 @@ export function getChatWidgetScript({ webhookUrl, siteName, baseUrl = '' }: Chat
         let processedText = text;
         
         // First, extract and process product cards
-        const productCardRegex = /\\[PRODUCT_CARD\\]([\\s\\S]*?)\\[\\/PRODUCT_CARD\\]/g;
+        const productCardRegex = /\[PRODUCT_CARD\]([\s\S]*?)\[\/PRODUCT_CARD\]/g;
         const productCards = [];
         let cardIndex = 0;
         
         processedText = processedText.replace(productCardRegex, (match, cardData) => {
             try {
                 const card = JSON.parse(cardData.trim());
-                const cardId = \`product-card-\${cardIndex++}\`;
+                const cardId = `product-card-${cardIndex++}`;
                 productCards.push({ id: cardId, data: card });
-                return \`<div id="\${cardId}"></div>\`;
+                return `<div id="${cardId}"></div>`;
             } catch (e) {
                 console.warn('Failed to parse product card:', e);
                 return match;
@@ -144,19 +224,19 @@ export function getChatWidgetScript({ webhookUrl, siteName, baseUrl = '' }: Chat
         processedText = processedText.replace(/^# (.*$)/gm, '<h1>$1</h1>');
         
         // Handle bold and italic text
-        processedText = processedText.replace(/\\*\\*\\*(.*?)\\*\\*\\*/g, '<strong><em>$1</em></strong>');
-        processedText = processedText.replace(/\\*\\*(.*?)\\*\\*/g, '<strong>$1</strong>');
-        processedText = processedText.replace(/\\*(.*?)\\*/g, '<em>$1</em>');
+        processedText = processedText.replace(/\*\*\*(.*?)\*\*\*/g, '<strong><em>$1</em></strong>');
+        processedText = processedText.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>');
+        processedText = processedText.replace(/\*(.*?)\*/g, '<em>$1</em>');
         
         // Handle code blocks and inline code
-        processedText = processedText.replace(/\`\`\`([\\s\\S]*?)\`\`\`/g, '<pre><code>$1</code></pre>');
-        processedText = processedText.replace(/\`(.*?)\`/g, '<code>$1</code>');
+        processedText = processedText.replace(/```([\s\S]*?)```/g, '<pre><code>$1</code></pre>');
+        processedText = processedText.replace(/`(.*?)`/g, '<code>$1</code>');
         
         // Handle blockquotes
         processedText = processedText.replace(/^> (.*$)/gm, '<blockquote>$1</blockquote>');
         
         // Handle line breaks and paragraphs
-        const lines = processedText.split('\\n');
+        const lines = processedText.split('\n');
         let inList = false;
         let inOrderedList = false;
         let result = [];
@@ -170,8 +250,8 @@ export function getChatWidgetScript({ webhookUrl, siteName, baseUrl = '' }: Chat
             }
             
             // Handle unordered lists
-            if (line.match(/^[\\*\\-\\+]\\s+(.+)/)) {
-                const content = line.replace(/^[\\*\\-\\+]\\s+/, '');
+            if (line.match(/^[\*\-\+]\s+(.+)/)) {
+                const content = line.replace(/^[\*\-\+]\s+/, '');
                 if (!inList) {
                     if (inOrderedList) {
                         result.push('</ol>');
@@ -180,11 +260,11 @@ export function getChatWidgetScript({ webhookUrl, siteName, baseUrl = '' }: Chat
                     result.push('<ul>');
                     inList = true;
                 }
-                result.push(\`<li>\${content}</li>\`);
+                result.push(`<li>${content}</li>`);
             }
             // Handle ordered lists
-            else if (line.match(/^\\d+\\.\\s+(.+)/)) {
-                const content = line.replace(/^\\d+\\.\\s+/, '');
+            else if (line.match(/^\d+\.\s+(.+)/)) {
+                const content = line.replace(/^\d+\.\s+/, '');
                 if (!inOrderedList) {
                     if (inList) {
                         result.push('</ul>');
@@ -193,7 +273,7 @@ export function getChatWidgetScript({ webhookUrl, siteName, baseUrl = '' }: Chat
                     result.push('<ol>');
                     inOrderedList = true;
                 }
-                result.push(\`<li>\${content}</li>\`);
+                result.push(`<li>${content}</li>`);
             }
             else {
                 // Close any open lists
@@ -209,7 +289,7 @@ export function getChatWidgetScript({ webhookUrl, siteName, baseUrl = '' }: Chat
                 if (line) {
                     // Don't wrap headings, blockquotes, or HTML elements in paragraphs
                     if (!line.match(/^<(h[1-6]|blockquote|div|ul|ol|li|pre)/)) {
-                        result.push(\`<p>\${line}</p>\`);
+                        result.push(`<p>${line}</p>`);
                     } else {
                         result.push(line);
                     }
@@ -224,14 +304,14 @@ export function getChatWidgetScript({ webhookUrl, siteName, baseUrl = '' }: Chat
         processedText = result.join('');
         
         // Handle URLs (but avoid already processed ones in HTML)
-        processedText = processedText.replace(/<(https?:\\/\\/[^>\\s]+)>/g, (match, url) => {
+        processedText = processedText.replace(/<(https?:\/\/[^>\s]+)>/g, (match, url) => {
             const cleanUrl = url.replace(/[.,;!?]+$/, '');
-            return \`<a href="\${cleanUrl}" target="_blank">\${cleanUrl}</a>\`;
+            return `<a href="${cleanUrl}" target="_blank">${cleanUrl}</a>`;
         });
         
-        processedText = processedText.replace(/(^|[^"'>=])(https?:\\/\\/[^\\s<>"']+)/g, (match, prefix, url) => {
+        processedText = processedText.replace(/(^|[^"'>=])(https?:\/\/[^\s<>"']+)/g, (match, prefix, url) => {
             const cleanUrl = url.replace(/[.,;!?]+$/, '');
-            return \`\${prefix}<a href="\${cleanUrl}" target="_blank">\${cleanUrl}</a>\`;
+            return `${prefix}<a href="${cleanUrl}" target="_blank">${cleanUrl}</a>`;
         });
 
         // Store product cards for later rendering
@@ -254,33 +334,33 @@ export function getChatWidgetScript({ webhookUrl, siteName, baseUrl = '' }: Chat
             category = ''
         } = cardData;
         
-        return \`
+        return `
             <div class="product-card">
                 <div class="product-card-header">
                     <div class="product-card-image">
-                        \${image ? \`<img src="\${image}" alt="\${title}" onerror="this.style.display='none'; this.parentElement.innerHTML='🛍️';">\` : '🛍️'}
+                        ${image ? `<img src="${image}" alt="${title}" onerror="this.style.display='none'; this.parentElement.innerHTML='🛍️';">` : '🛍️'}
                     </div>
                     <div class="product-card-info">
-                        <h4 class="product-card-title">\${title}</h4>
-                        \${description ? \`<p class="product-card-description">\${description}</p>\` : ''}
-                        \${price ? \`<p class="product-card-price">\${price}</p>\` : ''}
+                        <h4 class="product-card-title">${title}</h4>
+                        ${description ? `<p class="product-card-description">${description}</p>` : ''}
+                        ${price ? `<p class="product-card-price">${price}</p>` : ''}
                     </div>
                 </div>
                 <div class="product-card-footer">
                     <div class="product-card-meta">
-                        \${availability ? \`<span>\${availability}</span>\` : ''}
-                        \${rating ? \`<span>⭐ \${rating}</span>\` : ''}
-                        \${category ? \`<span>\${category}</span>\` : ''}
+                        ${availability ? `<span>${availability}</span>` : ''}
+                        ${rating ? `<span>⭐ ${rating}</span>` : ''}
+                        ${category ? `<span>${category}</span>` : ''}
                     </div>
-                    <a href="\${url}" target="_blank" class="product-card-button">
+                    <a href="${url}" target="_blank" class="product-card-button">
                         View Product
                         <svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor">
-                            <path d="M14 3v2h3.59l-9.83 9.83 1.41 1.41L19 6.41V10h2V3m-2 16H5V5h7V3H5a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7h-2v7z"/>
+                            <path d="M14 3v2h3.59l-9.83 9.83 1.41 1.41L19 6.41V10h2V3m-2 16H5V5h7V3H5a2 2 0 0 0-2 2v14a2 2 0 0 0 2-2v-7h-2v7z"/>
                         </svg>
                     </a>
                 </div>
             </div>
-        \`;
+        `;
     }
     
     function showLoading(show) {
@@ -339,71 +419,78 @@ export function getChatWidgetScript({ webhookUrl, siteName, baseUrl = '' }: Chat
             messageList.appendChild(messageElement);
             input.value = '';
             scrollToBottom();
-            sendToWebhook(message);
+            
+            // Simulate bot response
+            setTimeout(() => {
+                let botResponse;
+                if (message.toLowerCase().includes('product')) {
+                    botResponse = `## Product Recommendations
+
+Based on your request, here are some **featured products** from our catalog:
+
+[PRODUCT_CARD]{"title": "Premium Wireless Headphones", "description": "High-quality noise-canceling headphones with 30-hour battery life", "price": "$299.99", "url": "https://example.com/headphones", "availability": "In stock", "rating": "4.8/5", "category": "Electronics"}[/PRODUCT_CARD]
+
+[PRODUCT_CARD]{"title": "Smart Fitness Watch", "description": "Track your health and fitness with this advanced smartwatch", "price": "$199.99", "url": "https://example.com/watch", "availability": "Limited stock", "rating": "4.6/5", "category": "Wearables"}[/PRODUCT_CARD]
+
+These products are **currently available** and can be ordered directly from our website. 
+
+*Need help choosing?* Feel free to ask about specific features or requirements!`;
+                } else {
+                    botResponse = `## Hello there! 👋
+
+I'm here to help you with:
+
+- **Product recommendations** and information
+- *Website navigation* and support
+- \`Technical questions\` and troubleshooting
+- General inquiries about our services
+
+### Popular Topics:
+1. Product catalog and pricing
+2. Shipping and returns
+3. Account management
+4. Technical support
+
+> Feel free to ask me anything! I'm here to provide you with accurate information from our knowledge base.
+
+You can also visit our main website at https://example.com for more details.`;
+                }
+                
+                const botMessage = { text: botResponse, sender: 'bot' };
+                messages.push(botMessage);
+                const messageElement = createMessageElement(botMessage.text, botMessage.sender);
+                messageList.appendChild(messageElement);
+                scrollToBottom();
+            }, 1000);
         }
     };
-
-    // Function to send message to webhook
-    function sendToWebhook(userMessage) {
-        showLoading(true);
-        const webhookUrl = '${webhookUrl}';
-        let sessionId = localStorage.getItem('ai_assistant_session_id');
-        if (!sessionId) {
-            sessionId = 'session_' + Date.now() + '_' + Math.random().toString(36).substr(2, 9);
-            localStorage.setItem('ai_assistant_session_id', sessionId);
-        }
-
-        const payload = {
-            chatInput: userMessage,
-            sessionId: sessionId,
-            timestamp: new Date().toISOString(),
-            userAgent: navigator.userAgent,
-            url: window.location.href
-        };
-
-        fetch(webhookUrl, {
-            method: 'POST',
-            headers: {'Content-Type': 'application/json'},
-            body: JSON.stringify(payload)
-        })
-        .then(response => response.ok ? response.json() : Promise.reject('Network response was not ok'))
-        .then(data => {
-            showLoading(false);
-            const botMessage = { text: data.output || "I'm having trouble connecting. Please try again.", sender: 'bot' };
-            messages.push(botMessage);
-            const messageElement = createMessageElement(botMessage.text, botMessage.sender);
-            messageList.appendChild(messageElement);
-            scrollToBottom();
-            if (data.sessionId) {
-                localStorage.setItem('ai_assistant_session_id', data.sessionId);
-            }
-        })
-        .catch(error => {
-            showLoading(false);
-            console.error('Error sending to webhook:', error);
-            const errorMessage = { text: "I'm sorry, I'm having trouble connecting right now. Please try again later.", sender: 'bot' };
-            messages.push(errorMessage);
-            const messageElement = createMessageElement(errorMessage.text, errorMessage.sender);
-            messageList.appendChild(messageElement);
-            scrollToBottom();
-        });
-    }
 
     // Initial render of the chat bubble
     widget.appendChild(createChatBubble());
     document.body.appendChild(widget);
 })();
-</script>`;
-}
+    </script>
 
-// For generating embed code (just wraps the single script)
-export function generateChatWidgetScript({ webhookUrl, siteName, baseUrl }: ChatWidgetConfig): string {
-  return getChatWidgetScript({ webhookUrl, siteName, baseUrl });
-}
-
-// For React component usage (returns just the script content without <script> tags)
-export function getChatWidgetScriptContent({ webhookUrl, siteName, baseUrl }: ChatWidgetConfig): string {
-  const fullScript = getChatWidgetScript({ webhookUrl, siteName, baseUrl });
-  // Remove <script> and </script> tags to get just the content
-  return fullScript.replace(/^<script>/, '').replace(/<\/script>$/, '');
-}
+    <script>
+        function simulateProductResponse() {
+            // Open the chat widget if not already open
+            if (!window.toggleAIAssistant) return;
+            
+            // Simulate clicking the chat bubble to open it
+            const bubble = document.querySelector('.chat-bubble');
+            if (bubble) {
+                bubble.click();
+                
+                // Wait a bit then simulate sending a product query
+                setTimeout(() => {
+                    const input = document.getElementById('chatInput');
+                    if (input) {
+                        input.value = 'Show me some products';
+                        window.sendMessage();
+                    }
+                }, 500);
+            }
+        }
+    </script>
+</body>
+</html>

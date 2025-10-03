@@ -2,10 +2,10 @@
 
 import { useEffect, useState } from "react";
 import { config } from "@/lib/config";
-import ActionButtons from "@/app/components/ActionButtons";
 import ResultsDisplay from "@/app/components/ResultsDisplay";
 import AuthModal from "@/app/components/AuthModal";
 import ChatWidget from "@/app/components/ChatWidget";
+import WidgetCustomization from "@/app/components/WidgetCustomization";
 import { useRouter, useParams } from "next/navigation";
 import { addToast } from "@heroui/toast";
 import { useAuthContext } from "@/app/contexts/AuthContext";
@@ -88,6 +88,7 @@ export default function ProjectPage() {
   const [sheetId, setSheetId] = useState<string | null>(null);
   const [showAddMorePages, setShowAddMorePages] = useState(false);
   const [additionalUrls, setAdditionalUrls] = useState<{ url: string; selected: boolean }[]>([]);
+  const [widgetSettingsKey, setWidgetSettingsKey] = useState(0); // Key to force re-render of widget
 
   const url = `http://${domain}`;
 
@@ -513,6 +514,7 @@ export default function ProjectPage() {
       {/* Floating Chat Widget */}
       {workflowResult?.webhook_url && (
         <ChatWidget
+          key={widgetSettingsKey}
           webhookUrl={workflowResult.webhook_url}
           label={`${domain} Assistant`}
           description="Get instant help with your questions"
@@ -530,15 +532,6 @@ export default function ProjectPage() {
             <div>Loading project data...</div>
         ) : (
           <>
-            <ActionButtons
-              scrapedDataLength={scrapedData.length}
-              errorMessage={errorMessage}
-              url={url}
-              handleRetryScraping={handleRetryScraping}
-              loading={loading}
-              retryLoading={retryLoading}
-            />
-
             <ResultsDisplay
               sheetId={sheetId}
               prompt={prompt}
@@ -576,6 +569,24 @@ export default function ProjectPage() {
               handleDeleteSelected={handleDeleteSelected}
               numSelected={scrapedData.filter(item => item.selected).length}
             />
+
+            {/* Widget Customization Section */}
+            {workflowResult?.webhook_url && (
+              <div className="w-full max-w-7xl mt-8">
+                <WidgetCustomization
+                  domain={domain}
+                  authKey={authKey!}
+                  onSettingsUpdated={() => {
+                    setWidgetSettingsKey(prev => prev + 1);
+                    addToast({
+                      title: 'Success',
+                      description: 'Widget settings updated. The chat widget will reflect the new settings.',
+                      color: 'success',
+                    });
+                  }}
+                />
+              </div>
+            )}
           </>
         ))}
       </section>

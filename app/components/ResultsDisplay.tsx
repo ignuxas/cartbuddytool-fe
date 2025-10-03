@@ -20,6 +20,7 @@ import { Card, CardBody } from "@heroui/card";
 import { Chip } from "@heroui/chip";
 import { getChatWidgetScript } from "@/app/utils/chatWidgetGenerator";
 import { addToast } from "@heroui/toast";
+import { config } from "@/lib/config";
 
 interface ScrapedDataItem {
   url: string;
@@ -105,6 +106,7 @@ export default function ResultsDisplay({
     direction: "ascending",
   });
   const [newAdditionalUrl, setNewAdditionalUrl] = React.useState("");
+  const [embedCodeWithSettings, setEmbedCodeWithSettings] = React.useState<string>("");
 
   const sortedItems = React.useMemo(() => {
     try {
@@ -142,6 +144,52 @@ export default function ResultsDisplay({
       return scrapedData; // Return unsorted data as fallback
     }
   }, [sortDescriptor, scrapedData]);
+
+  // Load embed code with widget settings when workflow result is available
+  React.useEffect(() => {
+    const loadEmbedCode = async () => {
+      if (!workflowResult?.webhook_url) {
+        setEmbedCodeWithSettings("");
+        return;
+      }
+
+      const siteName = (() => {
+        try {
+          return new URL(url).hostname;
+        } catch {
+          return 'Website';
+        }
+      })();
+
+      // Fetch widget settings
+      let widgetSettings;
+      try {
+        const response = await fetch(
+          `${config.serverUrl}/api/widget/settings/?domain=${encodeURIComponent(siteName)}`
+        );
+        if (response.ok) {
+          widgetSettings = await response.json();
+        }
+      } catch (error) {
+        console.warn('Could not fetch widget settings for embed code, using defaults:', error);
+      }
+
+      const code = getChatWidgetScript({
+        webhookUrl: workflowResult.webhook_url,
+        siteName,
+        primaryColor: widgetSettings?.primary_color,
+        secondaryColor: widgetSettings?.secondary_color,
+        textColor: widgetSettings?.text_color,
+        title: widgetSettings?.title,
+        welcomeMessage: widgetSettings?.welcome_message,
+        suggestions: widgetSettings?.suggestions,
+      });
+
+      setEmbedCodeWithSettings(code);
+    };
+
+    loadEmbedCode();
+  }, [workflowResult, url]);
 
   const renderCell = React.useCallback(
     (item: ScrapedDataItem, columnKey: React.Key) => {
@@ -264,10 +312,29 @@ export default function ResultsDisplay({
         }
       })();
 
+      // Fetch widget settings
+      let widgetSettings;
+      try {
+        const response = await fetch(
+          `${config.serverUrl}/api/widget/settings/?domain=${encodeURIComponent(siteName)}`
+        );
+        if (response.ok) {
+          widgetSettings = await response.json();
+        }
+      } catch (error) {
+        console.warn('Could not fetch widget settings, using defaults:', error);
+      }
+
       const embedCode = getChatWidgetScript({
         webhookUrl: workflowResult.webhook_url,
         siteName,
-        baseUrl: process.env.NEXT_PUBLIC_BASE_URL
+        baseUrl: process.env.NEXT_PUBLIC_BASE_URL,
+        primaryColor: widgetSettings?.primary_color,
+        secondaryColor: widgetSettings?.secondary_color,
+        textColor: widgetSettings?.text_color,
+        title: widgetSettings?.title,
+        welcomeMessage: widgetSettings?.welcome_message,
+        suggestions: widgetSettings?.suggestions,
       });
       
       await navigator.clipboard.writeText(embedCode);
@@ -664,16 +731,7 @@ export default function ResultsDisplay({
                       Copy and paste this code into your website to add the AI chat interface:
                     </p>
                     <div className="bg-gray-900 text-gray-100 p-4 rounded-lg text-sm font-mono overflow-x-auto">
-                      <pre>{getChatWidgetScript({
-                        webhookUrl: workflowResult.webhook_url,
-                        siteName: (() => {
-                          try {
-                            return new URL(url).hostname;
-                          } catch {
-                            return 'Website';
-                          }
-                        })()
-                      })}</pre>
+                      <pre>{embedCodeWithSettings || 'Loading embed code...'}</pre>
                     </div>
                     <div className="flex gap-2 mt-2">
                       <Button

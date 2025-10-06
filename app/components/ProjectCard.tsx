@@ -4,6 +4,7 @@ import React from "react";
 import { Card, CardBody } from "@heroui/card";
 import { Button } from "@heroui/button";
 import { Chip } from "@heroui/chip";
+import { useRouter } from "next/navigation";
 
 interface Project {
   domain: string;
@@ -18,6 +19,8 @@ interface ProjectCardProps {
 }
 
 export default function ProjectCard({ project, onSelect }: ProjectCardProps) {
+  const router = useRouter();
+
   const formatDate = (dateString?: string) => {
     if (!dateString) return "Unknown";
     try {
@@ -36,6 +39,10 @@ export default function ProjectCard({ project, onSelect }: ProjectCardProps) {
     onSelect(`${getProtocol(project.domain)}${project.domain}`);
   };
 
+  const handleMetricsClick = () => {
+    router.push(`/project/${encodeURIComponent(project.domain)}/metrics`);
+  };
+
   return (
     <Card className="w-full hover:shadow-lg transition-shadow">
       <CardBody className="p-4">
@@ -50,15 +57,26 @@ export default function ProjectCard({ project, onSelect }: ProjectCardProps) {
         <p className="text-sm text-gray-600 mb-3">
           Last updated: {formatDate(project.last_updated)}
         </p>
-        <Button 
-          size="sm" 
-          color="primary" 
-          variant="flat"
-          className="w-full"
-          onPress={handleClick}
-        >
-          Load Project
-        </Button>
+        <div className="flex gap-2">
+          <Button 
+            size="sm" 
+            color="primary" 
+            variant="flat"
+            className="flex-1"
+            onPress={handleClick}
+          >
+            Load Project
+          </Button>
+          <Button 
+            size="sm" 
+            color="secondary" 
+            variant="flat"
+            className="flex-1"
+            onPress={handleMetricsClick}
+          >
+            Metrics
+          </Button>
+        </div>
       </CardBody>
     </Card>
   );

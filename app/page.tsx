@@ -569,6 +569,7 @@ export default function Home() {
             {step === 'form' && (
               <ExistingProjects 
                 authKey={authKey}
+                onSelectProject={setUrl}
               />
             )}
           </div>

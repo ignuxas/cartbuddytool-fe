@@ -1,20 +1,21 @@
 "use client";
 
 import React, { useEffect, useState } from "react";
-import { Card, CardBody, CardHeader, CardFooter } from "@heroui/card";
-import { Button } from "@heroui/button";
+import { Card, CardBody, CardHeader } from "@heroui/card";
 import { config } from "@/lib/config";
-import Link from "next/link";
 import { addToast } from "@heroui/toast";
-import { Divider } from "@heroui/divider";
+import ProjectCard from "./ProjectCard";
 
 interface Project {
   domain: string;
+  table_name: string;
   page_count: number;
+  last_updated?: string;
 }
 
 interface ExistingProjectsProps {
   authKey: string | null;
+  onSelectProject?: (url: string) => void;
 }
 
 const SkeletonCard = () => (
@@ -37,7 +38,7 @@ const EmptyStateIcon = () => (
 );
 
 
-const ExistingProjects: React.FC<ExistingProjectsProps> = ({ authKey }) => {
+const ExistingProjects: React.FC<ExistingProjectsProps> = ({ authKey, onSelectProject }) => {
   const [projects, setProjects] = useState<Project[]>([]);
   const [loading, setLoading] = useState(true);
 
@@ -80,6 +81,12 @@ const ExistingProjects: React.FC<ExistingProjectsProps> = ({ authKey }) => {
     }
   };
 
+  const handleSelectProject = (url: string) => {
+    if (onSelectProject) {
+      onSelectProject(url);
+    }
+  };
+
   if (loading) {
     return (
       <div className="w-full max-w-4xl">
@@ -107,25 +114,11 @@ const ExistingProjects: React.FC<ExistingProjectsProps> = ({ authKey }) => {
       {projects.length > 0 && (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
           {projects.map((project) => (
-            <Card key={project.domain}>
-              <CardHeader>
-                <h4 className="font-bold text-lg truncate">{project.domain}</h4>
-              </CardHeader>
-              <Divider />
-              <CardBody>
-                <p className="text-sm text-muted-foreground">
-                  {project.page_count} pages scraped
-                </p>
-              </CardBody>
-              <Divider />
-              <CardFooter>
-                <Link href={`/project/${project.domain}`}>
-                  <Button color="primary" variant="ghost" size="sm">
-                    View Project
-                  </Button>
-                </Link>
-              </CardFooter>
-            </Card>
+            <ProjectCard
+              key={project.domain}
+              project={project}
+              onSelect={handleSelectProject}
+            />
           ))}
         </div>
       )}

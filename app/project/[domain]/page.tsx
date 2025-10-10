@@ -129,11 +129,7 @@ export default function ProjectPage() {
           if (checkData.existing_workflow) {
             setWorkflowResult(checkData.existing_workflow);
           }
-          addToast({
-            title: "Success",
-            description: `Loaded ${checkData.count} existing pages for ${domain}.`,
-            color: "success",
-          });
+          // Toast removed - silently load project data
         } else {
           const message = "No data found for this project. Redirecting to home page.";
           addToast({ title: "Error", description: message, color: "danger" });

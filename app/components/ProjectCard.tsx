@@ -30,13 +30,9 @@ export default function ProjectCard({ project, onSelect }: ProjectCardProps) {
     }
   };
 
-  const getProtocol = (domain: string) => {
-    // Simple heuristic - you might want to store this info in the database
-    return domain.includes('localhost') ? 'http://' : 'https://';
-  };
-
   const handleClick = () => {
-    onSelect(`${getProtocol(project.domain)}${project.domain}`);
+    // Navigate directly to the project page
+    router.push(`/project/${encodeURIComponent(project.domain)}`);
   };
 
   const handleMetricsClick = () => {

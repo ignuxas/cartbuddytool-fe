@@ -28,7 +28,21 @@ interface MetricsData {
   unique_sessions: number;
   unique_ips: number;
   average_response_length: number;
-  daily_stats: Array<{ date: string; count: number }>;
+  total_errors: number;
+  error_percentage: number;
+  error_types: Array<{ error_type: string; count: number }>;
+  recent_errors: Array<{
+    id: string;
+    date: string;
+    domain: string;
+    error_message: string;
+    error_stack: string;
+    last_node_executed: string;
+    execution_url: string;
+    mode: string;
+    retryOf: string;
+  }>;
+  daily_stats: Array<{ date: string; count: number; errors: number }>;
   hourly_stats: Array<{ hour: string; count: number }>;
   top_queries: Array<{ query: string; count: number }>;
   recent_metrics: Array<{
@@ -99,7 +113,21 @@ export default function MetricsPage() {
         }
 
         const data = await response.json();
-        setMetrics(data);
+        
+        // Ensure all arrays are initialized to prevent null/undefined errors
+        const normalizedData = {
+          ...data,
+          daily_stats: data.daily_stats || [],
+          hourly_stats: data.hourly_stats || [],
+          top_queries: data.top_queries || [],
+          recent_metrics: data.recent_metrics || [],
+          error_types: data.error_types || [],
+          recent_errors: data.recent_errors || [],
+          total_errors: data.total_errors || 0,
+          error_percentage: data.error_percentage || 0,
+        };
+        
+        setMetrics(normalizedData);
       } catch (err) {
         setError(err instanceof Error ? err.message : "Failed to load metrics");
       } finally {
@@ -216,6 +244,34 @@ export default function MetricsPage() {
           </Card>
         </div>
 
+        {/* Error Summary Cards */}
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
+          <Card>
+            <CardBody className="text-center">
+              <div className="text-3xl font-bold text-red-500">
+                {metrics.total_errors || 0}
+              </div>
+              <div className="text-default-500 mt-1">Total Errors</div>
+            </CardBody>
+          </Card>
+          <Card>
+            <CardBody className="text-center">
+              <div className="text-3xl font-bold text-red-400">
+                {(metrics.error_percentage || 0).toFixed(2)}%
+              </div>
+              <div className="text-default-500 mt-1">Error Rate</div>
+            </CardBody>
+          </Card>
+          <Card>
+            <CardBody className="text-center">
+              <div className="text-3xl font-bold text-green-400">
+                {((100 - (metrics.error_percentage || 0))).toFixed(2)}%
+              </div>
+              <div className="text-default-500 mt-1">Success Rate</div>
+            </CardBody>
+          </Card>
+        </div>
+
         {/* Charts Row 1 */}
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
           {/* Daily Activity Chart */}
@@ -231,14 +287,14 @@ export default function MetricsPage() {
                     <XAxis
                       dataKey="date"
                       stroke="#9CA3AF"
-                      tickFormatter={(value) => {
+                      tickFormatter={(value: any) => {
                         const date = new Date(value);
                         return `${date.getMonth() + 1}/${date.getDate()}`;
                       }}
                     />
                     <YAxis stroke="#9CA3AF" />
                     <Tooltip
-                      labelFormatter={(value) => formatDate(value)}
+                      labelFormatter={(value: any) => formatDate(value)}
                       contentStyle={{
                         backgroundColor: '#1F2937',
                         border: '1px solid #374151',
@@ -252,7 +308,14 @@ export default function MetricsPage() {
                       dataKey="count"
                       stroke="#3B82F6"
                       strokeWidth={2}
-                      name="Interactions"
+                      name="Total Interactions"
+                    />
+                    <Line
+                      type="monotone"
+                      dataKey="errors"
+                      stroke="#EF4444"
+                      strokeWidth={2}
+                      name="Errors"
                     />
                   </LineChart>
                 </ResponsiveContainer>
@@ -297,6 +360,96 @@ export default function MetricsPage() {
           </Card>
         </div>
 
+        {/* Error Analysis Row */}
+        {metrics.total_errors > 0 && (
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
+            {/* Error Types Distribution */}
+            <Card>
+              <CardHeader>
+                <h3 className="text-xl font-semibold">Error Types Distribution</h3>
+              </CardHeader>
+              <CardBody>
+                {metrics.error_types && metrics.error_types.length > 0 ? (
+                  <div className="space-y-2">
+                    {metrics.error_types.map((errorType, idx) => (
+                      <div
+                        key={idx}
+                        className="flex items-center justify-between p-3 bg-default-100 rounded-lg"
+                      >
+                        <div className="flex-1 mr-4">
+                          <div className="text-sm font-medium text-foreground truncate">
+                            {errorType.error_type}
+                          </div>
+                        </div>
+                        <Chip size="sm" color="danger" variant="flat">
+                          {errorType.count}
+                        </Chip>
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <div className="text-center text-default-500 py-12">
+                    No error type data available
+                  </div>
+                )}
+              </CardBody>
+            </Card>
+
+            {/* Daily Activity with Errors */}
+            <Card>
+              <CardHeader>
+                <h3 className="text-xl font-semibold">Daily Activity with Errors</h3>
+              </CardHeader>
+              <CardBody>
+                {metrics.daily_stats.length > 0 ? (
+                  <ResponsiveContainer width="100%" height={300}>
+                    <LineChart data={metrics.daily_stats}>
+                      <CartesianGrid strokeDasharray="3 3" stroke="#374151" />
+                      <XAxis
+                        dataKey="date"
+                        stroke="#9CA3AF"
+                        tickFormatter={(value: any) => {
+                          const date = new Date(value);
+                          return `${date.getMonth() + 1}/${date.getDate()}`;
+                        }}
+                      />
+                      <YAxis stroke="#9CA3AF" />
+                      <Tooltip
+                        labelFormatter={(value: any) => formatDate(value)}
+                        contentStyle={{
+                          backgroundColor: '#1F2937',
+                          border: '1px solid #374151',
+                          borderRadius: '6px',
+                          color: '#F3F4F6'
+                        }}
+                      />
+                      <Legend />
+                      <Line
+                        type="monotone"
+                        dataKey="count"
+                        stroke="#3B82F6"
+                        strokeWidth={2}
+                        name="Total Interactions"
+                      />
+                      <Line
+                        type="monotone"
+                        dataKey="errors"
+                        stroke="#EF4444"
+                        strokeWidth={2}
+                        name="Errors"
+                      />
+                    </LineChart>
+                  </ResponsiveContainer>
+                ) : (
+                  <div className="text-center text-default-500 py-12">
+                    No daily activity data available
+                  </div>
+                )}
+              </CardBody>
+            </Card>
+          </div>
+        )}
+
         {/* Top Queries */}
         <Card className="mb-6">
           <CardHeader>
@@ -332,7 +485,7 @@ export default function MetricsPage() {
                         cx="50%"
                         cy="50%"
                         outerRadius={100}
-                        label={(entry) => `${entry.count}`}
+                        label={(entry: any) => `${entry.count}`}
                       >
                         {metrics.top_queries.map((entry, index) => (
                           <Cell
@@ -360,6 +513,105 @@ export default function MetricsPage() {
             )}
           </CardBody>
         </Card>
+
+        {/* Recent Errors */}
+        {metrics.recent_errors && metrics.recent_errors.length > 0 && (
+          <Card className="mb-6">
+            <CardHeader>
+              <h3 className="text-xl font-semibold text-red-500">Recent Errors</h3>
+            </CardHeader>
+            <CardBody>
+              <div className="space-y-4 max-h-[600px] overflow-y-auto">
+                {metrics.recent_errors.map((error) => (
+                  <div
+                    key={error.id}
+                    className="p-4 bg-red-50 dark:bg-red-950/20 rounded-lg border-2 border-red-200 dark:border-red-900"
+                  >
+                    <div className="flex items-start justify-between mb-3">
+                      <div className="flex-1">
+                        <div className="flex items-center gap-2 mb-1">
+                          <Chip size="sm" variant="flat" color="danger">
+                            Error ID: {error.id}
+                          </Chip>
+                          <div className="text-xs text-default-500">
+                            {formatDateTime(error.date)}
+                          </div>
+                        </div>
+                        <div className="text-sm font-semibold text-red-600 dark:text-red-400 mb-2">
+                          {error.error_message}
+                        </div>
+                      </div>
+                    </div>
+                    
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-3 mb-3">
+                      <div className="space-y-2">
+                        {error.last_node_executed && error.last_node_executed !== '-' && (
+                          <div>
+                            <div className="text-xs font-semibold text-default-600 mb-1">
+                              Last Node Executed:
+                            </div>
+                            <div className="text-xs text-default-500 bg-content2 p-2 rounded">
+                              {error.last_node_executed}
+                            </div>
+                          </div>
+                        )}
+                        {error.mode && error.mode !== '-' && (
+                          <div>
+                            <div className="text-xs font-semibold text-default-600 mb-1">
+                              Execution Mode:
+                            </div>
+                            <Chip size="sm" variant="flat" color="default">
+                              {error.mode}
+                            </Chip>
+                          </div>
+                        )}
+                      </div>
+                      
+                      <div className="space-y-2">
+                        {error.retryOf && error.retryOf !== '-' && (
+                          <div>
+                            <div className="text-xs font-semibold text-default-600 mb-1">
+                              Retry Of:
+                            </div>
+                            <Chip size="sm" variant="flat" color="warning">
+                              Execution #{error.retryOf}
+                            </Chip>
+                          </div>
+                        )}
+                        {error.execution_url && error.execution_url !== '-' && (
+                          <div>
+                            <div className="text-xs font-semibold text-default-600 mb-1">
+                              Execution URL:
+                            </div>
+                            <a
+                              href={error.execution_url}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="text-xs text-blue-500 hover:text-blue-600 underline break-all"
+                            >
+                              {error.execution_url}
+                            </a>
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                    
+                    {error.error_stack && error.error_stack !== '' && (
+                      <div>
+                        <div className="text-xs font-semibold text-default-600 mb-1">
+                          Stack Trace:
+                        </div>
+                        <div className="text-xs text-default-500 bg-content2 p-2 rounded max-h-40 overflow-y-auto font-mono whitespace-pre-wrap">
+                          {error.error_stack}
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                ))}
+              </div>
+            </CardBody>
+          </Card>
+        )}
 
         {/* Recent Interactions */}
         <Card>

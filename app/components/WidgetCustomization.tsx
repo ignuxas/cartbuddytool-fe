@@ -21,6 +21,11 @@ interface WidgetSettings {
   title: string;
   welcome_message: string;
   suggestions: string[];
+  bubble_greeting_text: string;
+  bubble_button_text: string;
+  input_placeholder: string;
+  footer_text: string;
+  view_product_text: string;
 }
 
 export default function WidgetCustomization({ domain, authKey, onSettingsUpdated }: WidgetCustomizationProps) {
@@ -36,7 +41,12 @@ export default function WidgetCustomization({ domain, authKey, onSettingsUpdated
       'How does this work?',
       'Show me popular content',
       'Contact information'
-    ]
+    ],
+    bubble_greeting_text: 'Welcome! How can I assist you today?',
+    bubble_button_text: 'Chat with AI assistant',
+    input_placeholder: 'Send message...',
+    footer_text: 'Ask me anything about this website',
+    view_product_text: 'View Product'
   });
   
   const [loading, setLoading] = useState(false);
@@ -228,6 +238,65 @@ export default function WidgetCustomization({ domain, authKey, onSettingsUpdated
             placeholder="Welcome! I'm your AI assistant. Need help finding information?"
             rows={3}
           />
+        </div>
+
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div className="flex flex-col gap-2">
+            <label className="text-sm font-medium">Chat Bubble Greeting</label>
+            <Input
+              value={settings.bubble_greeting_text}
+              onChange={(e) => setSettings({ ...settings, bubble_greeting_text: e.target.value })}
+              placeholder="Welcome! How can I assist you today?"
+              maxLength={200}
+            />
+            <p className="text-xs text-gray-500">First line of text shown in the chat bubble (fully customizable)</p>
+          </div>
+
+          <div className="flex flex-col gap-2">
+            <label className="text-sm font-medium">Chat Bubble Button Text</label>
+            <Input
+              value={settings.bubble_button_text}
+              onChange={(e) => setSettings({ ...settings, bubble_button_text: e.target.value })}
+              placeholder="Chat with AI assistant"
+              maxLength={100}
+            />
+            <p className="text-xs text-gray-500">Button text in the chat bubble</p>
+          </div>
+        </div>
+
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div className="flex flex-col gap-2">
+            <label className="text-sm font-medium">Input Placeholder</label>
+            <Input
+              value={settings.input_placeholder}
+              onChange={(e) => setSettings({ ...settings, input_placeholder: e.target.value })}
+              placeholder="Send message..."
+              maxLength={100}
+            />
+            <p className="text-xs text-gray-500">Placeholder text in the message input field</p>
+          </div>
+
+          <div className="flex flex-col gap-2">
+            <label className="text-sm font-medium">View Product Button Text</label>
+            <Input
+              value={settings.view_product_text}
+              onChange={(e) => setSettings({ ...settings, view_product_text: e.target.value })}
+              placeholder="View Product"
+              maxLength={50}
+            />
+            <p className="text-xs text-gray-500">Button text on product cards</p>
+          </div>
+        </div>
+
+        <div className="flex flex-col gap-2">
+          <label className="text-sm font-medium">Footer Text</label>
+          <Input
+            value={settings.footer_text}
+            onChange={(e) => setSettings({ ...settings, footer_text: e.target.value })}
+            placeholder="Ask me anything about this website"
+            maxLength={200}
+          />
+          <p className="text-xs text-gray-500">Help text below the input field</p>
         </div>
 
         <div className="flex flex-col gap-2">

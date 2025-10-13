@@ -18,6 +18,11 @@ interface WidgetSettings {
   title: string;
   welcome_message: string;
   suggestions: string[];
+  bubble_greeting_text: string;
+  bubble_button_text: string;
+  input_placeholder: string;
+  footer_text: string;
+  view_product_text: string;
 }
 
 declare global {
@@ -117,6 +122,11 @@ export default function ChatWidget({ webhookUrl, label, description = "Get insta
         title: settings?.title,
         welcomeMessage: settings?.welcome_message,
         suggestions: settings?.suggestions,
+        bubbleGreetingText: settings?.bubble_greeting_text,
+        bubbleButtonText: settings?.bubble_button_text,
+        inputPlaceholder: settings?.input_placeholder,
+        footerText: settings?.footer_text,
+        viewProductText: settings?.view_product_text,
       });
 
       // Execute the script content directly
@@ -130,6 +140,11 @@ export default function ChatWidget({ webhookUrl, label, description = "Get insta
           title: settings?.title,
           welcomeMessage: settings?.welcome_message,
           suggestions: settings?.suggestions,
+          bubbleGreetingText: settings?.bubble_greeting_text,
+          bubbleButtonText: settings?.bubble_button_text,
+          inputPlaceholder: settings?.input_placeholder,
+          footerText: settings?.footer_text,
+          viewProductText: settings?.view_product_text,
         });
       } catch (error) {
         console.error('[ChatWidget] Error executing chat widget script:', error);

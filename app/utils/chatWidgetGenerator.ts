@@ -39,7 +39,7 @@ export function getChatWidgetScript({
   viewProductText = 'View Product'
 }: ChatWidgetConfig): string {
   // Build CSS with interpolated colors BEFORE the main template string
-  const cssContent = `.chat-widget-container{position:fixed;bottom:20px;right:20px;z-index:9999}.chat-bubble{display:flex;align-items:flex-end;cursor:pointer}.chat-bubble-message{background-color:white;padding:15px;border-radius:15px;box-shadow:0 4px 12px rgba(0,0,0,0.15);max-width:250px;margin-right:15px;animation:fadeIn 0.3s ease-in-out}.chat-bubble-message p{margin:0;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;color:#333;line-height:1.5}.chat-bubble-message .consultant-button{background-color:${primaryColor};color:${textColor};border:none;padding:10px 15px;border-radius:20px;margin-top:10px;cursor:pointer;font-weight:600;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;transition:background-color 0.2s}.chat-bubble-message .consultant-button:hover{background-color:${secondaryColor}}.avatar{width:64px;height:64px;border-radius:50%;overflow:hidden;display:flex;align-items:center;justify-content:center;box-shadow:0 4px 12px rgba(0,0,0,0.15);background:linear-gradient(135deg,${primaryColor} 0%,${secondaryColor} 100%)}.avatar img{width:100%;height:100%;object-fit:cover;border-radius:50%}.chat-window{width:480px;height:calc(100vh - 40px);background:#ffffff;border-radius:20px;box-shadow:0 20px 60px rgba(0,0,0,0.15);display:flex;flex-direction:column;overflow:hidden;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;animation:slideIn 0.4s cubic-bezier(0.25,0.46,0.45,0.94)}.chat-mini-header{display:flex;padding:12px 16px;background:linear-gradient(135deg,${primaryColor} 0%,${secondaryColor} 100%);color:${textColor};align-items:center;justify-content:center;gap:12px;position:relative;flex-shrink:0}.chat-mini-header .mini-avatar{width:32px;height:32px;border-radius:50%;background:rgba(255,255,255,0.2);display:flex;align-items:center;justify-content:center;font-size:16px;overflow:hidden}.chat-mini-header .mini-avatar img{width:100%;height:100%;object-fit:cover;border-radius:50%}.chat-mini-header span{font-size:16px;font-weight:600}.close-button{position:absolute;top:50%;right:15px;transform:translateY(-50%);background:rgba(255,255,255,0.1);border:none;color:${textColor};width:28px;height:28px;border-radius:50%;cursor:pointer;font-size:16px;line-height:28px;text-align:center;transition:background-color 0.2s}.close-button:hover{background:rgba(255,255,255,0.2)}.chat-body{flex:1;padding:20px;overflow-y:auto;scroll-behavior:smooth;background:#f8fafc;min-height:0}.suggestion-chips{display:flex;flex-wrap:wrap;justify-content:center;gap:8px;margin-top:20px;padding-bottom:15px}.chip{background-color:white;border:1px solid #e2e8f0;padding:8px 16px;border-radius:20px;cursor:pointer;transition:all 0.2s;color:#475569;font-size:14px;font-weight:500;box-shadow:0 1px 3px rgba(0,0,0,0.1)}.chip:hover{background-color:${primaryColor};color:${textColor};transform:translateY(-1px);box-shadow:0 4px 12px rgba(59,130,246,0.3)}.chat-footer{padding:16px 20px;background-color:white;border-top:1px solid #e2e8f0;flex-shrink:0}.input-area{display:flex;align-items:center;background-color:#f1f5f9;border-radius:25px;padding:8px 16px;border:2px solid transparent;transition:border-color 0.2s}.input-area:focus-within{border-color:${primaryColor}}.input-area input{flex:1;border:none;outline:none;background:transparent;padding:8px 0;font-size:14px;color:#1e293b}.input-area input::placeholder{color:#94a3b8}.send-button{background:${primaryColor};border-radius:50%;padding:10px;display:flex;align-items:center;justify-content:center;color:${textColor};transition:all 0.2s;margin-left:8px}.send-button:hover{background:${secondaryColor};transform:scale(1.05)}.message-list{display:flex;flex-direction:column;gap:16px;margin-bottom:20px}.message{padding:12px 16px;border-radius:16px;max-width:85%;word-wrap:break-word;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;line-height:1.6;font-size:14px;box-shadow:0 2px 8px rgba(0,0,0,0.08)}.message h1,.message h2,.message h3,.message h4,.message h5,.message h6{margin:16px 0 8px 0;font-weight:600;color:#1e293b}.message h1{font-size:20px}.message h2{font-size:18px}.message h3{font-size:16px}.message p{margin:8px 0;color:#334155;line-height:1.6}.message strong{font-weight:600;color:#1e293b}.message em{font-style:italic;color:#64748b}.message code{background:#f1f5f9;padding:2px 6px;border-radius:4px;font-family:'SF Mono',Monaco,Consolas,monospace;font-size:13px;color:#e11d48;border:1px solid #e2e8f0}.message pre{background:#f8fafc;padding:16px;border-radius:8px;overflow-x:auto;white-space:pre-wrap;border:1px solid #e2e8f0;margin:12px 0}.message pre code{background:none;padding:0;border:none;color:#475569}.message ul{margin:12px 0;padding-left:0;list-style:none}.message li{margin:6px 0;padding-left:24px;position:relative;color:#475569}.message li:before{content:'•';color:${primaryColor};font-weight:bold;position:absolute;left:8px;font-size:16px}.message ol{margin:12px 0;padding-left:24px}.message ol li{list-style:decimal;padding-left:8px}.message ol li:before{display:none}.message blockquote{border-left:4px solid ${primaryColor};padding-left:16px;margin:16px 0;color:#64748b;font-style:italic}.message a{color:${primaryColor};text-decoration:none;font-weight:500}.message a:hover{text-decoration:underline}.user-message{background:linear-gradient(135deg,${primaryColor} 0%,${secondaryColor} 100%);color:${textColor};align-self:flex-end;border-bottom-right-radius:4px}.user-message p,.user-message strong,.user-message em{color:${textColor}}.user-message a{color:#bfdbfe}.user-message code{background:rgba(255,255,255,0.2);color:${textColor};border:1px solid rgba(255,255,255,0.3)}.bot-message{background-color:#ffffff;color:#334155;align-self:flex-start;border-bottom-left-radius:4px;border:1px solid #e2e8f0}.product-card{background:linear-gradient(135deg,#ffffff 0%,#f8fafc 100%);border:1px solid #e2e8f0;border-radius:12px;padding:16px;margin:12px 0;box-shadow:0 4px 12px rgba(0,0,0,0.08);transition:all 0.2s}.product-card:hover{transform:translateY(-2px);box-shadow:0 8px 24px rgba(0,0,0,0.12)}.product-card-header{display:flex !important;align-items:flex-start !important;gap:12px !important;margin-bottom:12px !important}.product-card-image{width:60px !important;height:60px !important;border-radius:8px !important;object-fit:cover !important;background:#f1f5f9 !important;display:flex !important;align-items:center !important;justify-content:center !important;color:#94a3b8 !important;font-size:24px !important;flex-shrink:0 !important}.product-card-info{flex:1 !important}.product-card-title{font-size:16px !important;font-weight:600 !important;color:#1e293b !important;margin:0 0 4px 0 !important;line-height:1.3 !important;display:block !important}.product-card-description{font-size:13px !important;color:#64748b !important;margin:0 0 8px 0 !important;line-height:1.4 !important;display:-webkit-box !important;-webkit-line-clamp:2 !important;-webkit-box-orient:vertical !important;overflow:hidden !important}.product-card-price{font-size:15px !important;font-weight:700 !important;color:#059669 !important;margin:0 !important;display:block !important}.product-card-footer{display:flex !important;justify-content:flex-end !important;align-items:center !important;margin-top:16px !important;gap:12px !important}.product-card-footer.has-meta{justify-content:space-between !important}.product-card span:not(.product-card-button):not(.product-card-button span){background:none !important;box-shadow:none !important;border:none !important;border-radius:4px !important;cursor:default !important;transform:none !important;transition:none !important}.product-card-button{all:unset !important;background:linear-gradient(135deg,${primaryColor} 0%,${secondaryColor} 100%) !important;color:${textColor} !important;border:none !important;padding:10px 16px !important;border-radius:8px !important;font-size:13px !important;font-weight:600 !important;cursor:pointer !important;transition:all 0.2s !important;text-decoration:none !important;display:inline-flex !important;align-items:center !important;gap:6px !important;min-height:36px !important;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif !important}.product-card-button:hover{transform:translateY(-1px);box-shadow:0 4px 12px rgba(59,130,246,0.3);color:${textColor} !important;text-decoration:none !important;background:linear-gradient(135deg,${secondaryColor} 0%,${primaryColor} 100%)}.product-card-button svg{fill:${textColor} !important}.product-card-meta{font-size:12px;color:#94a3b8}.product-card-meta span{background:none !important;color:#94a3b8 !important;border:none !important;padding:2px 6px !important;border-radius:4px !important;font-size:12px !important;font-weight:400 !important;cursor:default !important;text-decoration:none !important;display:inline !important;box-shadow:none !important;transform:none !important;transition:none !important;margin-right:8px;background-color:#f1f5f9 !important}.loading-spinner{border:3px solid #f1f5f9;width:20px;height:20px;border-radius:50%;border-left-color:${primaryColor};animation:spin 1s ease infinite}.bot-message.loading{display:flex;align-items:center;justify-content:center;padding:20px}@keyframes spin{0%{transform:rotate(0deg)}100%{transform:rotate(360deg)}}@keyframes fadeIn{from{opacity:0}to{opacity:1}}@keyframes slideIn{from{transform:translateY(20px);opacity:0}to{transform:translateY(0);opacity:1}}`;
+  const cssContent = `.chat-widget-container{position:fixed;bottom:20px;right:20px;z-index:9999}.chat-bubble{display:flex;align-items:flex-end;cursor:pointer;position:relative}.chat-bubble.avatar-only .chat-bubble-message{opacity:0;transform:translateX(-10px);pointer-events:none}.chat-bubble.avatar-only .chat-bubble-close{opacity:0;pointer-events:none}.chat-bubble.message-hidden .chat-bubble-message{opacity:0;transform:translateX(-10px);pointer-events:none}.chat-bubble.message-hidden .chat-bubble-close{opacity:0;pointer-events:none}.chat-bubble-close{position:absolute;top:-8px;right:68px;background:rgba(0,0,0,0.6);border:none;color:white;width:24px;height:24px;border-radius:50%;cursor:pointer;font-size:14px;line-height:24px;text-align:center;opacity:0;transition:opacity 0.3s ease,background-color 0.2s;z-index:10}.chat-bubble:hover .chat-bubble-close{opacity:1}.chat-bubble-close:hover{background:rgba(0,0,0,0.8)}.chat-bubble-message{background-color:white;padding:15px;border-radius:15px;box-shadow:0 4px 12px rgba(0,0,0,0.15);max-width:250px;margin-right:15px;opacity:1;transform:translateX(0);transition:opacity 0.4s ease,transform 0.4s ease}.chat-bubble-message p{margin:0;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;color:#333;line-height:1.5}.chat-bubble-message .consultant-button{background-color:${primaryColor};color:${textColor};border:none;padding:10px 15px;border-radius:20px;margin-top:10px;cursor:pointer;font-weight:600;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;transition:background-color 0.2s}.chat-bubble-message .consultant-button:hover{background-color:${secondaryColor}}.avatar{width:64px;height:64px;border-radius:50%;overflow:hidden;display:flex;align-items:center;justify-content:center;box-shadow:0 4px 12px rgba(0,0,0,0.15);background:linear-gradient(135deg,${primaryColor} 0%,${secondaryColor} 100%)}.avatar img{width:100%;height:100%;object-fit:cover;border-radius:50%}.chat-window{width:480px;height:calc(100vh - 40px);background:#ffffff;border-radius:20px;box-shadow:0 20px 60px rgba(0,0,0,0.15);display:flex;flex-direction:column;overflow:hidden;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;animation:slideIn 0.4s cubic-bezier(0.25,0.46,0.45,0.94)}.chat-mini-header{display:flex;padding:12px 16px;background:linear-gradient(135deg,${primaryColor} 0%,${secondaryColor} 100%);color:${textColor};align-items:center;justify-content:center;gap:12px;position:relative;flex-shrink:0}.chat-mini-header .mini-avatar{width:32px;height:32px;border-radius:50%;background:rgba(255,255,255,0.2);display:flex;align-items:center;justify-content:center;font-size:16px;overflow:hidden}.chat-mini-header .mini-avatar img{width:100%;height:100%;object-fit:cover;border-radius:50%}.chat-mini-header span{font-size:16px;font-weight:600}.close-button{position:absolute;top:50%;right:15px;transform:translateY(-50%);background:rgba(255,255,255,0.1);border:none;color:${textColor};width:28px;height:28px;border-radius:50%;cursor:pointer;font-size:16px;line-height:28px;text-align:center;transition:background-color 0.2s}.close-button:hover{background:rgba(255,255,255,0.2)}.chat-body{flex:1;padding:20px;overflow-y:auto;scroll-behavior:smooth;background:#f8fafc;min-height:0}.suggestion-chips{display:flex;flex-wrap:wrap;justify-content:center;gap:8px;margin-top:20px;padding-bottom:15px}.chip{background-color:white;border:1px solid #e2e8f0;padding:8px 16px;border-radius:20px;cursor:pointer;transition:all 0.2s;color:#475569;font-size:14px;font-weight:500;box-shadow:0 1px 3px rgba(0,0,0,0.1)}.chip:hover{background-color:${primaryColor};color:${textColor};transform:translateY(-1px);box-shadow:0 4px 12px rgba(59,130,246,0.3)}.chat-footer{padding:16px 20px;background-color:white;border-top:1px solid #e2e8f0;flex-shrink:0}.input-area{display:flex;align-items:center;background-color:#f1f5f9;border-radius:25px;padding:8px 16px;border:2px solid transparent;transition:border-color 0.2s}.input-area:focus-within{border-color:${primaryColor}}.input-area input{flex:1;border:none;outline:none;background:transparent;padding:8px 0;font-size:14px;color:#1e293b}.input-area input::placeholder{color:#94a3b8}.send-button{background:${primaryColor};border-radius:50%;padding:10px;display:flex;align-items:center;justify-content:center;color:${textColor};transition:all 0.2s;margin-left:8px}.send-button:hover{background:${secondaryColor};transform:scale(1.05)}.message-list{display:flex;flex-direction:column;gap:16px;margin-bottom:20px}.message{padding:12px 16px;border-radius:16px;max-width:85%;word-wrap:break-word;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;line-height:1.6;font-size:14px;box-shadow:0 2px 8px rgba(0,0,0,0.08)}.message h1,.message h2,.message h3,.message h4,.message h5,.message h6{margin:16px 0 8px 0;font-weight:600;color:#1e293b}.message h1{font-size:20px}.message h2{font-size:18px}.message h3{font-size:16px}.message p{margin:8px 0;color:#334155;line-height:1.6}.message strong{font-weight:600;color:#1e293b}.message em{font-style:italic;color:#64748b}.message code{background:#f1f5f9;padding:2px 6px;border-radius:4px;font-family:'SF Mono',Monaco,Consolas,monospace;font-size:13px;color:#e11d48;border:1px solid #e2e8f0}.message pre{background:#f8fafc;padding:16px;border-radius:8px;overflow-x:auto;white-space:pre-wrap;border:1px solid #e2e8f0;margin:12px 0}.message pre code{background:none;padding:0;border:none;color:#475569}.message ul{margin:12px 0;padding-left:0;list-style:none}.message li{margin:6px 0;padding-left:24px;position:relative;color:#475569}.message li:before{content:'•';color:${primaryColor};font-weight:bold;position:absolute;left:8px;font-size:16px}.message ol{margin:12px 0;padding-left:24px}.message ol li{list-style:decimal;padding-left:8px}.message ol li:before{display:none}.message blockquote{border-left:4px solid ${primaryColor};padding-left:16px;margin:16px 0;color:#64748b;font-style:italic}.message a{color:${primaryColor};text-decoration:none;font-weight:500}.message a:hover{text-decoration:underline}.user-message{background:linear-gradient(135deg,${primaryColor} 0%,${secondaryColor} 100%);color:${textColor};align-self:flex-end;border-bottom-right-radius:4px}.user-message p,.user-message strong,.user-message em{color:${textColor}}.user-message a{color:#bfdbfe}.user-message code{background:rgba(255,255,255,0.2);color:${textColor};border:1px solid rgba(255,255,255,0.3)}.bot-message{background-color:#ffffff;color:#334155;align-self:flex-start;border-bottom-left-radius:4px;border:1px solid #e2e8f0}.product-card{background:linear-gradient(135deg,#ffffff 0%,#f8fafc 100%);border:1px solid #e2e8f0;border-radius:12px;padding:16px;margin:12px 0;box-shadow:0 4px 12px rgba(0,0,0,0.08);transition:all 0.2s}.product-card:hover{transform:translateY(-2px);box-shadow:0 8px 24px rgba(0,0,0,0.12)}.product-card-header{display:flex !important;align-items:flex-start !important;gap:12px !important;margin-bottom:12px !important}.product-card-image{width:60px !important;height:60px !important;border-radius:8px !important;object-fit:cover !important;background:#f1f5f9 !important;display:flex !important;align-items:center !important;justify-content:center !important;color:#94a3b8 !important;font-size:24px !important;flex-shrink:0 !important}.product-card-info{flex:1 !important}.product-card-title{font-size:16px !important;font-weight:600 !important;color:#1e293b !important;margin:0 0 4px 0 !important;line-height:1.3 !important;display:block !important}.product-card-description{font-size:13px !important;color:#64748b !important;margin:0 0 8px 0 !important;line-height:1.4 !important;display:-webkit-box !important;-webkit-line-clamp:2 !important;-webkit-box-orient:vertical !important;overflow:hidden !important}.product-card-price{font-size:15px !important;font-weight:700 !important;color:#059669 !important;margin:0 !important;display:block !important}.product-card-footer{display:flex !important;justify-content:flex-end !important;align-items:center !important;margin-top:16px !important;gap:12px !important}.product-card-footer.has-meta{justify-content:space-between !important}.product-card span:not(.product-card-button):not(.product-card-button span){background:none !important;box-shadow:none !important;border:none !important;border-radius:4px !important;cursor:default !important;transform:none !important;transition:none !important}.product-card-button{all:unset !important;background:linear-gradient(135deg,${primaryColor} 0%,${secondaryColor} 100%) !important;color:${textColor} !important;border:none !important;padding:10px 16px !important;border-radius:8px !important;font-size:13px !important;font-weight:600 !important;cursor:pointer !important;transition:all 0.2s !important;text-decoration:none !important;display:inline-flex !important;align-items:center !important;gap:6px !important;min-height:36px !important;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif !important}.product-card-button:hover{transform:translateY(-1px);box-shadow:0 4px 12px rgba(59,130,246,0.3);color:${textColor} !important;text-decoration:none !important;background:linear-gradient(135deg,${secondaryColor} 0%,${primaryColor} 100%)}.product-card-button svg{fill:${textColor} !important}.product-card-meta{font-size:12px;color:#94a3b8}.product-card-meta span{background:none !important;color:#94a3b8 !important;border:none !important;padding:2px 6px !important;border-radius:4px !important;font-size:12px !important;font-weight:400 !important;cursor:default !important;text-decoration:none !important;display:inline !important;box-shadow:none !important;transform:none !important;transition:none !important;margin-right:8px;background-color:#f1f5f9 !important}.loading-spinner{border:3px solid #f1f5f9;width:20px;height:20px;border-radius:50%;border-left-color:${primaryColor};animation:spin 1s ease infinite}.bot-message.loading{display:flex;align-items:center;justify-content:center;padding:20px}@keyframes spin{0%{transform:rotate(0deg)}100%{transform:rotate(360deg)}}@keyframes fadeIn{from{opacity:0}to{opacity:1}}@keyframes slideIn{from{transform:translateY(20px);opacity:0}to{transform:translateY(0);opacity:1}}`;
 
   // Escape the CSS for safe injection into JavaScript
   const escapedCss = JSON.stringify(cssContent);
@@ -59,13 +59,87 @@ export function getChatWidgetScript({
     const widget = document.createElement('div');
     widget.className = 'chat-widget-container';
     let messageList;
+    let chatBubble = null;
+    let scrollTimeout = null;
+    
+    // Session persistence constants
+    const SESSION_STORAGE_KEY = 'ai_assistant_chat_history';
+    const SESSION_EXPIRY_MS = 60 * 60 * 1000; // 1 hour in milliseconds
+    const BUBBLE_CLOSED_KEY = 'ai_assistant_bubble_closed';
+    
+    // Check if bubble was previously closed
+    function isBubbleClosed() {
+        try {
+            return localStorage.getItem(BUBBLE_CLOSED_KEY) === 'true';
+        } catch (error) {
+            console.error('[ChatWidget] Error checking bubble state:', error);
+            return false;
+        }
+    }
+    
+    // Set bubble closed state
+    function setBubbleClosed(closed) {
+        try {
+            if (closed) {
+                localStorage.setItem(BUBBLE_CLOSED_KEY, 'true');
+            } else {
+                localStorage.removeItem(BUBBLE_CLOSED_KEY);
+            }
+        } catch (error) {
+            console.error('[ChatWidget] Error saving bubble state:', error);
+        }
+    }
+    
+    // Load messages from sessionStorage on initialization
+    function loadChatHistory() {
+        try {
+            const storedData = sessionStorage.getItem(SESSION_STORAGE_KEY);
+            if (storedData) {
+                const { messages: savedMessages, timestamp } = JSON.parse(storedData);
+                const now = Date.now();
+                
+                // Check if session has expired (older than 1 hour)
+                if (now - timestamp < SESSION_EXPIRY_MS) {
+                    messages = savedMessages || [];
+                    console.log('[ChatWidget] Restored chat history:', messages.length, 'messages');
+                } else {
+                    console.log('[ChatWidget] Chat history expired, starting fresh');
+                    sessionStorage.removeItem(SESSION_STORAGE_KEY);
+                }
+            }
+        } catch (error) {
+            console.error('[ChatWidget] Error loading chat history:', error);
+        }
+    }
+    
+    // Save messages to sessionStorage
+    function saveChatHistory() {
+        try {
+            const dataToStore = {
+                messages: messages,
+                timestamp: Date.now()
+            };
+            sessionStorage.setItem(SESSION_STORAGE_KEY, JSON.stringify(dataToStore));
+        } catch (error) {
+            console.error('[ChatWidget] Error saving chat history:', error);
+        }
+    }
+    
+    // Initialize chat history on load
+    loadChatHistory();
 
     // Functions to create and render elements
     function createChatBubble() {
         const bubble = document.createElement('div');
         bubble.className = 'chat-bubble';
-        bubble.onclick = () => window.toggleAIAssistant?.();
+        bubble.onclick = (e) => {
+            // Don't open if clicking the close button
+            if (!e.target.classList.contains('chat-bubble-close')) {
+                window.toggleAIAssistant?.();
+            }
+        };
         bubble.innerHTML = \`
+            <button class="chat-bubble-close" onclick="event.stopPropagation(); window.closeChatBubble?.();">&times;</button>
             <div class="chat-bubble-message">
                 <p><strong>${bubbleGreetingText}</strong><br>${welcomeMessage}</p>
                 <button class="consultant-button">${bubbleButtonText}</button>
@@ -75,6 +149,26 @@ export function getChatWidgetScript({
             </div>
         \`;
         return bubble;
+    }
+    
+    // Hide bubble on scroll
+    function handleScroll() {
+        if (chatBubble && !isOpen && !chatBubble.classList.contains('message-hidden')) {
+            // Only hide the message, not the avatar
+            chatBubble.classList.add('avatar-only');
+            
+            // Clear any existing timeout
+            if (scrollTimeout) {
+                clearTimeout(scrollTimeout);
+            }
+            
+            // Show bubble again after 3 seconds of no scrolling
+            scrollTimeout = setTimeout(() => {
+                if (chatBubble && !isOpen && !isBubbleClosed()) {
+                    chatBubble.classList.remove('avatar-only');
+                }
+            }, 3000);
+        }
     }
 
     function createChatWindow() {
@@ -310,9 +404,27 @@ export function getChatWidgetScript({
     window.toggleAIAssistant = function() {
         isOpen = !isOpen;
         widget.innerHTML = '';
-        widget.appendChild(isOpen ? createChatWindow() : createChatBubble());
+        if (isOpen) {
+            widget.appendChild(createChatWindow());
+            chatBubble = null;
+            // When opening chat, hide the welcome message permanently
+            setBubbleClosed(true);
+        } else {
+            chatBubble = createChatBubble();
+            // Show only avatar since user has interacted with chat
+            chatBubble.classList.add('message-hidden');
+            widget.appendChild(chatBubble);
+        }
         if (isOpen) {
             scrollToBottom();
+        }
+    };
+    
+    window.closeChatBubble = function() {
+        if (chatBubble) {
+            // Just hide the message, keep the avatar visible
+            chatBubble.classList.add('message-hidden');
+            setBubbleClosed(true);
         }
     };
 
@@ -332,6 +444,7 @@ export function getChatWidgetScript({
 
             const userMessage = { text: message, sender: 'user' };
             messages.push(userMessage);
+            saveChatHistory(); // Save after adding user message
             const messageElement = createMessageElement(userMessage.text, userMessage.sender);
             messageList.appendChild(messageElement);
             input.value = '';
@@ -368,6 +481,7 @@ export function getChatWidgetScript({
             showLoading(false);
             const botMessage = { text: data.output || "I'm having trouble connecting. Please try again.", sender: 'bot' };
             messages.push(botMessage);
+            saveChatHistory(); // Save after adding bot message
             const messageElement = createMessageElement(botMessage.text, botMessage.sender);
             messageList.appendChild(messageElement);
             scrollToBottom();
@@ -380,6 +494,7 @@ export function getChatWidgetScript({
             console.error('Error sending to webhook:', error);
             const errorMessage = { text: "I'm sorry, I'm having trouble connecting right now. Please try again later.", sender: 'bot' };
             messages.push(errorMessage);
+            saveChatHistory(); // Save after adding error message
             const messageElement = createMessageElement(errorMessage.text, errorMessage.sender);
             messageList.appendChild(messageElement);
             scrollToBottom();
@@ -387,8 +502,16 @@ export function getChatWidgetScript({
     }
 
     // Initial render of the chat bubble
-    widget.appendChild(createChatBubble());
+    chatBubble = createChatBubble();
+    if (isBubbleClosed()) {
+        // If previously closed, show only the avatar
+        chatBubble.classList.add('message-hidden');
+    }
+    widget.appendChild(chatBubble);
     document.body.appendChild(widget);
+    
+    // Add scroll event listener
+    window.addEventListener('scroll', handleScroll, { passive: true });
 })();
 </script>`;
 }

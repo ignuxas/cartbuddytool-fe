@@ -28,6 +28,7 @@ interface ScrapedDataItem {
   content: string;
   textLength: number;
   selected: boolean;
+  main?: boolean;
 }
 
 interface WorkflowResult {
@@ -63,6 +64,7 @@ interface ResultsDisplayProps {
 
 const columns = [
   { key: "select", label: "Select" },
+  { key: "main", label: "Main Page" },
   { key: "url", label: "URL" },
   { key: "title", label: "Title" },
   { key: "textLength", label: "Text Length" },
@@ -107,6 +109,8 @@ export default function ResultsDisplay({
   });
   const [newAdditionalUrl, setNewAdditionalUrl] = React.useState("");
   const [embedCodeWithSettings, setEmbedCodeWithSettings] = React.useState<string>("");
+  const [page, setPage] = React.useState(1);
+  const rowsPerPage = 20;
 
   const sortedItems = React.useMemo(() => {
     try {
@@ -120,8 +124,23 @@ export default function ResultsDisplay({
 
       return [...uniqueData].sort((a, b) => {
         if (sortDescriptor.column === 'select') return 0; // Don't sort by select column
+        
+        // Handle the main column specifically
+        if (sortDescriptor.column === 'main') {
+          const aMain = a.main ? 1 : 0;
+          const bMain = b.main ? 1 : 0;
+          let cmp = aMain - bMain;
+          if (sortDescriptor.direction === "descending") {
+            cmp *= -1;
+          }
+          return cmp;
+        }
+        
         const first = a[sortDescriptor.column as keyof Omit<ScrapedDataItem, 'selected'>];
         const second = b[sortDescriptor.column as keyof Omit<ScrapedDataItem, 'selected'>];
+        
+        if (first === undefined || second === undefined) return 0;
+        
         let cmp =
           (parseInt(first as string) || first) <
           (parseInt(second as string) || second)
@@ -144,6 +163,20 @@ export default function ResultsDisplay({
       return scrapedData; // Return unsorted data as fallback
     }
   }, [sortDescriptor, scrapedData]);
+
+  // Paginated items - only render items for current page
+  const paginatedItems = React.useMemo(() => {
+    const start = (page - 1) * rowsPerPage;
+    const end = start + rowsPerPage;
+    return sortedItems.slice(start, end);
+  }, [sortedItems, page]);
+
+  const totalPages = Math.ceil(sortedItems.length / rowsPerPage);
+
+  // Reset to page 1 when data changes or sorting changes
+  React.useEffect(() => {
+    setPage(1);
+  }, [scrapedData.length, sortDescriptor]);
 
   // Load embed code with widget settings when workflow result is available
   React.useEffect(() => {
@@ -204,6 +237,16 @@ export default function ResultsDisplay({
                 onValueChange={() => handleToggleSelect(item.url)}
                 aria-label={`Select row ${item.url}`}
               />
+            );
+          case "main":
+            return (
+              <Chip
+                color={item.main ? "success" : "default"}
+                variant="flat"
+                size="sm"
+              >
+                {item.main ? "Yes" : "No"}
+              </Chip>
             );
           case "url":
             return (
@@ -545,34 +588,35 @@ export default function ResultsDisplay({
             </Card>
           )}
 
-          <Table
-            aria-label="Scraped data table"
-            sortDescriptor={sortDescriptor}
-            onSortChange={setSortDescriptor}
-          >
-            <TableHeader columns={columns}>
+          <div className="max-h-[600px] overflow-auto rounded-lg">
+            <Table
+              aria-label="Scraped data table"
+              sortDescriptor={sortDescriptor}
+              onSortChange={setSortDescriptor}
+            >
+              <TableHeader columns={columns}>
               {(column) => {
                 if (column.key === "select") {
                   return (
                     <TableColumn key={column.key} allowsSorting={false}>
                       <Checkbox
                         isSelected={
-                          scrapedData.length > 0 &&
-                          scrapedData.every((item) => item.selected)
+                          paginatedItems.length > 0 &&
+                          paginatedItems.every((item) => item.selected)
                         }
                         isIndeterminate={
-                          scrapedData.length > 0 &&
-                          !scrapedData.every((item) => item.selected) &&
-                          scrapedData.some((item) => item.selected)
+                          paginatedItems.length > 0 &&
+                          !paginatedItems.every((item) => item.selected) &&
+                          paginatedItems.some((item) => item.selected)
                         }
                         onValueChange={(isSelected) => {
-                          scrapedData.forEach((item) => {
+                          paginatedItems.forEach((item) => {
                             if (item.selected !== isSelected) {
                               handleToggleSelect(item.url);
                             }
                           });
                         }}
-                        aria-label="Select all rows"
+                        aria-label="Select all rows on current page"
                       />
                     </TableColumn>
                   );
@@ -588,7 +632,7 @@ export default function ResultsDisplay({
               }}
             </TableHeader>
             <TableBody
-              items={sortedItems}
+              items={paginatedItems}
               emptyContent={"No pages scraped yet."}
             >
               {(item) => (
@@ -600,6 +644,38 @@ export default function ResultsDisplay({
               )}
             </TableBody>
           </Table>
+          </div>
+
+          {/* Pagination Controls */}
+          {totalPages > 1 && (
+            <div className="flex justify-center items-center gap-4 mt-4">
+              <Button
+                size="sm"
+                variant="flat"
+                isDisabled={page === 1}
+                onPress={() => setPage(page - 1)}
+              >
+                ← Previous
+              </Button>
+              <div className="flex items-center gap-2">
+                <span className="text-sm text-default-500">
+                  Page <span className="font-semibold text-default-700">{page}</span> of <span className="font-semibold text-default-700">{totalPages}</span>
+                </span>
+                <span className="text-sm text-default-400">•</span>
+                <span className="text-sm text-default-500">
+                  Showing <span className="font-semibold text-default-700">{(page - 1) * rowsPerPage + 1}</span>-<span className="font-semibold text-default-700">{Math.min(page * rowsPerPage, sortedItems.length)}</span> of <span className="font-semibold text-default-700">{sortedItems.length}</span> items
+                </span>
+              </div>
+              <Button
+                size="sm"
+                variant="flat"
+                isDisabled={page === totalPages}
+                onPress={() => setPage(page + 1)}
+              >
+                Next →
+              </Button>
+            </div>
+          )}
         </div>
       )}
 

@@ -21,6 +21,7 @@ import { Chip } from "@heroui/chip";
 import { getChatWidgetScript } from "@/app/utils/chatWidgetGenerator";
 import { addToast } from "@heroui/toast";
 import { config } from "@/lib/config";
+import { useRouter } from "next/navigation";
 
 interface ScrapedDataItem {
   url: string;
@@ -111,6 +112,7 @@ export default function ResultsDisplay({
   const [embedCodeWithSettings, setEmbedCodeWithSettings] = React.useState<string>("");
   const [page, setPage] = React.useState(1);
   const rowsPerPage = 20;
+  const router = useRouter();
 
   const sortedItems = React.useMemo(() => {
     try {
@@ -425,6 +427,51 @@ export default function ResultsDisplay({
       addToast({
         title: "Error",
         description: "Failed to open workflow.",
+        color: "danger",
+      });
+    }
+  };
+
+  const handleOpenDemo = () => {
+    try {
+      if (!workflowResult?.webhook_url) {
+        throw new Error("No webhook URL available");
+      }
+      const domain = new URL(url).hostname;
+      const demoUrl = `/demo?domain=${encodeURIComponent(domain)}&webhook=${encodeURIComponent(workflowResult.webhook_url)}`;
+      router.push(demoUrl);
+    } catch (error: any) {
+      logComponentError("openDemo", error, { workflowResult, url });
+      console.error("Failed to open demo:", error.message);
+      addToast({
+        title: "Error",
+        description: "Failed to open demo.",
+        color: "danger",
+      });
+    }
+  };
+
+  const handleCopyDemoLink = () => {
+    try {
+      if (!workflowResult?.webhook_url) {
+        throw new Error("No webhook URL available");
+      }
+      const domain = new URL(url).hostname;
+      const baseUrl = window.location.origin;
+      const demoUrl = `${baseUrl}/demo?domain=${encodeURIComponent(domain)}&webhook=${encodeURIComponent(workflowResult.webhook_url)}`;
+      
+      navigator.clipboard.writeText(demoUrl);
+      addToast({
+        title: "Success",
+        description: "Demo link copied to clipboard! Share it with your clients.",
+        color: "success",
+      });
+    } catch (error: any) {
+      logComponentError("copyDemoLink", error, { workflowResult, url });
+      console.error("Failed to copy demo link:", error.message);
+      addToast({
+        title: "Error",
+        description: "Failed to copy demo link.",
         color: "danger",
       });
     }
@@ -799,6 +846,55 @@ export default function ResultsDisplay({
                       <p className="text-sm text-green-400">
                         Look for the chat icon in the bottom-right corner to test your AI assistant. 
                         This is exactly how it will appear on your website.
+                      </p>
+                    </div>
+
+                    {/* Demo Button */}
+                    <div className="mb-4">
+                      <Button
+                        color="success"
+                        variant="shadow"
+                        size="lg"
+                        onClick={handleOpenDemo}
+                        className="w-full font-semibold mb-2"
+                        startContent={
+                          <svg
+                            xmlns="http://www.w3.org/2000/svg"
+                            fill="none"
+                            viewBox="0 0 24 24"
+                            strokeWidth={2}
+                            stroke="currentColor"
+                            className="w-6 h-6"
+                          >
+                            <path strokeLinecap="round" strokeLinejoin="round" d="M9.75 3.104v5.714a2.25 2.25 0 01-.659 1.591L5 14.5M9.75 3.104c-.251.023-.501.05-.75.082m.75-.082a24.301 24.301 0 014.5 0m0 0v5.714c0 .597.237 1.17.659 1.591L19.8 15.3M14.25 3.104c.251.023.501.05.75.082M19.8 15.3l-1.57.393A9.065 9.065 0 0112 15a9.065 9.065 0 00-6.23-.693L5 14.5m14.8.8l1.402 1.402c1.232 1.232.65 3.318-1.067 3.611A48.309 48.309 0 0112 21c-2.773 0-5.491-.235-8.135-.687-1.718-.293-2.3-2.379-1.067-3.61L5 14.5" />
+                          </svg>
+                        }
+                      >
+                        🚀 View Live Demo on Your Website
+                      </Button>
+                      <Button
+                        color="primary"
+                        variant="bordered"
+                        size="md"
+                        onClick={handleCopyDemoLink}
+                        className="w-full font-medium"
+                        startContent={
+                          <svg
+                            xmlns="http://www.w3.org/2000/svg"
+                            fill="none"
+                            viewBox="0 0 24 24"
+                            strokeWidth={2}
+                            stroke="currentColor"
+                            className="w-5 h-5"
+                          >
+                            <path strokeLinecap="round" strokeLinejoin="round" d="M13.19 8.688a4.5 4.5 0 011.242 7.244l-4.5 4.5a4.5 4.5 0 01-6.364-6.364l1.757-1.757m13.35-.622l1.757-1.757a4.5 4.5 0 00-6.364-6.364l-4.5 4.5a4.5 4.5 0 001.242 7.244" />
+                          </svg>
+                        }
+                      >
+                        📋 Copy Demo Link (Share with Clients)
+                      </Button>
+                      <p className="text-xs text-gray-500 text-center mt-2">
+                        The demo link works without login - perfect for client presentations!
                       </p>
                     </div>
 

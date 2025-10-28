@@ -145,7 +145,7 @@ export function getChatWidgetScript({
                 <button class="consultant-button">${bubbleButtonText}</button>
             </div>
             <div class="avatar">
-                <img src="${baseUrl}/lukas.png" alt="AI Assistant" onerror="this.style.display='none'; this.parentElement.innerHTML='🤖';">
+                <img src="${baseUrl}/lukas.png" alt="AI Assistant" onerror="this.style.display='none'; this.parentElement.innerHTML='🛒';">
             </div>
         \`;
         return bubble;
@@ -205,7 +205,7 @@ export function getChatWidgetScript({
         windowDiv.innerHTML = \`
             <div class="chat-mini-header">
                 <div class="mini-avatar">
-                    <img src="${baseUrl}/lukas.png" alt="AI Assistant" onerror="this.style.display='none'; this.parentElement.innerHTML='🤖';">
+                    <img src="${baseUrl}/lukas.png" alt="AI Assistant" onerror="this.style.display='none'; this.parentElement.innerHTML='🛒';">
                 </div>
                 <span>${title}</span>
                 <button class="close-button" onclick="window.toggleAIAssistant()">&times;</button>

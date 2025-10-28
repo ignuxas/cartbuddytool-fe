@@ -144,6 +144,7 @@ export default function DemoPage() {
       const widgetScript = getChatWidgetScript({
         webhookUrl: webhookUrl!,
         siteName: domain!,
+        baseUrl: window.location.origin, // Use current origin to load static assets
         primaryColor: settings.primary_color,
         secondaryColor: settings.secondary_color,
         textColor: settings.text_color,

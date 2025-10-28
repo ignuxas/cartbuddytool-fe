@@ -32,6 +32,10 @@ export default function DemoPage() {
   const [error, setError] = useState<string | null>(null);
   const [widgetSettings, setWidgetSettings] = useState<WidgetSettings | null>(null);
   const iframeRef = useRef<HTMLIFrameElement>(null);
+  const [iframeLoaded, setIframeLoaded] = useState(false);
+  const [retryCount, setRetryCount] = useState(0);
+  const [htmlContent, setHtmlContent] = useState<string>("");
+  const maxRetries = 2;
 
   useEffect(() => {
     if (!domain || !webhookUrl) {
@@ -43,10 +47,47 @@ export default function DemoPage() {
     loadDemoContent();
   }, [domain, webhookUrl]);
 
+  // Write HTML to iframe once it's rendered and we have content
+  useEffect(() => {
+    if (htmlContent && iframeRef.current && !loading) {
+      try {
+        console.log("Iframe ref available, writing HTML to iframe");
+        const iframeDoc = iframeRef.current.contentDocument || iframeRef.current.contentWindow?.document;
+        if (iframeDoc) {
+          console.log("Writing HTML to iframe, length:", htmlContent.length);
+          iframeDoc.open();
+          iframeDoc.write(htmlContent);
+          iframeDoc.close();
+          console.log("HTML successfully written to iframe");
+        } else {
+          console.error("Could not access iframe document");
+          setError("Unable to access iframe document. This may be due to browser security restrictions.");
+        }
+      } catch (err) {
+        console.error("Error writing to iframe:", err);
+        setError("Failed to write content to iframe. This may be due to browser security restrictions.");
+      }
+    }
+  }, [htmlContent, loading]);
+
+  const handleIframeLoad = () => {
+    console.log("Iframe loaded successfully");
+    setIframeLoaded(true);
+  };
+
+  const handleIframeError = () => {
+    console.error("Iframe failed to load");
+    setError("Failed to load website content in preview. This may be due to browser security restrictions or website policies.");
+  };
+
   const loadDemoContent = async () => {
     try {
       setLoading(true);
       setError(null);
+      setHtmlContent(""); // Clear previous content
+      setIframeLoaded(false);
+
+      console.log("Loading demo for domain:", domain);
 
       // Load widget settings (public endpoint, no auth required)
       const settingsResponse = await fetch(
@@ -64,8 +105,10 @@ export default function DemoPage() {
 
       const settings = await settingsResponse.json();
       setWidgetSettings(settings);
+      console.log("Widget settings loaded:", settings);
 
       // Fetch the website HTML (public endpoint, no auth required)
+      console.log("Fetching HTML from server for domain:", domain);
       const htmlResponse = await fetch(
         `${config.serverUrl}/api/demo/html/`,
         {
@@ -79,10 +122,23 @@ export default function DemoPage() {
 
       if (!htmlResponse.ok) {
         const errorData = await htmlResponse.json();
+        console.error("HTML fetch failed:", errorData);
         throw new Error(errorData.error || "Failed to fetch website HTML");
       }
 
       const { html } = await htmlResponse.json();
+      console.log("HTML received, length:", html?.length || 0);
+
+      // Validate HTML content
+      if (!html || html.trim().length === 0) {
+        console.error("Empty HTML received from server");
+        throw new Error("Server returned empty HTML content");
+      }
+
+      if (html.trim().length < 100) {
+        console.error("HTML too short:", html.trim().length);
+        throw new Error("Server returned insufficient HTML content");
+      }
 
       // Generate the chat widget script with settings
       const widgetScript = getChatWidgetScript({
@@ -104,19 +160,35 @@ export default function DemoPage() {
       // Inject the widget script into the HTML
       const modifiedHtml = injectWidgetIntoHtml(html, widgetScript);
 
-      // Load into iframe
-      if (iframeRef.current) {
-        const iframeDoc = iframeRef.current.contentDocument || iframeRef.current.contentWindow?.document;
-        if (iframeDoc) {
-          iframeDoc.open();
-          iframeDoc.write(modifiedHtml);
-          iframeDoc.close();
-        }
-      }
-
+      // Store the HTML content and end loading state
+      // The iframe will be written to in the useEffect below
+      console.log("HTML prepared, setting content state");
+      setHtmlContent(modifiedHtml);
       setLoading(false);
+      setRetryCount(0); // Reset retry count on success
     } catch (err: any) {
       console.error("Error loading demo:", err);
+      
+      // Retry logic for empty HTML or network errors
+      const shouldRetry = retryCount < maxRetries && (
+        err.message?.includes("empty") || 
+        err.message?.includes("insufficient") ||
+        err.message?.includes("network") ||
+        err.message?.includes("timeout")
+      );
+      
+      if (shouldRetry) {
+        console.log(`Retrying... Attempt ${retryCount + 1} of ${maxRetries}`);
+        setRetryCount(retryCount + 1);
+        
+        // Wait a bit before retrying
+        setTimeout(() => {
+          loadDemoContent();
+        }, 1000 * (retryCount + 1)); // Exponential backoff
+        
+        return;
+      }
+      
       setError(err.message || "Failed to load demo");
       addToast({
         title: "Error",
@@ -124,16 +196,40 @@ export default function DemoPage() {
         color: "danger",
       });
       setLoading(false);
+      setRetryCount(0); // Reset retry count
     }
   };
 
   const injectWidgetIntoHtml = (html: string, widgetScript: string): string => {
+    // Ensure we have valid HTML
+    if (!html || html.trim().length === 0) {
+      console.error("Attempting to inject widget into empty HTML");
+      return html;
+    }
+
     // Try to inject before closing body tag
     if (html.includes("</body>")) {
       return html.replace("</body>", `${widgetScript}\n</body>`);
     }
-    // If no body tag, append to end
-    return html + widgetScript;
+    
+    // Try to inject before closing html tag
+    if (html.includes("</html>")) {
+      return html.replace("</html>", `${widgetScript}\n</html>`);
+    }
+    
+    // If no closing tags, wrap the HTML properly
+    console.warn("No proper HTML structure found, wrapping content");
+    return `<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+</head>
+<body>
+  ${html}
+  ${widgetScript}
+</body>
+</html>`;
   };
 
   const handleBackToProject = () => {
@@ -207,6 +303,9 @@ export default function DemoPage() {
             <Spinner size="lg" color="primary" />
             <p className="mt-4 text-gray-600">Loading demo preview...</p>
             <p className="text-sm text-gray-500 mt-2">Fetching website and injecting chat widget</p>
+            {retryCount > 0 && (
+              <p className="text-xs text-orange-500 mt-2">Retry attempt {retryCount} of {maxRetries}...</p>
+            )}
           </div>
         </div>
       ) : (
@@ -215,7 +314,9 @@ export default function DemoPage() {
             ref={iframeRef}
             className="w-full h-full border-0"
             title="Website Demo"
-            sandbox="allow-scripts allow-same-origin allow-forms allow-popups"
+            sandbox="allow-scripts allow-same-origin allow-forms allow-popups allow-modals"
+            onLoad={handleIframeLoad}
+            onError={handleIframeError}
           />
         </div>
       )}

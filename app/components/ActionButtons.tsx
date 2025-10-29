@@ -7,6 +7,7 @@ interface ActionButtonsProps {
   errorMessage: string;
   url: string;
   handleRetryScraping: (force: boolean) => void;
+  handleSmartRescrapeImages?: () => void;
   loading: boolean;
   retryLoading: string | null;
 }
@@ -16,6 +17,7 @@ export default function ActionButtons({
   errorMessage,
   url,
   handleRetryScraping,
+  handleSmartRescrapeImages,
   loading,
   retryLoading,
 }: ActionButtonsProps) {
@@ -24,7 +26,7 @@ export default function ActionButtons({
   }
 
   return (
-    <div className="flex w-full max-w-4xl gap-2 justify-center">
+    <div className="flex w-full max-w-4xl gap-2 justify-center flex-wrap">
       <Button
         size="sm"
         color="warning"
@@ -34,6 +36,17 @@ export default function ActionButtons({
       >
         {retryLoading === 'scraping' ? "Retrying..." : "Retry Scraping"}
       </Button>
+      {handleSmartRescrapeImages && (
+        <Button
+          size="sm"
+          color="secondary"
+          variant="flat"
+          onPress={handleSmartRescrapeImages}
+          disabled={loading || retryLoading !== null}
+        >
+          {retryLoading === 'smart-images' ? "Updating..." : "Smart Update"}
+        </Button>
+      )}
       <Button
         size="sm"
         color="danger"

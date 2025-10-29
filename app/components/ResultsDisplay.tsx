@@ -51,6 +51,7 @@ interface ResultsDisplayProps {
   handleForceRegenerateWorkflow?: () => void;
   handleDeleteItem: (url: string, domain: string) => void;
   handleToggleSelect: (url: string) => void;
+  handleRescrapeItem?: (url: string, domain: string) => void;
   setPrompt: (prompt: string) => void;
   showAddMorePages: boolean;
   onShowAddMorePages: () => void;
@@ -90,6 +91,7 @@ export default function ResultsDisplay({
   handleCreateWorkflow,
   handleForceRegenerateWorkflow,
   handleDeleteItem,
+  handleRescrapeItem,
   retryLoading,
   setPrompt,
   url,
@@ -111,6 +113,8 @@ export default function ResultsDisplay({
   const [newAdditionalUrl, setNewAdditionalUrl] = React.useState("");
   const [embedCodeWithSettings, setEmbedCodeWithSettings] = React.useState<string>("");
   const [page, setPage] = React.useState(1);
+  const [searchQuery, setSearchQuery] = React.useState("");
+  const [rescrapingUrl, setRescrapingUrl] = React.useState<string | null>(null);
   const rowsPerPage = 20;
   const router = useRouter();
 
@@ -124,7 +128,17 @@ export default function ResultsDisplay({
         return acc;
       }, [] as ScrapedDataItem[]);
 
-      return [...uniqueData].sort((a, b) => {
+      // Filter by search query
+      const filteredData = uniqueData.filter(item => {
+        if (!searchQuery) return true;
+        const query = searchQuery.toLowerCase();
+        return (
+          item.url.toLowerCase().includes(query) ||
+          item.title.toLowerCase().includes(query)
+        );
+      });
+
+      return [...filteredData].sort((a, b) => {
         if (sortDescriptor.column === 'select') return 0; // Don't sort by select column
         
         // Handle the main column specifically
@@ -164,7 +178,7 @@ export default function ResultsDisplay({
       });
       return scrapedData; // Return unsorted data as fallback
     }
-  }, [sortDescriptor, scrapedData]);
+  }, [sortDescriptor, scrapedData, searchQuery]);
 
   // Paginated items - only render items for current page
   const paginatedItems = React.useMemo(() => {
@@ -276,25 +290,56 @@ export default function ResultsDisplay({
             return <span className="truncate" title={item.title}>{item.title}</span>;
           case "actions":
             return (
-              <Button
-                isIconOnly
-                size="sm"
-                variant="light"
-                onPress={() => {
-                  try {
-                    const domain = new URL(url).hostname;
-                    handleDeleteItem(item.url, domain);
-                  } catch (error: any) {
-                    const message = "Failed to delete item.";
-                    logComponentError("deleteItem", error, { itemUrl: item.url, url });
-                    console.error(message, error.message);
-                    addToast({ title: "Error", description: message, color: "danger" });
-                  }
-                }}
-                aria-label={`Delete item ${item.url}`}
-              >
-                <TrashIcon className="text-lg text-danger" />
-              </Button>
+              <div className="flex gap-1">
+                {handleRescrapeItem && (
+                  <Button
+                    isIconOnly
+                    size="sm"
+                    variant="light"
+                    color="secondary"
+                    isLoading={rescrapingUrl === item.url}
+                    onPress={async () => {
+                      try {
+                        const domain = new URL(url).hostname;
+                        setRescrapingUrl(item.url);
+                        await handleRescrapeItem(item.url, domain);
+                        setRescrapingUrl(null);
+                      } catch (error: any) {
+                        setRescrapingUrl(null);
+                        const message = "Failed to re-scrape item.";
+                        logComponentError("rescrapeItem", error, { itemUrl: item.url, url });
+                        console.error(message, error.message);
+                        addToast({ title: "Error", description: message, color: "danger" });
+                      }
+                    }}
+                    aria-label={`Re-scrape item ${item.url}`}
+                    title="Re-scrape this page"
+                  >
+                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+                    </svg>
+                  </Button>
+                )}
+                <Button
+                  isIconOnly
+                  size="sm"
+                  variant="light"
+                  onPress={() => {
+                    try {
+                      const domain = new URL(url).hostname;
+                      handleDeleteItem(item.url, domain);
+                    } catch (error: any) {
+                      const message = "Failed to delete item.";
+                      logComponentError("deleteItem", error, { itemUrl: item.url, url });
+                      console.error(message, error.message);
+                      addToast({ title: "Error", description: message, color: "danger" });
+                    }
+                  }}
+                  aria-label={`Delete item ${item.url}`}
+                >
+                  <TrashIcon className="text-lg text-danger" />
+                </Button>
+              </div>
             );
           default:
             return cellValue;
@@ -309,7 +354,7 @@ export default function ResultsDisplay({
         return <span className="text-red-500">Error</span>;
       }
     },
-    [handleDeleteItem, url, handleToggleSelect]
+    [handleDeleteItem, handleRescrapeItem, url, handleToggleSelect, rescrapingUrl]
   );
 
   const handleAddAdditionalUrl = () => {
@@ -634,6 +679,28 @@ export default function ResultsDisplay({
               </CardBody>
             </Card>
           )}
+
+          {/* Search Bar */}
+          <div className="mb-3">
+            <Input
+              type="text"
+              placeholder="Search by URL or title..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              isClearable
+              onClear={() => setSearchQuery("")}
+              startContent={
+                <svg className="w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+                </svg>
+              }
+            />
+            {searchQuery && (
+              <p className="text-sm text-gray-500 mt-1">
+                Showing {sortedItems.length} of {scrapedData.length} pages
+              </p>
+            )}
+          </div>
 
           <div className="max-h-[600px] overflow-auto rounded-lg">
             <Table

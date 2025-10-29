@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { config } from "@/lib/config";
 import ResultsDisplay from "@/app/components/ResultsDisplay";
+import ActionButtons from "@/app/components/ActionButtons";
 import AuthModal from "@/app/components/AuthModal";
 import ChatWidget from "@/app/components/ChatWidget";
 import WidgetCustomization from "@/app/components/WidgetCustomization";
@@ -296,6 +297,68 @@ export default function ProjectPage() {
     }
   };
 
+  const handleSmartRescrapeImages = async () => {
+    setRetryLoading('smart-images');
+    clearMessages();
+
+    try {
+      console.log("[handleSmartRescrapeImages] Starting smart re-scrape");
+      const data = await makeApiCall(
+        `${config.serverUrl}/api/scrape/smart-images/`,
+        {
+          method: "POST",
+          headers: getAuthHeaders(),
+          body: JSON.stringify({ url }),
+        },
+        "smart-rescrape-images"
+      );
+
+      addToast({
+        title: "Success",
+        description: data.message || "Pages updated successfully",
+        color: "success",
+      });
+      
+      if (data.completion_percentage !== undefined) {
+        addToast({
+          title: "Update Summary",
+          description: `${data.completion_percentage}% of pages now have images (${data.pages_with_images}/${data.total_pages})`,
+          color: "secondary",
+        });
+      }
+      
+      if (data.warnings) {
+        addToast({
+          title: "Warning",
+          description: data.warnings,
+          color: "warning",
+        });
+      }
+
+      // Reload project data to show updated content
+      const checkData = await makeApiCall(
+        `${config.serverUrl}/api/scrape/check-existing/`,
+        {
+          method: "POST",
+          headers: getAuthHeaders(),
+          body: JSON.stringify({ url }),
+        },
+        "reload-project-data"
+      );
+
+      if (checkData.has_existing_data && checkData.existing_data) {
+        setScrapedData(checkData.existing_data.map((item: ScrapedDataItem) => ({ ...item, selected: false })));
+      }
+    } catch (error: any) {
+      logError("handleSmartRescrapeImages", error, { url });
+      const message = error.message || "Failed to update pages";
+      addToast({ title: "Error", description: message, color: "danger" });
+      setErrorMessage(message);
+    } finally {
+      setRetryLoading(null);
+    }
+  };
+
   const handleRegeneratePrompt = async () => {
     setRetryLoading('prompt');
     clearMessages();
@@ -493,6 +556,44 @@ export default function ProjectPage() {
     }
   };
 
+  const handleRescrapeItem = async (pageUrl: string, domain: string) => {
+    try {
+      console.log("[handleRescrapeItem] Re-scraping item:", pageUrl);
+      
+      const data = await makeApiCall(
+        `${config.serverUrl}/api/scrape/single-page/`,
+        {
+          method: "POST",
+          headers: getAuthHeaders(),
+          body: JSON.stringify({ page_url: pageUrl, domain }),
+        },
+        "rescrape-item"
+      );
+      
+      // Update the item in the UI with the new data
+      if (data.updated_data) {
+        setScrapedData(prevData => 
+          prevData.map(item => 
+            item.url === pageUrl 
+              ? { ...item, ...data.updated_data, selected: item.selected }
+              : item
+          )
+        );
+      }
+      
+      addToast({
+        title: "Success",
+        description: "Page re-scraped successfully",
+        color: "success",
+      });
+    } catch (error: any) {
+      logError("handleRescrapeItem", error, { pageUrl, domain });
+      const message = error.message || "Failed to re-scrape page";
+      addToast({ title: "Error", description: message, color: "danger" });
+      throw error; // Re-throw to let the button handle loading state
+    }
+  };
+
   if (authIsLoading) {
     return (
       <section className="flex flex-col items-center justify-center gap-4 py-8 md:py-10">
@@ -529,6 +630,16 @@ export default function ProjectPage() {
             <div>Loading project data...</div>
         ) : (
           <>
+            <ActionButtons
+              scrapedDataLength={scrapedData.length}
+              errorMessage={errorMessage}
+              url={url}
+              handleRetryScraping={handleRetryScraping}
+              handleSmartRescrapeImages={handleSmartRescrapeImages}
+              loading={loading}
+              retryLoading={retryLoading}
+            />
+            
             <ResultsDisplay
               sheetId={sheetId}
               prompt={prompt}
@@ -541,6 +652,7 @@ export default function ProjectPage() {
               handleCreateWorkflow={handleCreateWorkflow}
               handleForceRegenerateWorkflow={handleForceRegenerateWorkflow}
               handleDeleteItem={handleDeleteItem}
+              handleRescrapeItem={handleRescrapeItem}
               handleToggleSelect={handleToggleSelect}
               setPrompt={setPrompt}
               showAddMorePages={showAddMorePages}

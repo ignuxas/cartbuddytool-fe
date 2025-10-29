@@ -30,6 +30,7 @@ interface ScrapedDataItem {
   textLength: number;
   selected: boolean;
   main?: boolean;
+  image?: string;
 }
 
 interface WorkflowResult {
@@ -69,6 +70,7 @@ const columns = [
   { key: "main", label: "Main Page" },
   { key: "url", label: "URL" },
   { key: "title", label: "Title" },
+  { key: "image", label: "Image" },
   { key: "textLength", label: "Text Length" },
   { key: "actions", label: "Actions" },
 ];
@@ -288,6 +290,20 @@ export default function ResultsDisplay({
             );
           case "title":
             return <span className="truncate" title={item.title}>{item.title}</span>;
+          case "image":
+            return item.image ? (
+              <img 
+                src={item.image} 
+                alt={item.title || "Page image"} 
+                className="w-16 h-16 object-cover rounded"
+                onError={(e) => {
+                  // Hide broken images
+                  e.currentTarget.style.display = 'none';
+                }}
+              />
+            ) : (
+              <span className="text-gray-400 text-sm">No image</span>
+            );
           case "actions":
             return (
               <div className="flex gap-1">

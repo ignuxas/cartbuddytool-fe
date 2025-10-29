@@ -17,6 +17,7 @@ interface ScrapedDataItem {
   content: string;
   textLength: number;
   main?: boolean;
+  image?: string;
 }
 
 interface SelectedScrapedDataItem extends ScrapedDataItem {

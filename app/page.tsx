@@ -17,6 +17,7 @@ interface ScrapedDataItem {
   title: string;
   content: string;
   textLength: number;
+  image?: string;
 }
 
 interface WorkflowResult {

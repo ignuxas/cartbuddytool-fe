@@ -91,6 +91,7 @@ export default function ProjectPage() {
   const [showAddMorePages, setShowAddMorePages] = useState(false);
   const [additionalUrls, setAdditionalUrls] = useState<{ url: string; selected: boolean }[]>([]);
   const [widgetSettingsKey, setWidgetSettingsKey] = useState(0); // Key to force re-render of widget
+  const [useAI, setUseAI] = useState(false); // AI toggle for image extraction
 
   const url = `http://${domain}`;
 
@@ -255,13 +256,13 @@ export default function ProjectPage() {
     clearMessages();
 
     try {
-      console.log("[handleRetryScraping] Retrying scraping, force:", forceRescrape);
+      console.log("[handleRetryScraping] Retrying scraping, force:", forceRescrape, "use_ai:", useAI);
       const data = await makeApiCall(
         `${config.serverUrl}/api/scrape/retry/`,
         {
           method: "POST",
           headers: getAuthHeaders(),
-          body: JSON.stringify({ url, force_rescrape: forceRescrape }),
+          body: JSON.stringify({ url, force_rescrape: forceRescrape, use_ai: useAI }),
         },
         "retry-scraping"
       );
@@ -302,13 +303,13 @@ export default function ProjectPage() {
     clearMessages();
 
     try {
-      console.log("[handleSmartRescrapeImages] Starting smart re-scrape");
+      console.log("[handleSmartRescrapeImages] Starting smart re-scrape, use_ai:", useAI);
       const data = await makeApiCall(
         `${config.serverUrl}/api/scrape/smart-images/`,
         {
           method: "POST",
           headers: getAuthHeaders(),
-          body: JSON.stringify({ url }),
+          body: JSON.stringify({ url, use_ai: useAI }),
         },
         "smart-rescrape-images"
       );
@@ -638,6 +639,8 @@ export default function ProjectPage() {
               handleSmartRescrapeImages={handleSmartRescrapeImages}
               loading={loading}
               retryLoading={retryLoading}
+              useAI={useAI}
+              setUseAI={setUseAI}
             />
             
             <ResultsDisplay

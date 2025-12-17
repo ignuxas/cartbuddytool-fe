@@ -2,17 +2,24 @@
 
 import { Button } from "@heroui/button";
 import { Switch } from "@heroui/switch";
+import { Input } from "@heroui/input";
 
 interface ActionButtonsProps {
   scrapedDataLength: number;
   errorMessage: string;
   url: string;
   handleRetryScraping: (force: boolean) => void;
+  handleOpenRetryModal: () => void;
   handleSmartRescrapeImages?: () => void;
+  handleStopScraping?: () => void;
   loading: boolean;
   retryLoading: string | null;
   useAI: boolean;
   setUseAI: (value: boolean) => void;
+  retryCount: number;
+  setRetryCount: (value: number) => void;
+  retryDelay: number;
+  setRetryDelay: (value: number) => void;
 }
 
 export default function ActionButtons({
@@ -20,11 +27,17 @@ export default function ActionButtons({
   errorMessage,
   url,
   handleRetryScraping,
+  handleOpenRetryModal,
   handleSmartRescrapeImages,
+  handleStopScraping,
   loading,
   retryLoading,
   useAI,
   setUseAI,
+  retryCount,
+  setRetryCount,
+  retryDelay,
+  setRetryDelay,
 }: ActionButtonsProps) {
   if (!((scrapedDataLength > 0 || errorMessage) && url)) {
     return null;
@@ -53,13 +66,49 @@ export default function ActionButtons({
         </div>
       </div>
 
+      {/* Settings */}
+      <div className="flex w-full gap-4 items-center justify-center">
+        <Input
+          type="number"
+          label="Retries"
+          size="sm"
+          value={retryCount.toString()}
+          onValueChange={(v) => setRetryCount(parseInt(v) || 0)}
+          className="max-w-[100px]"
+          min={0}
+          isDisabled={loading || retryLoading !== null}
+        />
+        <Input
+          type="number"
+          label="Delay (s)"
+          size="sm"
+          value={retryDelay.toString()}
+          onValueChange={(v) => setRetryDelay(parseFloat(v) || 0)}
+          className="max-w-[100px]"
+          step={0.1}
+          min={0}
+          isDisabled={loading || retryLoading !== null}
+        />
+      </div>
+
       {/* Action Buttons */}
       <div className="flex w-full gap-2 justify-center flex-wrap">
+        {retryLoading === 'scraping' && handleStopScraping && (
+          <Button
+            size="sm"
+            color="danger"
+            variant="solid"
+            onPress={handleStopScraping}
+            disabled={loading}
+          >
+            Stop Scraping
+          </Button>
+        )}
         <Button
           size="sm"
           color="warning"
           variant="flat"
-          onPress={() => handleRetryScraping(false)}
+          onPress={handleOpenRetryModal}
           disabled={loading || retryLoading !== null}
         >
           {retryLoading === 'scraping' ? "Retrying..." : "Retry Scraping"}

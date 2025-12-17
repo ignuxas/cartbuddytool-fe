@@ -11,6 +11,11 @@ interface Project {
   table_name: string;
   page_count: number;
   last_updated?: string;
+  active_job?: {
+    status: string;
+    scraped_pages: number;
+    total_pages: number;
+  };
 }
 
 interface ExistingProjectsProps {
@@ -44,15 +49,22 @@ const ExistingProjects: React.FC<ExistingProjectsProps> = ({ authKey, onSelectPr
 
   useEffect(() => {
     fetchProjects();
+    
+    // Poll for updates every 3 seconds to show scraping progress
+    const interval = setInterval(() => {
+      fetchProjects(true);
+    }, 30000);
+    
+    return () => clearInterval(interval);
   }, [authKey]);
 
-  const fetchProjects = async () => {
+  const fetchProjects = async (silent = false) => {
     if (!authKey) {
         setLoading(false);
         setProjects([]);
         return;
     }
-    setLoading(true);
+    if (!silent) setLoading(true);
     try {
       const response = await fetch(`${config.serverUrl}/api/scrape/projects/`, {
         method: "GET",
@@ -70,20 +82,58 @@ const ExistingProjects: React.FC<ExistingProjectsProps> = ({ authKey, onSelectPr
 
       setProjects(data.projects || []);
     } catch (error: any) {
-      addToast({
-        title: "Error",
-        description: error.message || "Failed to fetch projects",
-        color: "danger",
-      });
-      setProjects([]);
+      if (!silent) {
+        addToast({
+          title: "Error",
+          description: error.message || "Failed to fetch projects",
+          color: "danger",
+        });
+      }
+      // Don't clear projects on error during polling
+      if (!silent) setProjects([]);
     } finally {
-      setLoading(false);
+      if (!silent) setLoading(false);
     }
   };
 
   const handleSelectProject = (url: string) => {
     if (onSelectProject) {
       onSelectProject(url);
+    }
+  };
+
+  const handleDeleteProject = async (domain: string) => {
+    if (!authKey) return;
+    
+    try {
+      const response = await fetch(`${config.serverUrl}/api/scrape/project/delete/`, {
+        method: "DELETE",
+        headers: {
+          "Content-Type": "application/json",
+          "X-Auth-Key": authKey,
+        },
+        body: JSON.stringify({ domain }),
+      });
+
+      if (!response.ok) {
+        const data = await response.json();
+        throw new Error(data.error || "Failed to delete project");
+      }
+
+      addToast({
+        title: "Success",
+        description: `Project ${domain} deleted successfully`,
+        color: "success",
+      });
+      
+      // Refresh projects list
+      fetchProjects();
+    } catch (error: any) {
+      addToast({
+        title: "Error",
+        description: error.message || "Failed to delete project",
+        color: "danger",
+      });
     }
   };
 
@@ -118,6 +168,7 @@ const ExistingProjects: React.FC<ExistingProjectsProps> = ({ authKey, onSelectPr
               key={project.domain}
               project={project}
               onSelect={handleSelectProject}
+              onDelete={handleDeleteProject}
             />
           ))}
         </div>

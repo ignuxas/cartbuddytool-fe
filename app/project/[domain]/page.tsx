@@ -3,13 +3,15 @@
 import { useEffect, useState } from "react";
 import { config } from "@/lib/config";
 import ResultsDisplay from "@/app/components/ResultsDisplay";
-import ActionButtons from "@/app/components/ActionButtons";
 import AuthModal from "@/app/components/AuthModal";
 import ChatWidget from "@/app/components/ChatWidget";
 import WidgetCustomization from "@/app/components/WidgetCustomization";
 import { useRouter, useParams } from "next/navigation";
 import { addToast } from "@heroui/toast";
 import { useAuthContext } from "@/app/contexts/AuthContext";
+import { Button } from "@heroui/button";
+
+import { Link } from "@heroui/link";
 
 interface ScrapedDataItem {
   url: string;
@@ -93,6 +95,16 @@ export default function ProjectPage() {
   const [additionalUrls, setAdditionalUrls] = useState<{ url: string; selected: boolean }[]>([]);
   const [widgetSettingsKey, setWidgetSettingsKey] = useState(0); // Key to force re-render of widget
   const [useAI, setUseAI] = useState(false); // AI toggle for image extraction
+  const [retryCount, setRetryCount] = useState(3);
+  const [retryDelay, setRetryDelay] = useState(1.0);
+  const [scrapingProgress, setScrapingProgress] = useState<{ 
+    current: number; 
+    total: number; 
+    status: string; 
+    currentUrl?: string;
+    pageStatuses?: { url: string; status: string; error?: string; status_code?: number }[];
+  } | null>(null);
+  const [showDetails, setShowDetails] = useState(false);
 
   const url = `http://${domain}`;
 
@@ -125,6 +137,12 @@ export default function ProjectPage() {
           "project-load"
         );
 
+        if (checkData.active_job) {
+            console.log("Found active scraping job:", checkData.active_job);
+            setRetryLoading('scraping');
+            pollScrapingStatus(checkData.active_job.id);
+        }
+
         if (checkData.has_existing_data) {
           setScrapedData((checkData.existing_data || []).map((item: ScrapedDataItem) => ({ ...item, selected: false })));
           if (checkData.existing_prompt) {
@@ -134,7 +152,7 @@ export default function ProjectPage() {
             setWorkflowResult(checkData.existing_workflow);
           }
           // Toast removed - silently load project data
-        } else {
+        } else if (!checkData.active_job) {
           const message = "No data found for this project. Redirecting to home page.";
           addToast({ title: "Error", description: message, color: "danger" });
           setErrorMessage(message);
@@ -252,9 +270,69 @@ export default function ProjectPage() {
     }
   };
 
+  const pollScrapingStatus = async (jobId: string) => {
+    const poll = async () => {
+      try {
+        const statusData = await makeApiCall(
+          `${config.serverUrl}/api/scrape/status/${jobId}/`,
+          {
+            method: "GET",
+            headers: getAuthHeaders(),
+          },
+          "poll-status"
+        );
+
+        setScrapingProgress({
+            current: statusData.scraped_pages,
+            total: statusData.total_pages,
+            status: statusData.status,
+            currentUrl: statusData.current_url,
+            pageStatuses: statusData.page_statuses
+        });
+
+        if (statusData.status === 'completed') {
+            setRetryLoading(null);
+            setScrapingProgress(null);
+            addToast({ title: "Success", description: "Scraping completed", color: "success" });
+            
+            // Reload project data
+            const checkData = await makeApiCall(
+                `${config.serverUrl}/api/scrape/check-existing/`,
+                {
+                  method: "POST",
+                  headers: getAuthHeaders(),
+                  body: JSON.stringify({ url: `http://${domain}` }),
+                },
+                "reload-project-data"
+              );
+        
+            if (checkData.has_existing_data) {
+                setScrapedData((checkData.existing_data || []).map((item: ScrapedDataItem) => ({ ...item, selected: false })));
+                if (checkData.existing_prompt) {
+                    setPrompt(checkData.existing_prompt);
+                }
+            }
+
+        } else if (statusData.status === 'failed') {
+            setRetryLoading(null);
+            setScrapingProgress(null);
+            setErrorMessage(statusData.error_message || "Scraping failed");
+            addToast({ title: "Error", description: statusData.error_message || "Scraping failed", color: "danger" });
+        } else {
+            setTimeout(poll, 2000);
+        }
+      } catch (e) {
+          console.error("Polling failed", e);
+          setTimeout(poll, 5000);
+      }
+    };
+    poll();
+  };
+
   const handleRetryScraping = async (forceRescrape = false) => {
     setRetryLoading('scraping');
     clearMessages();
+    setScrapingProgress({ current: 0, total: 0, status: 'pending' });
 
     try {
       console.log("[handleRetryScraping] Retrying scraping, force:", forceRescrape, "use_ai:", useAI);
@@ -263,39 +341,58 @@ export default function ProjectPage() {
         {
           method: "POST",
           headers: getAuthHeaders(),
-          body: JSON.stringify({ url, force_rescrape: forceRescrape, use_ai: useAI }),
+          body: JSON.stringify({ 
+            url, 
+            force_rescrape: forceRescrape, 
+            use_ai: useAI,
+            retry_count: retryCount,
+            retry_delay: retryDelay
+          }),
         },
         "retry-scraping"
       );
 
-      addToast({
-        title: "Success",
-        description: data.message || "Scraping retry completed",
-        color: "success",
-      });
-      if (data.warnings) {
-        addToast({
-          title: "Warning",
-          description: data.warnings,
-          color: "warning",
-        });
+      if (data.job_id) {
+          addToast({
+            title: "Started",
+            description: "Scraping started in background...",
+            color: "primary",
+          });
+          pollScrapingStatus(data.job_id);
+      } else {
+          // Fallback for synchronous response
+          addToast({
+            title: "Success",
+            description: data.message || "Scraping retry completed",
+            color: "success",
+          });
+          if (data.warnings) {
+            addToast({
+              title: "Warning",
+              description: data.warnings,
+              color: "warning",
+            });
+          }
+          if (data.scraped_data) {
+            setScrapedData(data.scraped_data.map((item: ScrapedDataItem) => ({ ...item, selected: false })));
+          }
+          if (data.prompt) {
+            setPrompt(data.prompt);
+          }
+          if (data.sheet_id) {
+            setSheetId(data.sheet_id);
+          }
+          setRetryLoading(null);
+          setScrapingProgress(null);
       }
-      if (data.scraped_data) {
-        setScrapedData(data.scraped_data.map((item: ScrapedDataItem) => ({ ...item, selected: false })));
-      }
-      if (data.prompt) {
-        setPrompt(data.prompt);
-      }
-      if (data.sheet_id) {
-        setSheetId(data.sheet_id);
-      }
+
     } catch (error: any) {
       logError("handleRetryScraping", error, { url, forceRescrape });
       const message = error.message || "Failed to retry scraping";
       addToast({ title: "Error", description: message, color: "danger" });
       setErrorMessage(message);
-    } finally {
       setRetryLoading(null);
+      setScrapingProgress(null);
     }
   };
 
@@ -632,17 +729,34 @@ export default function ProjectPage() {
             <div>Loading project data...</div>
         ) : (
           <>
-            <ActionButtons
-              scrapedDataLength={scrapedData.length}
-              errorMessage={errorMessage}
-              url={url}
-              handleRetryScraping={handleRetryScraping}
-              handleSmartRescrapeImages={handleSmartRescrapeImages}
-              loading={loading}
-              retryLoading={retryLoading}
-              useAI={useAI}
-              setUseAI={setUseAI}
-            />
+            <div className="flex w-full justify-center mb-4 gap-4">
+              <Button as={Link} href={`/project/${domain}/scraping`} color="primary" variant="flat">
+                Manage Scraping & Settings
+              </Button>
+              <Button as={Link} href={`/demo?domain=${domain}`} color="secondary" variant="flat">
+                View Demo
+              </Button>
+            </div>
+            
+            {scrapingProgress && (
+              <div className="w-full max-w-md mt-4 p-4 border rounded-lg bg-content1 cursor-pointer hover:bg-content2 transition-colors" onClick={() => router.push(`/project/${domain}/scraping`)}>
+                <div className="flex justify-between mb-2">
+                  <span className="text-sm font-medium">Scraping in Progress...</span>
+                  <span className="text-sm text-default-500">
+                    {scrapingProgress.current} / {scrapingProgress.total}
+                  </span>
+                </div>
+                <div className="w-full bg-default-200 rounded-full h-2.5 mb-2">
+                  <div 
+                    className="bg-primary h-2.5 rounded-full transition-all duration-500" 
+                    style={{ width: `${(scrapingProgress.current / Math.max(scrapingProgress.total, 1)) * 100}%` }}
+                  ></div>
+                </div>
+                <p className="text-xs text-default-400 truncate">
+                  Click to view details
+                </p>
+              </div>
+            )}
             
             <ResultsDisplay
               sheetId={sheetId}

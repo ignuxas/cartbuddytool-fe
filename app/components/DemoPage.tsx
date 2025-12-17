@@ -1,12 +1,12 @@
 "use client";
 
-import { useEffect, useState, useRef } from "react";
+import { useEffect, useState } from "react";
 import { useSearchParams, useRouter } from "next/navigation";
 import { config } from "@/lib/config";
 import { addToast } from "@heroui/toast";
 import { Button } from "@heroui/button";
-import { Spinner } from "@heroui/spinner";
 import { getChatWidgetScript } from "@/app/utils/chatWidgetGenerator";
+import DemoPreview from "./DemoPreview";
 
 interface WidgetSettings {
   primary_color: string;
@@ -31,8 +31,6 @@ export default function DemoPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [widgetSettings, setWidgetSettings] = useState<WidgetSettings | null>(null);
-  const iframeRef = useRef<HTMLIFrameElement>(null);
-  const [iframeLoaded, setIframeLoaded] = useState(false);
   const [retryCount, setRetryCount] = useState(0);
   const [htmlContent, setHtmlContent] = useState<string>("");
   const maxRetries = 2;
@@ -47,45 +45,11 @@ export default function DemoPage() {
     loadDemoContent();
   }, [domain, webhookUrl]);
 
-  // Write HTML to iframe once it's rendered and we have content
-  useEffect(() => {
-    if (htmlContent && iframeRef.current && !loading) {
-      try {
-        console.log("Iframe ref available, writing HTML to iframe");
-        const iframeDoc = iframeRef.current.contentDocument || iframeRef.current.contentWindow?.document;
-        if (iframeDoc) {
-          console.log("Writing HTML to iframe, length:", htmlContent.length);
-          iframeDoc.open();
-          iframeDoc.write(htmlContent);
-          iframeDoc.close();
-          console.log("HTML successfully written to iframe");
-        } else {
-          console.error("Could not access iframe document");
-          setError("Unable to access iframe document. This may be due to browser security restrictions.");
-        }
-      } catch (err) {
-        console.error("Error writing to iframe:", err);
-        setError("Failed to write content to iframe. This may be due to browser security restrictions.");
-      }
-    }
-  }, [htmlContent, loading]);
-
-  const handleIframeLoad = () => {
-    console.log("Iframe loaded successfully");
-    setIframeLoaded(true);
-  };
-
-  const handleIframeError = () => {
-    console.error("Iframe failed to load");
-    setError("Failed to load website content in preview. This may be due to browser security restrictions or website policies.");
-  };
-
   const loadDemoContent = async () => {
     try {
       setLoading(true);
       setError(null);
       setHtmlContent(""); // Clear previous content
-      setIframeLoaded(false);
 
       console.log("Loading demo for domain:", domain);
 
@@ -162,7 +126,6 @@ export default function DemoPage() {
       const modifiedHtml = injectWidgetIntoHtml(html, widgetScript);
 
       // Store the HTML content and end loading state
-      // The iframe will be written to in the useEffect below
       console.log("HTML prepared, setting content state");
       setHtmlContent(modifiedHtml);
       setLoading(false);
@@ -291,6 +254,12 @@ export default function DemoPage() {
             <div className="w-2 h-2 bg-green-500 rounded-full animate-pulse" />
             <span className="text-xs font-medium text-green-700">Live Preview</span>
           </div>
+          <div className="hidden sm:flex items-center gap-2 px-3 py-1.5 bg-amber-50 border border-amber-200 rounded-lg" title="Some website features may not work in demo mode due to browser security policies">
+            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" className="w-4 h-4 text-amber-600">
+              <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v3.75m9-.75a9 9 0 1 1-18 0 9 9 0 0 1 18 0Zm-9 3.75h.008v.008H12v-.008Z" />
+            </svg>
+            <span className="text-xs font-medium text-amber-700">Demo Mode</span>
+          </div>
           <Button color="primary" variant="flat" size="sm" onClick={loadDemoContent} isDisabled={loading}>
             Refresh
           </Button>
@@ -298,29 +267,13 @@ export default function DemoPage() {
       </div>
 
       {/* Demo Content - Full Width and Height */}
-      {loading ? (
-        <div className="flex-1 flex items-center justify-center w-full">
-          <div className="text-center">
-            <Spinner size="lg" color="primary" />
-            <p className="mt-4 text-gray-600">Loading demo preview...</p>
-            <p className="text-sm text-gray-500 mt-2">Fetching website and injecting chat widget</p>
-            {retryCount > 0 && (
-              <p className="text-xs text-orange-500 mt-2">Retry attempt {retryCount} of {maxRetries}...</p>
-            )}
-          </div>
-        </div>
-      ) : (
-        <div className="flex-1 w-full overflow-hidden">
-          <iframe
-            ref={iframeRef}
-            className="w-full h-full border-0"
-            title="Website Demo"
-            sandbox="allow-scripts allow-same-origin allow-forms allow-popups allow-modals"
-            onLoad={handleIframeLoad}
-            onError={handleIframeError}
-          />
-        </div>
-      )}
+      <div className="flex-1 w-full overflow-hidden">
+        <DemoPreview 
+          htmlContent={htmlContent} 
+          loading={loading} 
+          error={error} 
+        />
+      </div>
     </div>
   );
 }

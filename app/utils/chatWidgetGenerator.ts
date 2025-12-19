@@ -300,19 +300,6 @@ export function getChatWidgetScript({
         
         console.log(\`Total product cards processed: \${cardCount}\`);
         
-        // Handle inline images with [IMAGE] tag
-        const imageRegex = /\\[IMAGE\\]([\\s\\S]*?)\\[\\/IMAGE\\]/g;
-        processedText = processedText.replace(imageRegex, (match, imageData) => {
-            try {
-                const data = JSON.parse(imageData.trim());
-                const { url, alt = 'Image', caption = '' } = data;
-                return \`<div class="message-image-container"><img src="\${url}" alt="\${alt}" class="message-image" onerror="this.style.display='none';" />\${caption ? \`<p class="message-image-caption">\${caption}</p>\` : ''}</div>\`;
-            } catch (e) {
-                console.warn('Failed to parse image:', e, 'Raw data:', imageData);
-                return match;
-            }
-        });
-        
         // Handle markdown links FIRST to avoid URL regex issues later
         processedText = processedText.replace(/\\[([^\\]]+)\\]\\(([^)]+)\\)/g, '<a href="$2" target="_blank">$1</a>');
         

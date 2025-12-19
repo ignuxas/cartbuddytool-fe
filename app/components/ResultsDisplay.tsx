@@ -212,29 +212,9 @@ export default function ResultsDisplay({
         }
       })();
 
-      // Fetch widget settings
-      let widgetSettings;
-      try {
-        const response = await fetch(
-          `${config.serverUrl}/api/widget/settings/?domain=${encodeURIComponent(siteName)}`
-        );
-        if (response.ok) {
-          widgetSettings = await response.json();
-        }
-      } catch (error) {
-        console.warn('Could not fetch widget settings for embed code, using defaults:', error);
-      }
-
-      const code = getChatWidgetScript({
-        webhookUrl: workflowResult.webhook_url,
-        siteName,
-        primaryColor: widgetSettings?.primary_color,
-        secondaryColor: widgetSettings?.secondary_color,
-        textColor: widgetSettings?.text_color,
-        title: widgetSettings?.title,
-        welcomeMessage: widgetSettings?.welcome_message,
-        suggestions: widgetSettings?.suggestions,
-      });
+      // Generate the simple embed code
+      // The script will fetch settings and webhook URL automatically based on the domain
+      const code = `<script src="${config.serverUrl}/api/widget.js" data-domain="${siteName}" defer></script>`;
 
       setEmbedCodeWithSettings(code);
     };

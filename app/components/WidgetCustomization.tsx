@@ -17,6 +17,7 @@ interface WidgetCustomizationProps {
 interface WidgetSettings {
   primary_color: string;
   secondary_color: string;
+  background_color: string;
   text_color: string;
   title: string;
   welcome_message: string;
@@ -32,6 +33,7 @@ export default function WidgetCustomization({ domain, authKey, onSettingsUpdated
   const [settings, setSettings] = useState<WidgetSettings>({
     primary_color: '#3b82f6',
     secondary_color: '#1d4ed8',
+    background_color: '#ffffff',
     text_color: '#ffffff',
     title: 'Assistant',
     welcome_message: "Welcome! I'm your AI assistant. Need help finding information?",
@@ -161,7 +163,7 @@ export default function WidgetCustomization({ domain, authKey, onSettingsUpdated
         <h3 className="text-xl font-bold">Chat Widget Customization</h3>
       </CardHeader>
       <CardBody className="gap-4">
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
           <div className="flex flex-col gap-2">
             <label className="text-sm font-medium">Primary Color</label>
             <div className="flex gap-2 items-center">
@@ -195,6 +197,25 @@ export default function WidgetCustomization({ domain, authKey, onSettingsUpdated
                 value={settings.secondary_color}
                 onChange={(e) => setSettings({ ...settings, secondary_color: e.target.value })}
                 placeholder="#1d4ed8"
+                className="flex-1"
+              />
+            </div>
+          </div>
+
+          <div className="flex flex-col gap-2">
+            <label className="text-sm font-medium">Background Color</label>
+            <div className="flex gap-2 items-center">
+              <Input
+                type="color"
+                value={settings.background_color}
+                onChange={(e) => setSettings({ ...settings, background_color: e.target.value })}
+                className="w-16 h-10"
+              />
+              <Input
+                type="text"
+                value={settings.background_color}
+                onChange={(e) => setSettings({ ...settings, background_color: e.target.value })}
+                placeholder="#ffffff"
                 className="flex-1"
               />
             </div>

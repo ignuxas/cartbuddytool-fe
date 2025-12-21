@@ -34,9 +34,10 @@ interface WorkflowResult {
 
 // Enhanced error logging
 const logError = (context: string, error: any, additionalData?: any) => {
-  console.error(`[${context}] Error:`, {
-    message: error.message,
-    stack: error.stack,
+  console.error(`[${context}] Error Object:`, error);
+  console.error(`[${context}] Error Details:`, {
+    message: error?.message,
+    stack: error?.stack,
     timestamp: new Date().toISOString(),
     additionalData
   });
@@ -50,6 +51,7 @@ const makeApiCall = async (url: string, options: RequestInit, context: string) =
     
     if (!response.ok) {
       const errorText = await response.text();
+      console.error(`[${context}] API Error Response Body:`, errorText);
       let errorData;
       try {
         errorData = JSON.parse(errorText);
@@ -57,7 +59,7 @@ const makeApiCall = async (url: string, options: RequestInit, context: string) =
         errorData = { error: errorText || `HTTP ${response.status}` };
       }
       
-      logError(context, new Error(`API call failed: ${response.status}`), {
+      logError(context, new Error(errorData.error || `API call failed: ${response.status}`), {
         url,
         status: response.status,
         statusText: response.statusText,
@@ -693,6 +695,33 @@ export default function ProjectPage() {
     }
   };
 
+  const handleUpdateImage = async (url: string, newImageUrl: string) => {
+    try {
+      await makeApiCall(
+        `${config.serverUrl}/api/scrape/update-image/`,
+        {
+          method: 'POST',
+          headers: getAuthHeaders(),
+          body: JSON.stringify({
+            domain,
+            url,
+            image_url: newImageUrl,
+          }),
+        },
+        'updateImage'
+      );
+
+      // Update local state
+      setScrapedData(prev => prev.map(item => 
+        item.url === url ? { ...item, image: newImageUrl } : item
+      ));
+
+    } catch (error: any) {
+      logError('handleUpdateImage', error);
+      throw error; // Re-throw to be handled by the component
+    }
+  };
+
   if (authIsLoading) {
     return (
       <section className="flex flex-col items-center justify-center gap-4 py-8 md:py-10">
@@ -771,6 +800,7 @@ export default function ProjectPage() {
               handleForceRegenerateWorkflow={handleForceRegenerateWorkflow}
               handleDeleteItem={handleDeleteItem}
               handleRescrapeItem={handleRescrapeItem}
+              handleUpdateImage={handleUpdateImage}
               handleToggleSelect={handleToggleSelect}
               setPrompt={setPrompt}
               showAddMorePages={showAddMorePages}

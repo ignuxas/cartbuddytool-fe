@@ -45,6 +45,7 @@ interface MetricsData {
   daily_stats: Array<{ date: string; count: number; errors: number }>;
   hourly_stats: Array<{ hour: string; count: number }>;
   top_queries: Array<{ query: string; count: number }>;
+  interactions_by_mode: Array<{ mode: string; count: number }>;
   recent_metrics: Array<{
     id: string;
     chatInput: string;
@@ -120,6 +121,7 @@ export default function MetricsPage() {
           daily_stats: data.daily_stats || [],
           hourly_stats: data.hourly_stats || [],
           top_queries: data.top_queries || [],
+          interactions_by_mode: data.interactions_by_mode || [],
           recent_metrics: data.recent_metrics || [],
           error_types: data.error_types || [],
           recent_errors: data.recent_errors || [],
@@ -450,27 +452,27 @@ export default function MetricsPage() {
           </div>
         )}
 
-        {/* Top Queries */}
+        {/* Interactions by Mode */}
         <Card className="mb-6">
           <CardHeader>
-            <h3 className="text-xl font-semibold">Top Queries</h3>
+            <h3 className="text-xl font-semibold">Interactions by Mode</h3>
           </CardHeader>
           <CardBody>
-            {metrics.top_queries.length > 0 ? (
+            {metrics.interactions_by_mode.length > 0 ? (
               <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
                 <div className="space-y-2">
-                  {metrics.top_queries.map((query, idx) => (
+                  {metrics.interactions_by_mode.map((item, idx) => (
                     <div
                       key={idx}
                       className="flex items-center justify-between p-3 bg-default-100 rounded-lg"
                     >
                       <div className="flex-1 mr-4">
                         <div className="text-sm font-medium text-foreground truncate">
-                          {query.query}
+                          {item.mode}
                         </div>
                       </div>
                       <Chip size="sm" color="primary" variant="flat">
-                        {query.count}
+                        {item.count}
                       </Chip>
                     </div>
                   ))}
@@ -479,15 +481,15 @@ export default function MetricsPage() {
                   <ResponsiveContainer width="100%" height={300}>
                     <PieChart>
                       <Pie
-                        data={metrics.top_queries}
+                        data={metrics.interactions_by_mode}
                         dataKey="count"
-                        nameKey="query"
+                        nameKey="mode"
                         cx="50%"
                         cy="50%"
                         outerRadius={100}
                         label={(entry: any) => `${entry.count}`}
                       >
-                        {metrics.top_queries.map((entry, index) => (
+                        {metrics.interactions_by_mode.map((entry, index) => (
                           <Cell
                             key={`cell-${index}`}
                             fill={COLORS[index % COLORS.length]}
@@ -502,13 +504,14 @@ export default function MetricsPage() {
                           color: '#F3F4F6'
                         }}
                       />
+                      <Legend />
                     </PieChart>
                   </ResponsiveContainer>
                 </div>
               </div>
             ) : (
               <div className="text-center text-default-500 py-12">
-                No query data available
+                No mode data available
               </div>
             )}
           </CardBody>

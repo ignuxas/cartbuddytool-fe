@@ -11,6 +11,7 @@ import {
   getKeyValue,
   SortDescriptor,
 } from "@heroui/table";
+import { Modal, ModalContent, ModalHeader, ModalBody, ModalFooter, useDisclosure } from "@heroui/modal";
 import { Button } from "@heroui/button";
 import { TrashIcon } from "./TrashIcon";
 import { Textarea } from "@heroui/input";
@@ -18,7 +19,6 @@ import { Input } from "@heroui/input";
 import { Checkbox } from "@heroui/checkbox";
 import { Card, CardBody } from "@heroui/card";
 import { Chip } from "@heroui/chip";
-import { getChatWidgetScript } from "@/app/utils/chatWidgetGenerator";
 import { addToast } from "@heroui/toast";
 import { config } from "@/lib/config";
 import { useRouter } from "next/navigation";
@@ -63,7 +63,46 @@ interface ResultsDisplayProps {
   onCancelAddMorePages: () => void;
   handleDeleteSelected: () => void;
   numSelected: number;
+  handleUpdateImage?: (url: string, newImageUrl: string) => Promise<void>;
 }
+
+const EditIcon = (props: any) => (
+  <svg
+    aria-hidden="true"
+    fill="none"
+    focusable="false"
+    height="1em"
+    role="presentation"
+    viewBox="0 0 20 20"
+    width="1em"
+    {...props}
+  >
+    <path
+      d="M11.05 3.00002L4.20835 10.2417C3.95002 10.5167 3.70002 11.0584 3.65002 11.4334L3.34169 14.1334C3.23335 15.1084 3.93335 15.775 4.90002 15.6084L7.58335 15.15C7.95835 15.0834 8.48335 14.8084 8.74168 14.525L15.5834 7.28335C16.7667 6.03335 17.3 4.60835 15.4583 2.86668C13.625 1.14168 12.2334 1.75002 11.05 3.00002Z"
+      stroke="currentColor"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      strokeMiterlimit={10}
+      strokeWidth={1.5}
+    />
+    <path
+      d="M9.90833 4.20831C10.2667 6.50831 12.1333 8.26665 14.45 8.49998"
+      stroke="currentColor"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      strokeMiterlimit={10}
+      strokeWidth={1.5}
+    />
+    <path
+      d="M2.5 18.3333H17.5"
+      stroke="currentColor"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      strokeMiterlimit={10}
+      strokeWidth={1.5}
+    />
+  </svg>
+);
 
 const columns = [
   { key: "select", label: "Select" },
@@ -107,7 +146,42 @@ export default function ResultsDisplay({
   handleToggleSelect,
   handleDeleteSelected,
   numSelected,
+  handleUpdateImage,
 }: ResultsDisplayProps) {
+  const {isOpen, onOpen, onOpenChange} = useDisclosure();
+  const [editingItem, setEditingItem] = React.useState<ScrapedDataItem | null>(null);
+  const [newImageUrl, setNewImageUrl] = React.useState("");
+  const [isUpdatingImage, setIsUpdatingImage] = React.useState(false);
+
+  const openEditImageModal = (item: ScrapedDataItem) => {
+    setEditingItem(item);
+    setNewImageUrl(item.image || "");
+    onOpen();
+  };
+
+  const handleSaveImage = async () => {
+    if (!editingItem || !handleUpdateImage) return;
+    
+    setIsUpdatingImage(true);
+    try {
+      await handleUpdateImage(editingItem.url, newImageUrl);
+      onOpenChange(); // Close modal
+      addToast({
+        title: "Success",
+        description: "Image updated successfully",
+        color: "success",
+      });
+    } catch (error: any) {
+      addToast({
+        title: "Error",
+        description: error.message || "Failed to update image",
+        color: "danger",
+      });
+    } finally {
+      setIsUpdatingImage(false);
+    }
+  };
+
   const [sortDescriptor, setSortDescriptor] = React.useState<SortDescriptor>({
     column: "url",
     direction: "ascending",
@@ -287,6 +361,18 @@ export default function ResultsDisplay({
           case "actions":
             return (
               <div className="flex gap-1">
+                {handleUpdateImage && (
+                  <Button
+                    isIconOnly
+                    size="sm"
+                    variant="light"
+                    color="primary"
+                    onPress={() => openEditImageModal(item)}
+                    title="Edit Image"
+                  >
+                    <EditIcon />
+                  </Button>
+                )}
                 {handleRescrapeItem && (
                   <Button
                     isIconOnly
@@ -398,30 +484,8 @@ export default function ResultsDisplay({
         }
       })();
 
-      // Fetch widget settings
-      let widgetSettings;
-      try {
-        const response = await fetch(
-          `${config.serverUrl}/api/widget/settings/?domain=${encodeURIComponent(siteName)}`
-        );
-        if (response.ok) {
-          widgetSettings = await response.json();
-        }
-      } catch (error) {
-        console.warn('Could not fetch widget settings, using defaults:', error);
-      }
-
-      const embedCode = getChatWidgetScript({
-        webhookUrl: workflowResult.webhook_url,
-        siteName,
-        baseUrl: process.env.NEXT_PUBLIC_BASE_URL,
-        primaryColor: widgetSettings?.primary_color,
-        secondaryColor: widgetSettings?.secondary_color,
-        textColor: widgetSettings?.text_color,
-        title: widgetSettings?.title,
-        welcomeMessage: widgetSettings?.welcome_message,
-        suggestions: widgetSettings?.suggestions,
-      });
+      // Generate the simple embed code
+      const embedCode = `<script src="${config.serverUrl}/api/widget.js" data-domain="${siteName}" defer></script>`;
       
       await navigator.clipboard.writeText(embedCode);
       addToast({
@@ -985,6 +1049,48 @@ export default function ResultsDisplay({
           </Card>
         </div>
       )}
+      <Modal isOpen={isOpen} onOpenChange={onOpenChange}>
+        <ModalContent>
+          {(onClose) => (
+            <>
+              <ModalHeader className="flex flex-col gap-1">Edit Image URL</ModalHeader>
+              <ModalBody>
+                <p className="text-sm text-gray-500 mb-2">
+                  Enter a new image URL for: <span className="font-mono">{editingItem?.url}</span>
+                </p>
+                <Input
+                  label="Image URL"
+                  placeholder="https://example.com/image.jpg"
+                  value={newImageUrl}
+                  onValueChange={setNewImageUrl}
+                  variant="bordered"
+                />
+                {newImageUrl && (
+                  <div className="mt-2">
+                    <p className="text-xs text-gray-500 mb-1">Preview:</p>
+                    <img 
+                      src={newImageUrl} 
+                      alt="Preview" 
+                      className="w-full h-48 object-contain border rounded bg-gray-50"
+                      onError={(e) => {
+                        e.currentTarget.style.display = 'none';
+                      }}
+                    />
+                  </div>
+                )}
+              </ModalBody>
+              <ModalFooter>
+                <Button color="danger" variant="light" onPress={onClose}>
+                  Cancel
+                </Button>
+                <Button color="primary" onPress={handleSaveImage} isLoading={isUpdatingImage}>
+                  Save
+                </Button>
+              </ModalFooter>
+            </>
+          )}
+        </ModalContent>
+      </Modal>
     </div>
   );
 }

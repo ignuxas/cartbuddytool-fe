@@ -10,7 +10,7 @@ interface ActionButtonsProps {
   url: string;
   handleRetryScraping: (force: boolean) => void;
   handleOpenRetryModal: () => void;
-  handleSmartRescrapeImages?: () => void;
+  handleSmartRescrapeImages?: (full?: boolean) => void;
   handleStopScraping?: () => void;
   loading: boolean;
   retryLoading: string | null;
@@ -114,25 +114,27 @@ export default function ActionButtons({
           {retryLoading === 'scraping' ? "Retrying..." : "Retry Scraping"}
         </Button>
         {handleSmartRescrapeImages && (
-          <Button
-            size="sm"
-            color="secondary"
-            variant="flat"
-            onPress={handleSmartRescrapeImages}
-            disabled={loading || retryLoading !== null}
-          >
-            {retryLoading === 'smart-images' ? "Updating..." : "Smart Update"}
-          </Button>
+          <>
+            <Button
+              size="sm"
+              color="secondary"
+              variant="flat"
+              onPress={() => handleSmartRescrapeImages(false)}
+              disabled={loading || retryLoading !== null}
+            >
+              {retryLoading === 'smart-images' ? "Updating..." : "Smart Update"}
+            </Button>
+            <Button
+              size="sm"
+              color="primary"
+              variant="flat"
+              onPress={() => handleSmartRescrapeImages(true)} 
+              disabled={loading || retryLoading !== null}
+            >
+              {retryLoading === 'full-smart' ? "Updating..." : "Full Smart Update"}
+            </Button>
+          </>
         )}
-        <Button
-          size="sm"
-          color="danger"
-          variant="flat"
-          onPress={() => handleRetryScraping(true)}
-          disabled={loading || retryLoading !== null}
-        >
-          Force Re-scrape
-        </Button>
       </div>
     </div>
   );

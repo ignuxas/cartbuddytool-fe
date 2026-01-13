@@ -182,11 +182,11 @@ export default function ScrapingPage() {
             setActiveJobId(null);
             addToast({ title: "Cancelled", description: "Scraping job was cancelled", color: "warning" });
         } else {
-            setTimeout(poll, 2000);
+            setTimeout(poll, 6000);
         }
       } catch (e) {
           console.error("Polling failed", e);
-          setTimeout(poll, 5000);
+          setTimeout(poll, 10000);
       }
     };
     poll();
@@ -196,7 +196,7 @@ export default function ScrapingPage() {
       setIsRetryModalOpen(true);
   };
 
-  const handleRescrapePages = async (urlsToRescrape: string[]) => {
+  const handleRescrapePages = async (urlsToRescrape: string[], options?: { keepImages: boolean; useAI: boolean }) => {
     if (urlsToRescrape.length === 0) return;
 
     setRetryLoading('scraping');
@@ -205,7 +205,7 @@ export default function ScrapingPage() {
     setScrapingProgress({ current: 0, total: urlsToRescrape.length, status: 'pending' });
 
     try {
-      console.log("[handleRescrapePages] Re-scraping pages:", urlsToRescrape.length);
+      console.log("[handleRescrapePages] Re-scraping pages:", urlsToRescrape.length, options);
       const data = await makeApiCall(
         `${config.serverUrl}/api/scrape/additional/`,
         {
@@ -217,7 +217,8 @@ export default function ScrapingPage() {
             force_rescrape: true,
             retry_count: retryCount,
             retry_delay: retryDelay,
-            use_ai: useAI
+            use_ai: options?.useAI ?? useAI,
+            keep_images: options?.keepImages ?? false
           }),
         },
         "rescrape-pages"
@@ -262,6 +263,98 @@ export default function ScrapingPage() {
       setErrorMessage(message);
       setRetryLoading(null);
       setScrapingProgress(null);
+    }
+  };
+
+  const handleFindMorePages = async () => {
+    setRetryLoading('finding-pages');
+    clearMessages();
+    
+    try {
+      console.log("[handleFindMorePages] Fetching additional URLs");
+      const data = await makeApiCall(
+        `${config.serverUrl}/api/scrape/get-urls/`,
+        {
+          method: "POST",
+          headers: getAuthHeaders(),
+          body: JSON.stringify({ url }),
+        },
+        "find-more-pages"
+      );
+
+      const scrapedUrlsSet = new Set(scrapedData.map(item => item.url));
+      const foundUrlsSet = new Set((data.urls || []) as string[]); // Cast to string[]
+      
+      // Calculate diffs
+      const newUrls = (data.urls || []).filter((u: string) => !scrapedUrlsSet.has(u));
+      const missingUrls = scrapedData.filter(item => !foundUrlsSet.has(item.url)).map(item => item.url);
+
+      let successMessage = "";
+      let hasChanges = false;
+
+      // Handle additions
+      if (newUrls.length > 0) {
+          const newItems = newUrls.map((u: string) => ({
+             url: u,
+             title: "Found (Not Scraped)",
+             content: "",
+             textLength: 0,
+             main: false
+          }));
+          setScrapedData(prev => [...prev, ...newItems]);
+          successMessage += `Found ${newUrls.length} new pages. `;
+          hasChanges = true;
+      }
+
+      // Handle removals
+      if (missingUrls.length > 0) {
+          // Check for partial scan limits to avoid accidental deletions
+          const isPartialScan = data.total_found > (data.limited_to || data.urls?.length || 0); 
+          
+          if (isPartialScan) {
+               addToast({
+                   title: "Sync Warning",
+                   description: `Scanner found ${data.total_found} pages but only returned ${data.limited_to}. ${missingUrls.length} pages were not found in this batch but won't be deleted to prevent accidental data loss.`,
+                   color: "warning"
+               });
+          } else {
+              // Perform deletion
+              await makeApiCall(
+                `${config.serverUrl}/api/scrape/items/delete/`,
+                {
+                  method: "DELETE",
+                  headers: getAuthHeaders(),
+                  body: JSON.stringify({ urls: missingUrls, domain }),
+                },
+                "delete-missing-items"
+              );
+              
+              setScrapedData(prev => prev.filter(item => foundUrlsSet.has(item.url)));
+              successMessage += `Removed ${missingUrls.length} pages that no longer exist.`;
+              hasChanges = true;
+          }
+      }
+
+      if (hasChanges) {
+          addToast({
+             title: "Sync Complete",
+             description: successMessage,
+             color: "success",
+          });
+      } else {
+           addToast({
+             title: "Info",
+             description: "Page list is already up to date.",
+             color: "primary",
+          });
+      }
+    } catch (error: any) {
+      logError("handleFindMorePages", error, { url });
+      const message = error.message || "Failed to fetch additional pages";
+      addToast({ title: "Error", description: message, color: "danger" });
+      setErrorMessage(message);
+    } finally {
+      setRetryLoading(null);
     }
   };
 
@@ -318,21 +411,37 @@ export default function ScrapingPage() {
     }
   };
 
-  const handleSmartRescrapeImages = async () => {
-    setRetryLoading('smart-images');
+  const handleSmartRescrapeImages = async (full: boolean = false) => {
+    setRetryLoading(full ? 'full-smart' : 'smart-images');
     clearMessages();
 
     try {
-      console.log("[handleSmartRescrapeImages] Starting smart re-scrape, use_ai:", useAI);
+      console.log("[handleSmartRescrapeImages] Starting smart re-scrape, use_ai:", useAI, "full:", full);
       const data = await makeApiCall(
         `${config.serverUrl}/api/scrape/smart-images/`,
         {
           method: "POST",
           headers: getAuthHeaders(),
-          body: JSON.stringify({ url, use_ai: useAI }),
+          body: JSON.stringify({ url, use_ai: useAI, update_all: full }),
         },
         "smart-rescrape-images"
       );
+
+      // Handle deletion info in toast if available
+      if (data.pages_deleted && data.pages_deleted > 0) {
+          addToast({
+              title: "Cleanup",
+              description: `Removed ${data.pages_deleted} non-existing pages.`,
+              color: "warning"
+          });
+      }
+
+      // If job_id is returned, it means a background job started
+      if (data.job_id) {
+         setActiveJobId(data.job_id);
+         setRetryLoading(null); // Stop spinner on button, let global progress take over
+         return;
+      }
 
       addToast({
         title: "Success",
@@ -436,7 +545,8 @@ export default function ScrapingPage() {
             onClose={() => setIsRetryModalOpen(false)}
             scrapedData={scrapedData}
             onRescrape={handleRescrapePages}
-            isLoading={retryLoading === 'scraping'}
+            isLoading={retryLoading === 'scraping' || retryLoading === 'finding-pages'}
+            onFindMorePages={handleFindMorePages}
           />
           
           {scrapingProgress && (

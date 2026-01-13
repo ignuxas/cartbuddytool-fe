@@ -16,6 +16,7 @@ import { Button } from "@heroui/button";
 import { TrashIcon } from "./TrashIcon";
 import { Textarea } from "@heroui/input";
 import { Input } from "@heroui/input";
+import { Switch } from "@heroui/switch";
 import { Checkbox } from "@heroui/checkbox";
 import { Card, CardBody } from "@heroui/card";
 import { Chip } from "@heroui/chip";
@@ -50,7 +51,9 @@ interface ResultsDisplayProps {
   handleRegeneratePrompt: () => void;
   handleCreateWorkflow: () => void;
   handleForceRegenerateWorkflow?: () => void;
+  handleSavePromptToWorkflow?: () => void;
   handleDeleteItem: (url: string, domain: string) => void;
+  handleToggleMain?: (url: string, currentMain: boolean) => void;
   handleToggleSelect: (url: string) => void;
   handleRescrapeItem?: (url: string, domain: string) => void;
   setPrompt: (prompt: string) => void;
@@ -64,6 +67,7 @@ interface ResultsDisplayProps {
   handleDeleteSelected: () => void;
   numSelected: number;
   handleUpdateImage?: (url: string, newImageUrl: string) => Promise<void>;
+  promptModified?: boolean;
 }
 
 const EditIcon = (props: any) => (
@@ -131,7 +135,9 @@ export default function ResultsDisplay({
   handleRegeneratePrompt,
   handleCreateWorkflow,
   handleForceRegenerateWorkflow,
+  handleSavePromptToWorkflow,
   handleDeleteItem,
+  handleToggleMain,
   handleRescrapeItem,
   retryLoading,
   setPrompt,
@@ -147,6 +153,7 @@ export default function ResultsDisplay({
   handleDeleteSelected,
   numSelected,
   handleUpdateImage,
+  promptModified,
 }: ResultsDisplayProps) {
   const {isOpen, onOpen, onOpenChange} = useDisclosure();
   const [editingItem, setEditingItem] = React.useState<ScrapedDataItem | null>(null);
@@ -311,7 +318,15 @@ export default function ResultsDisplay({
               />
             );
           case "main":
-            return (
+            return handleToggleMain ? (
+              <Switch
+                isSelected={!!item.main}
+                size="sm"
+                color="success"
+                onValueChange={() => handleToggleMain(item.url, !!item.main)}
+                aria-label={`Toggle main status for ${item.url}`}
+              />
+            ) : (
               <Chip
                 color={item.main ? "success" : "default"}
                 variant="flat"
@@ -436,7 +451,7 @@ export default function ResultsDisplay({
         return <span className="text-red-500">Error</span>;
       }
     },
-    [handleDeleteItem, handleRescrapeItem, url, handleToggleSelect, rescrapingUrl]
+    [handleDeleteItem, handleRescrapeItem, url, handleToggleSelect, rescrapingUrl, handleToggleMain]
   );
 
   const handleAddAdditionalUrl = () => {
@@ -855,59 +870,10 @@ export default function ResultsDisplay({
 
       {prompt && (
         <div>
-          <h3 className="text-xl font-bold">Generated Prompt</h3>
-          <Textarea
-            label="Editable Prompt"
-            value={prompt}
-            onValueChange={(value) => {
-              try {
-                setPrompt(value);
-              } catch (error: any) {
-                logComponentError("setPrompt", error, { promptLength: value.length });
-              }
-            }}
-            minRows={10}
-            maxRows={20}
-            className="text-sm"
-          />
-          <div className="flex gap-2 mt-2">
-            <Button
-              onClick={() => {
-                try {
-                  handleRegeneratePrompt();
-                } catch (error: any) {
-                  logComponentError("regeneratePrompt", error);
-                  addToast({ title: "Error", description: "Failed to regenerate prompt.", color: "danger" });
-                }
-              }}
-              isLoading={retryLoading === "prompt"}
-              disabled={!!retryLoading}
-            >
-              Regenerate Prompt
-            </Button>
-            <Button
-              color="secondary"
-              onClick={() => {
-                try {
-                  if (!prompt.trim()) {
-                    console.warn("Cannot create workflow with empty prompt");
-                    addToast({ title: "Warning", description: "Cannot create workflow with empty prompt.", color: "warning" });
-                    return;
-                  }
-                  handleCreateWorkflow();
-                } catch (error: any) {
-                  logComponentError("createWorkflow", error);
-                  addToast({ title: "Error", description: "Failed to create workflow.", color: "danger" });
-                }
-              }}
-              isLoading={retryLoading === "workflow"}
-              disabled={!!retryLoading || !prompt.trim()}
-            >
-              Create n8n Workflow
-            </Button>
-          </div>
+          {/* Prompt display removed as per request. Prompt is still maintained in state for workflow operations. */}
         </div>
       )}
+
 
       {workflowResult && (
         <div>

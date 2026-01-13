@@ -91,6 +91,7 @@ export default function ProjectPage() {
   const [errorMessage, setErrorMessage] = useState("");
   const [scrapedData, setScrapedData] = useState<SelectedScrapedDataItem[]>([]);
   const [prompt, setPrompt] = useState("");
+  const [savedPrompt, setSavedPrompt] = useState(""); // Track saved state for comparison
   const [workflowResult, setWorkflowResult] = useState<WorkflowResult | null>(null);
   const [sheetId, setSheetId] = useState<string | null>(null);
   const [showAddMorePages, setShowAddMorePages] = useState(false);
@@ -149,6 +150,7 @@ export default function ProjectPage() {
           setScrapedData((checkData.existing_data || []).map((item: ScrapedDataItem) => ({ ...item, selected: false })));
           if (checkData.existing_prompt) {
             setPrompt(checkData.existing_prompt);
+            setSavedPrompt(checkData.existing_prompt); // Track initial saved state
           }
           if (checkData.existing_workflow) {
             setWorkflowResult(checkData.existing_workflow);
@@ -312,6 +314,7 @@ export default function ProjectPage() {
                 setScrapedData((checkData.existing_data || []).map((item: ScrapedDataItem) => ({ ...item, selected: false })));
                 if (checkData.existing_prompt) {
                     setPrompt(checkData.existing_prompt);
+                    setSavedPrompt(checkData.existing_prompt); // Update saved state after reload
                 }
             }
 
@@ -478,6 +481,7 @@ export default function ProjectPage() {
       );
 
       setPrompt(data.prompt || "");
+      setSavedPrompt(data.prompt || ""); // Update saved state after regeneration
       addToast({
         title: "Success",
         description: data.message || "Prompt regenerated successfully",
@@ -486,6 +490,51 @@ export default function ProjectPage() {
     } catch (error: any) {
       logError("handleRegeneratePrompt", error, { url });
       const message = error.message || "Failed to regenerate prompt";
+      addToast({ title: "Error", description: message, color: "danger" });
+      setErrorMessage(message);
+    } finally {
+      setRetryLoading(null);
+    }
+  };
+
+  const handleSavePromptToWorkflow = async () => {
+    if (!prompt.trim()) {
+      const message = "Cannot save empty prompt";
+      addToast({ title: "Error", description: message, color: "danger" });
+      return;
+    }
+
+    if (!workflowResult?.workflow_id) {
+      const message = "No workflow exists. Please create a workflow first.";
+      addToast({ title: "Error", description: message, color: "danger" });
+      return;
+    }
+
+    setRetryLoading('save-prompt');
+    clearMessages();
+    
+    try {
+      console.log("[handleSavePromptToWorkflow] Saving prompt for domain:", domain);
+      
+      const data = await makeApiCall(
+        `${config.serverUrl}/api/workflow/prompt/`,
+        {
+          method: "PUT",
+          headers: getAuthHeaders(),
+          body: JSON.stringify({ domain, prompt }),
+        },
+        "save-prompt-to-workflow"
+      );
+
+      setSavedPrompt(prompt); // Update saved state after successful save
+      addToast({
+        title: "Success",
+        description: data.message || "Prompt saved to workflow successfully",
+        color: "success",
+      });
+    } catch (error: any) {
+      logError("handleSavePromptToWorkflow", error, { domain, promptLength: prompt.length });
+      const message = error.message || "Failed to save prompt to workflow";
       addToast({ title: "Error", description: message, color: "danger" });
       setErrorMessage(message);
     } finally {
@@ -522,6 +571,7 @@ export default function ProjectPage() {
         workflow_url: data.workflow_url,
         webhook_url: data.webhook_url
       });
+      setSavedPrompt(prompt); // Prompt is now saved with the new workflow
       addToast({
         title: "Success",
         description: data.message || "Workflow created successfully",
@@ -566,6 +616,7 @@ export default function ProjectPage() {
         workflow_url: data.workflow_url,
         webhook_url: data.webhook_url
       });
+      setSavedPrompt(prompt); // Prompt is now saved with the regenerated workflow
       addToast({
         title: "Success",
         description: data.message || "Workflow regenerated successfully",
@@ -578,6 +629,40 @@ export default function ProjectPage() {
       setErrorMessage(message);
     } finally {
       setRetryLoading(null);
+    }
+  };
+
+  const handleToggleMain = async (urlToToggle: string, currentMain: boolean = false) => {
+    // Optimistic UI update
+    setScrapedData((prevData) =>
+      prevData.map((item) =>
+        item.url === urlToToggle ? { ...item, main: !item.main } : item
+      )
+    );
+
+    try {
+      await makeApiCall(
+        `${config.serverUrl}/api/scrape/toggle-main/`,
+        {
+          method: "POST",
+          headers: getAuthHeaders(),
+          body: JSON.stringify({ url: urlToToggle, domain, main: !currentMain }),
+        },
+        "toggle-main"
+      );
+    } catch (error: any) {
+      // Revert UI on error
+      setScrapedData((prevData) =>
+        prevData.map((item) =>
+          item.url === urlToToggle ? { ...item, main: currentMain } : item
+        )
+      );
+      logError("handleToggleMain", error, { url: urlToToggle });
+      addToast({
+        title: "Error",
+        description: "Failed to update main status",
+        color: "danger",
+      });
     }
   };
 
@@ -798,11 +883,14 @@ export default function ProjectPage() {
               handleRegeneratePrompt={handleRegeneratePrompt}
               handleCreateWorkflow={handleCreateWorkflow}
               handleForceRegenerateWorkflow={handleForceRegenerateWorkflow}
+              handleSavePromptToWorkflow={handleSavePromptToWorkflow}
               handleDeleteItem={handleDeleteItem}
+              handleToggleMain={handleToggleMain}
               handleRescrapeItem={handleRescrapeItem}
               handleUpdateImage={handleUpdateImage}
               handleToggleSelect={handleToggleSelect}
               setPrompt={setPrompt}
+              promptModified={prompt !== savedPrompt}
               showAddMorePages={showAddMorePages}
               onShowAddMorePages={handleShowAddMorePages}
               additionalUrls={additionalUrls}

@@ -25,33 +25,47 @@ export default function Home() {
         onAuthenticate={login}
       />
       
-      <section className="flex flex-col items-center justify-center gap-4 py-8 md:py-10">
-        <div className="inline-block text-center justify-center">
-          <h1 className="text-3xl md:text-4xl font-bold mb-2">Website Assistant Generator</h1>
-          <h2 className="text-lg md:text-xl text-muted-foreground">Manage your projects or create a new one.</h2>
-          {isAuthenticated && (
-            <div className="flex gap-2 justify-center mt-4">
-              <Button 
-                color="primary"
-                onPress={() => router.push('/new')}
-              >
-                Create New Project
-              </Button>
-              <Button 
-                size="sm" 
-                variant="light" 
-                onPress={logout}
-              >
-                Logout
-              </Button>
+      {!isAuthenticated ? (
+        <section className="flex flex-col items-center justify-center gap-4 py-8 md:py-10">
+          <div className="inline-block text-center justify-center max-w-2xl">
+            <h1 className="text-4xl md:text-6xl font-bold mb-6 tracking-tight bg-clip-text text-transparent bg-gradient-to-b from-foreground to-foreground/70">
+              CartBuddy Tools
+            </h1>
+            <h2 className="text-xl md:text-2xl text-muted-foreground mb-8">
+              AI-Powered Website Scraper & Chat Assistant Generator
+            </h2>
+            <p className="text-lg text-default-500 mb-8">
+              Log in to manage your scraping jobs, generate AI embeddings, and configure your chat widgets.
+            </p>
+          </div>
+        </section>
+      ) : (
+        <section className="flex flex-col gap-8 py-8 px-4 w-full">
+          <div className="flex flex-col md:flex-row justify-between items-center gap-4 border-b border-divider pb-6">
+            <div>
+              <h1 className="text-3xl font-bold">My Projects</h1>
+              <p className="text-muted-foreground mt-1">Manage and monitor your website assistants</p>
             </div>
-          )}
-        </div>
+            <Button 
+              color="primary"
+              size="lg"
+              onPress={() => router.push('/new')}
+              className="font-semibold shadow-lg shadow-primary/20"
+              startContent={
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M5 12h14m-7-7v14"/>
+                </svg>
+              }
+            >
+              New Project
+            </Button>
+          </div>
 
-        {isAuthenticated && (
-          <ExistingProjects authKey={authKey} />
-        )}
-      </section>
+          <div className="w-full">
+            <ExistingProjects authKey={authKey} />
+          </div>
+        </section>
+      )}
     </>
   );
 }

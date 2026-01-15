@@ -4,14 +4,13 @@ import { useEffect, useState } from "react";
 import { config } from "@/lib/config";
 import ResultsDisplay from "@/app/components/ResultsDisplay";
 import AuthModal from "@/app/components/AuthModal";
-import ChatWidget from "@/app/components/ChatWidget";
-import WidgetCustomization from "@/app/components/WidgetCustomization";
 import { useRouter, useParams } from "next/navigation";
 import { addToast } from "@heroui/toast";
 import { useAuthContext } from "@/app/contexts/AuthContext";
 import { Button } from "@heroui/button";
 
 import { Link } from "@heroui/link";
+import { Card, CardBody } from "@heroui/card";
 
 interface ScrapedDataItem {
   url: string;
@@ -96,10 +95,10 @@ export default function ProjectPage() {
   const [sheetId, setSheetId] = useState<string | null>(null);
   const [showAddMorePages, setShowAddMorePages] = useState(false);
   const [additionalUrls, setAdditionalUrls] = useState<{ url: string; selected: boolean }[]>([]);
-  const [widgetSettingsKey, setWidgetSettingsKey] = useState(0); // Key to force re-render of widget
   const [useAI, setUseAI] = useState(false); // AI toggle for image extraction
   const [retryCount, setRetryCount] = useState(3);
   const [retryDelay, setRetryDelay] = useState(1.0);
+  const [webhookSecret, setWebhookSecret] = useState<string | null>(null);
   const [scrapingProgress, setScrapingProgress] = useState<{ 
     current: number; 
     total: number; 
@@ -154,6 +153,24 @@ export default function ProjectPage() {
           }
           if (checkData.existing_workflow) {
             setWorkflowResult(checkData.existing_workflow);
+            
+            // Fetch webhook secret if workflow exists
+            try {
+              const secretData = await makeApiCall(
+                  `${config.serverUrl}/api/widget/secret/`,
+                  {
+                      method: 'POST',
+                      headers: getAuthHeaders(),
+                      body: JSON.stringify({ domain }),
+                  },
+                  "fetch-secret"
+              );
+              if (secretData.secret) {
+                  setWebhookSecret(secretData.secret);
+              }
+            } catch (e) {
+                console.error("Failed to fetch webhook secret", e);
+            }
           }
           // Toast removed - silently load project data
         } else if (!checkData.active_job) {
@@ -543,13 +560,6 @@ export default function ProjectPage() {
   };
 
   const handleCreateWorkflow = async () => {
-    if (!prompt.trim()) {
-      const message = "Please generate a prompt first before creating a workflow";
-      addToast({ title: "Error", description: message, color: "danger" });
-      setErrorMessage(message);
-      return;
-    }
-
     setRetryLoading('workflow');
     clearMessages();
     
@@ -571,6 +581,25 @@ export default function ProjectPage() {
         workflow_url: data.workflow_url,
         webhook_url: data.webhook_url
       });
+      
+      // Fetch secret
+      try {
+        const secretData = await makeApiCall(
+            `${config.serverUrl}/api/widget/secret/`,
+            {
+                method: 'POST',
+                headers: getAuthHeaders(),
+                body: JSON.stringify({ domain }),
+            },
+            "fetch-secret-create"
+        );
+        if (secretData.secret) {
+            setWebhookSecret(secretData.secret);
+        }
+      } catch (e) {
+          console.error("Failed to fetch webhook secret", e);
+      }
+
       setSavedPrompt(prompt); // Prompt is now saved with the new workflow
       addToast({
         title: "Success",
@@ -588,13 +617,6 @@ export default function ProjectPage() {
   };
 
   const handleForceRegenerateWorkflow = async () => {
-    if (!prompt.trim()) {
-      const message = "Please generate a prompt first before creating a workflow";
-      addToast({ title: "Error", description: message, color: "danger" });
-      setErrorMessage(message);
-      return;
-    }
-
     setRetryLoading('workflow');
     clearMessages();
     
@@ -616,6 +638,25 @@ export default function ProjectPage() {
         workflow_url: data.workflow_url,
         webhook_url: data.webhook_url
       });
+      
+      // Fetch secret
+      try {
+        const secretData = await makeApiCall(
+            `${config.serverUrl}/api/widget/secret/`,
+            {
+                method: 'POST',
+                headers: getAuthHeaders(),
+                body: JSON.stringify({ domain }),
+            },
+            "fetch-secret-regen"
+        );
+        if (secretData.secret) {
+            setWebhookSecret(secretData.secret);
+        }
+      } catch (e) {
+          console.error("Failed to fetch webhook secret", e);
+      }
+
       setSavedPrompt(prompt); // Prompt is now saved with the regenerated workflow
       addToast({
         title: "Success",
@@ -822,38 +863,40 @@ export default function ProjectPage() {
         onAuthenticate={login}
       />
       
-      {/* Floating Chat Widget */}
-      {workflowResult?.webhook_url && (
-        <ChatWidget
-          key={widgetSettingsKey}
-          webhookUrl={workflowResult.webhook_url}
-          label={`${domain} Assistant`}
-          description="Get instant help with your questions"
-          siteName={domain}
-        />
-      )}
-      
-      <section className="flex flex-col items-center justify-center gap-4 py-8 md:py-10">
-        <div className="inline-block text-center justify-center">
-          <h1 className="text-3xl md:text-4xl font-bold mb-2">Project: {domain}</h1>
-          <h2 className="text-lg md:text-xl text-muted-foreground">Viewing scraped data and managing workflow.</h2>
-        </div>
-
+      <div className="flex flex-col gap-6 w-full py-6">
         {isAuthenticated && (loading ? (
-            <div>Loading project data...</div>
+            <div className="flex justify-center items-center py-12">
+               <div>Loading project data...</div>
+            </div>
         ) : (
           <>
-            <div className="flex w-full justify-center mb-4 gap-4">
-              <Button as={Link} href={`/project/${domain}/scraping`} color="primary" variant="flat">
-                Manage Scraping & Settings
-              </Button>
-              <Button as={Link} href={`/demo?domain=${domain}`} color="secondary" variant="flat">
-                View Demo
-              </Button>
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+               <Card
+                className="hover:scale-[1.02] transition-transform cursor-pointer border-secondary/20 bg-secondary/10"
+                isPressable
+                onPress={() => {
+                   let demoUrl = `/demo?domain=${domain}`;
+                   if (workflowResult?.webhook_url) {
+                       demoUrl += `&webhook=${encodeURIComponent(workflowResult.webhook_url)}`;
+                   }
+                   router.push(demoUrl);
+                }}
+               >
+                  <CardBody className="gap-2 p-6">
+                       <h3 className="font-bold text-lg">View Live Demo</h3>
+                       <p className="text-sm text-default-500">Test the assistant in a live environment.</p>
+                  </CardBody>
+               </Card>
+               <Card className="hover:scale-[1.02] transition-transform cursor-pointer border-primary/20 bg-primary/10" isPressable onPress={() => router.push(`/project/${domain}/scraping`)}>
+                  <CardBody className="gap-2 p-6">
+                       <h3 className="font-bold text-lg">Scraping Settings</h3>
+                       <p className="text-sm text-default-500">Manage URLs, re-scrape, and configure settings.</p>
+                  </CardBody>
+               </Card>
             </div>
             
             {scrapingProgress && (
-              <div className="w-full max-w-md mt-4 p-4 border rounded-lg bg-content1 cursor-pointer hover:bg-content2 transition-colors" onClick={() => router.push(`/project/${domain}/scraping`)}>
+              <div className="w-full mt-4 p-4 border rounded-lg bg-content1 cursor-pointer hover:bg-content2 transition-colors" onClick={() => router.push(`/project/${domain}/scraping`)}>
                 <div className="flex justify-between mb-2">
                   <span className="text-sm font-medium">Scraping in Progress...</span>
                   <span className="text-sm text-default-500">
@@ -872,12 +915,15 @@ export default function ProjectPage() {
               </div>
             )}
             
-            <ResultsDisplay
-              sheetId={sheetId}
-              prompt={prompt}
-              workflowResult={workflowResult}
-              scrapedData={scrapedData}
-              url={url}
+            <div className="mt-4">
+              <h2 className="text-xl font-bold mb-4">Project Data</h2>
+              <ResultsDisplay
+                sheetId={sheetId}
+                prompt={prompt}
+                workflowResult={workflowResult}
+                webhookSecret={webhookSecret}
+                scrapedData={scrapedData}
+                url={url}
               loading={loading}
               retryLoading={retryLoading}
               handleRegeneratePrompt={handleRegeneratePrompt}
@@ -914,27 +960,10 @@ export default function ProjectPage() {
               handleDeleteSelected={handleDeleteSelected}
               numSelected={scrapedData.filter(item => item.selected).length}
             />
-
-            {/* Widget Customization Section */}
-            {workflowResult?.webhook_url && (
-              <div className="w-full max-w-7xl mt-8">
-                <WidgetCustomization
-                  domain={domain}
-                  authKey={authKey!}
-                  onSettingsUpdated={() => {
-                    setWidgetSettingsKey(prev => prev + 1);
-                    addToast({
-                      title: 'Success',
-                      description: 'Widget settings updated. The chat widget will reflect the new settings.',
-                      color: 'success',
-                    });
-                  }}
-                />
-              </div>
-            )}
+            </div>
           </>
         ))}
-      </section>
+      </div>
     </>
   );
 }

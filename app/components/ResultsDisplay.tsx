@@ -44,6 +44,7 @@ interface ResultsDisplayProps {
   sheetId: string | null;
   prompt: string;
   workflowResult: WorkflowResult | null;
+  webhookSecret?: string | null;
   scrapedData: ScrapedDataItem[];
   url: string;
   loading: boolean;
@@ -132,6 +133,7 @@ export default function ResultsDisplay({
   scrapedData,
   prompt,
   workflowResult,
+  webhookSecret,
   handleRegeneratePrompt,
   handleCreateWorkflow,
   handleForceRegenerateWorkflow,
@@ -271,6 +273,8 @@ export default function ResultsDisplay({
   }, [sortedItems, page]);
 
   const totalPages = Math.ceil(sortedItems.length / rowsPerPage);
+  
+  const [showSecret, setShowSecret] = React.useState(false);
 
   // Reset to page 1 when data changes or sorting changes
   React.useEffect(() => {
@@ -874,6 +878,66 @@ export default function ResultsDisplay({
         </div>
       )}
 
+      {/* Show workflow creation section when no workflow exists but data is available */}
+      {!workflowResult && scrapedData.length > 0 && (
+        <Card className="mb-4 border-warning/50 bg-warning/10">
+          <CardBody>
+            <div className="space-y-4">
+              <div className="flex items-center gap-2">
+                <span className="text-2xl">⚠️</span>
+                <h3 className="text-xl font-bold">No AI Workflow Found</h3>
+              </div>
+              <p className="text-default-600">
+                Your website data has been scraped, but no n8n AI workflow has been created yet. 
+                Click the button below to generate a workflow that powers your AI chatbot.
+              </p>
+              <div className="flex gap-2">
+                <Button
+                  color="primary"
+                  variant="solid"
+                  size="lg"
+                  onClick={() => {
+                    try {
+                      handleCreateWorkflow();
+                    } catch (error: any) {
+                      logComponentError("createWorkflow", error);
+                      addToast({ title: "Error", description: "Failed to create workflow.", color: "danger" });
+                    }
+                  }}
+                  isLoading={retryLoading === "workflow"}
+                  disabled={!!retryLoading}
+                  startContent={
+                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" className="w-5 h-5">
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M12 4.5v15m7.5-7.5h-15" />
+                    </svg>
+                  }
+                >
+                  🚀 Create AI Workflow
+                </Button>
+                {handleForceRegenerateWorkflow && (
+                  <Button
+                    color="warning"
+                    variant="bordered"
+                    size="lg"
+                    onClick={() => {
+                      try {
+                        handleForceRegenerateWorkflow();
+                      } catch (error: any) {
+                        logComponentError("forceRegenerateWorkflow", error);
+                        addToast({ title: "Error", description: "Failed to regenerate workflow.", color: "danger" });
+                      }
+                    }}
+                    isLoading={retryLoading === "workflow"}
+                    disabled={!!retryLoading}
+                  >
+                    🔄 Force Regenerate Workflow
+                  </Button>
+                )}
+              </div>
+            </div>
+          </CardBody>
+        </Card>
+      )}
 
       {workflowResult && (
         <div>
@@ -925,6 +989,34 @@ export default function ResultsDisplay({
                       </Button>
                     )}
                   </div>
+
+                  {webhookSecret && (
+                  <div className="mt-4 p-4 border border-yellow-200 bg-yellow-50 rounded-lg">
+                      <h4 className="text-sm font-semibold text-yellow-800 mb-2">🔒 Webhook Security (Verification Secret)</h4>
+                      <p className="text-xs text-yellow-700 mb-2">
+                          Your workflow now automatically verifies this secret to prevent unauthorized usage. The "Code" node in the generated workflow checks that the <code>X-Webhook-Secret</code> header matches this value. If you modify the workflow, ensure you keep this check.
+                      </p>
+                      <div className="flex items-center gap-2">
+                          <code className="bg-white px-2 py-1 rounded border text-xs flex-1 break-all font-mono select-all text-black">
+                              {showSecret ? webhookSecret : "•".repeat(webhookSecret ? webhookSecret.length : 12)}
+                          </code>
+                          <Button 
+                              size="sm" 
+                              variant="flat" 
+                              onClick={() => setShowSecret(!showSecret)}
+                          >
+                              {showSecret ? "Hide" : "Show"}
+                          </Button>
+                          <Button 
+                              size="sm" 
+                              variant="flat" 
+                              onClick={() => {navigator.clipboard.writeText(webhookSecret || ""); addToast({title: "Copied!", color: "success"})}}
+                          >
+                              Copy
+                          </Button>
+                      </div>
+                  </div>
+                  )}
 
                 </div>
 

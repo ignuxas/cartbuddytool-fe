@@ -44,98 +44,91 @@ export default function ActionButtons({
   }
 
   return (
-    <div className="flex flex-col w-full max-w-4xl gap-4 items-center">
-      {/* AI Toggle */}
-      <div className="flex items-center gap-3 p-3 bg-default-100 rounded-lg border border-default-200">
-        <Switch
-          size="sm"
-          isSelected={useAI}
-          onValueChange={setUseAI}
-          disabled={loading || retryLoading !== null}
-        >
-          <span className="text-sm font-medium">
-            Use AI for Image Selection
-          </span>
-        </Switch>
-        <div className="text-xs text-default-500 max-w-md">
-          {useAI ? (
-            <span className="text-warning">⚠️ AI enabled: Slower (~4s/page) but smarter image selection</span>
-          ) : (
-            <span className="text-success">✓ Fast mode: Rule-based image selection (~0.1s/page)</span>
-          )}
-        </div>
-      </div>
+    <div className="w-full flex flex-col gap-4 p-4 border rounded-lg bg-content1 shadow-sm">
+       <div className="flex flex-col xl:flex-row justify-between items-start xl:items-center gap-4">
+          <div className="flex flex-col md:flex-row gap-4 items-start md:items-center w-full xl:w-auto">
+            {/* AI Toggle */}
+            <div className="flex items-center gap-3 p-2 bg-default-100 rounded-lg border border-default-200 w-full md:w-auto">
+              <Switch
+                size="sm"
+                isSelected={useAI}
+                onValueChange={setUseAI}
+                disabled={loading || retryLoading !== null}
+              >
+                <span className="text-sm font-medium">
+                  Use AI
+                </span>
+              </Switch>
+              <div className="text-xs text-default-500 hidden sm:block">
+                {useAI ? (
+                  <span className="text-warning">⚠️ Slower (~4s/page)</span>
+                ) : (
+                  <span className="text-success">✓ Fast (~0.1s/page)</span>
+                )}
+              </div>
+            </div>
 
-      {/* Settings */}
-      <div className="flex w-full gap-4 items-center justify-center">
-        <Input
-          type="number"
-          label="Retries"
-          size="sm"
-          value={retryCount.toString()}
-          onValueChange={(v) => setRetryCount(parseInt(v) || 0)}
-          className="max-w-[100px]"
-          min={0}
-          isDisabled={loading || retryLoading !== null}
-        />
-        <Input
-          type="number"
-          label="Delay (s)"
-          size="sm"
-          value={retryDelay.toString()}
-          onValueChange={(v) => setRetryDelay(parseFloat(v) || 0)}
-          className="max-w-[100px]"
-          step={0.1}
-          min={0}
-          isDisabled={loading || retryLoading !== null}
-        />
-      </div>
+            {/* Settings */}
+            <div className="flex gap-2 w-full md:w-auto">
+              <Input
+                type="number"
+                label="Retries"
+                size="sm"
+                value={retryCount.toString()}
+                onValueChange={(v) => setRetryCount(parseInt(v) || 0)}
+                className="max-w-[80px]"
+                min={0}
+                isDisabled={loading || retryLoading !== null}
+              />
+              <Input
+                type="number"
+                label="Delay (s)"
+                size="sm"
+                value={retryDelay.toString()}
+                onValueChange={(v) => setRetryDelay(parseFloat(v) || 0)}
+                className="max-w-[80px]"
+                step={0.1}
+                min={0}
+                isDisabled={loading || retryLoading !== null}
+              />
+            </div>
+          </div>
 
-      {/* Action Buttons */}
-      <div className="flex w-full gap-2 justify-center flex-wrap">
-        {retryLoading === 'scraping' && handleStopScraping && (
-          <Button
-            size="sm"
-            color="danger"
-            variant="solid"
-            onPress={handleStopScraping}
-            disabled={loading}
-          >
-            Stop Scraping
-          </Button>
-        )}
-        <Button
-          size="sm"
-          color="warning"
-          variant="flat"
-          onPress={handleOpenRetryModal}
-          disabled={loading || retryLoading !== null}
-        >
-          {retryLoading === 'scraping' ? "Retrying..." : "Retry Scraping"}
-        </Button>
-        {handleSmartRescrapeImages && (
-          <>
+          {/* Action Buttons */}
+          <div className="flex gap-2 w-full xl:w-auto flex-wrap justify-end">
+            {retryLoading === 'scraping' && handleStopScraping && (
+              <Button
+                size="sm"
+                color="danger"
+                variant="solid"
+                onPress={handleStopScraping}
+                disabled={loading}
+              >
+                Stop Scraping
+              </Button>
+            )}
             <Button
               size="sm"
-              color="secondary"
+              color="warning"
               variant="flat"
-              onPress={() => handleSmartRescrapeImages(false)}
+              onPress={handleOpenRetryModal}
               disabled={loading || retryLoading !== null}
             >
-              {retryLoading === 'smart-images' ? "Updating..." : "Smart Update"}
+              {retryLoading === 'scraping' ? "Retrying..." : "Retry Full Site"}
             </Button>
-            <Button
-              size="sm"
-              color="primary"
-              variant="flat"
-              onPress={() => handleSmartRescrapeImages(true)} 
-              disabled={loading || retryLoading !== null}
-            >
-              {retryLoading === 'full-smart' ? "Updating..." : "Full Smart Update"}
-            </Button>
-          </>
-        )}
-      </div>
+            {handleSmartRescrapeImages && (
+              <Button
+                size="sm"
+                color="secondary"
+                variant="flat"
+                onPress={() => handleSmartRescrapeImages(false)}
+                disabled={loading || retryLoading !== null}
+              >
+                {retryLoading === 'smart-images' ? "Updating..." : "Smart Update"}
+              </Button>
+            )}
+          </div>
+       </div>
     </div>
   );
 }

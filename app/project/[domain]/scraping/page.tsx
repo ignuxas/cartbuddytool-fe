@@ -3,12 +3,14 @@
 import { useEffect, useState } from "react";
 import { config } from "@/lib/config";
 import ActionButtons from "@/app/components/ActionButtons";
+import ScrapedDataTable from "@/app/components/ScrapedDataTable";
 import { useRouter, useParams } from "next/navigation";
 import { addToast } from "@heroui/toast";
 import { useAuthContext } from "@/app/contexts/AuthContext";
 import { Button } from "@heroui/button";
 import { Link } from "@heroui/link";
-import ScrapingHistoryModal from "@/app/components/ScrapingHistoryModal";
+import { Card, CardBody } from "@heroui/card";
+import { Divider } from "@heroui/divider";
 
 interface ScrapedDataItem {
   url: string;
@@ -193,7 +195,9 @@ export default function ScrapingPage() {
   };
 
   const handleOpenRetryModal = () => {
-      setIsRetryModalOpen(true);
+      if (window.confirm("Are you sure you want to re-scrape the entire site? This will update all pages.")) {
+          handleRetryScraping(true);
+      }
   };
 
   const handleRescrapePages = async (urlsToRescrape: string[], options?: { keepImages: boolean; useAI: boolean }) => {
@@ -411,18 +415,18 @@ export default function ScrapingPage() {
     }
   };
 
-  const handleSmartRescrapeImages = async (full: boolean = false) => {
-    setRetryLoading(full ? 'full-smart' : 'smart-images');
+  const handleSmartRescrapeImages = async () => {
+    setRetryLoading('smart-images');
     clearMessages();
 
     try {
-      console.log("[handleSmartRescrapeImages] Starting smart re-scrape, use_ai:", useAI, "full:", full);
+      console.log("[handleSmartRescrapeImages] Starting smart re-scrape, use_ai:", useAI);
       const data = await makeApiCall(
         `${config.serverUrl}/api/scrape/smart-images/`,
         {
           method: "POST",
           headers: getAuthHeaders(),
-          body: JSON.stringify({ url, use_ai: useAI, update_all: full }),
+          body: JSON.stringify({ url, use_ai: useAI, update_all: false }),
         },
         "smart-rescrape-images"
       );
@@ -505,84 +509,101 @@ export default function ScrapingPage() {
     );
   }
 
+  // Calculate stats
+  const totalPages = scrapedData.length;
+  const totalImages = scrapedData.filter(i => i.image).length;
+  const totalWords = scrapedData.reduce((acc, i) => acc + (i.textLength || 0), 0);
+  const mainPages = scrapedData.filter(i => i.main).length;
+
   return (
-    <section className="flex flex-col items-center justify-center gap-4 py-8 md:py-10">
-      <div className="inline-block text-center justify-center">
-        <h1 className="text-3xl md:text-4xl font-bold mb-2">Scraping: {domain}</h1>
-        <h2 className="text-lg md:text-xl text-muted-foreground">Manage scraping jobs and view progress.</h2>
-      </div>
-
-      <div className="w-full max-w-4xl flex justify-start mb-4">
-        <Button as={Link} href={`/project/${domain}`} variant="light" startContent={<span>←</span>}>
-          Back to Dashboard
-        </Button>
-      </div>
-
+    <div className="flex flex-col gap-6 py-6 w-full">
       {isAuthenticated && (loading ? (
           <div>Loading scraping data...</div>
       ) : (
         <>
-          <ActionButtons
-            scrapedDataLength={1} // Always show buttons
-            errorMessage={errorMessage}
-            url={url}
-            handleRetryScraping={handleRetryScraping}
-            handleOpenRetryModal={handleOpenRetryModal}
-            handleSmartRescrapeImages={handleSmartRescrapeImages}
-            handleStopScraping={handleStopScraping}
-            loading={loading}
-            retryLoading={retryLoading}
-            useAI={useAI}
-            setUseAI={setUseAI}
-            retryCount={retryCount}
-            setRetryCount={setRetryCount}
-            retryDelay={retryDelay}
-            setRetryDelay={setRetryDelay}
-          />
-          
-          <ScrapingHistoryModal
-            isOpen={isRetryModalOpen}
-            onClose={() => setIsRetryModalOpen(false)}
-            scrapedData={scrapedData}
-            onRescrape={handleRescrapePages}
-            isLoading={retryLoading === 'scraping' || retryLoading === 'finding-pages'}
-            onFindMorePages={handleFindMorePages}
-          />
-          
+          {/* Stats Cards */}
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+              <Card shadow="sm">
+                  <CardBody className="py-4">
+                      <p className="text-small text-default-500 uppercase font-bold">Total Pages</p>
+                      <p className="text-2xl font-bold">{totalPages}</p>
+                  </CardBody>
+              </Card>
+              <Card shadow="sm">
+                  <CardBody className="py-4">
+                      <p className="text-small text-default-500 uppercase font-bold">Images Found</p>
+                      <p className="text-2xl font-bold">{totalImages}</p>
+                  </CardBody>
+              </Card>
+               <Card shadow="sm">
+                  <CardBody className="py-4">
+                      <p className="text-small text-default-500 uppercase font-bold">Main Pages</p>
+                      <p className="text-2xl font-bold">{mainPages}</p>
+                  </CardBody>
+              </Card>
+              <Card shadow="sm">
+                  <CardBody className="py-4">
+                      <p className="text-small text-default-500 uppercase font-bold">Est. Tokens</p>
+                      <p className="text-2xl font-bold">{(totalWords / 4).toFixed(0)}</p>
+                  </CardBody>
+              </Card>
+          </div>
+
+          <div className="flex flex-col gap-4">
+            <h2 className="text-xl font-semibold">Controls</h2>
+            <ActionButtons
+                scrapedDataLength={scrapedData.length}
+                errorMessage={errorMessage}
+                url={url}
+                handleRetryScraping={handleRetryScraping}
+                handleOpenRetryModal={handleOpenRetryModal}
+                handleSmartRescrapeImages={handleSmartRescrapeImages}
+                handleStopScraping={handleStopScraping}
+                loading={loading}
+                retryLoading={retryLoading}
+                useAI={useAI}
+                setUseAI={setUseAI}
+                retryCount={retryCount}
+                setRetryCount={setRetryCount}
+                retryDelay={retryDelay}
+                setRetryDelay={setRetryDelay}
+            />
+          </div>
+
           {scrapingProgress && (
-            <div className="w-full max-w-4xl mt-4 p-4 border rounded-lg bg-content1">
+            <div className="w-full mt-4 p-4 border rounded-lg bg-content1 shadow-md">
               <div className="flex justify-between mb-2">
-                <span className="text-sm font-medium">Scraping Progress</span>
-                <span className="text-sm text-default-500">
-                  {scrapingProgress.current} / {scrapingProgress.total} pages
+                <span className="font-semibold text-primary">Scanning in progress...</span>
+                <span className="text-sm text-default-600 font-mono">
+                  {scrapingProgress.current} / {scrapingProgress.total}
                 </span>
               </div>
-              <div className="w-full bg-default-200 rounded-full h-2.5 mb-2">
+              <div className="w-full bg-default-100 rounded-full h-3 mb-3 overflow-hidden">
                 <div 
-                  className="bg-primary h-2.5 rounded-full transition-all duration-500" 
+                  className="bg-primary h-full transition-all duration-300 ease-out" 
                   style={{ width: `${(scrapingProgress.current / Math.max(scrapingProgress.total, 1)) * 100}%` }}
                 ></div>
               </div>
-              <p className="text-xs text-default-400 truncate mb-2">
+              <p className="text-xs text-default-500 truncate mb-4 font-mono">
                 {scrapingProgress.status === 'completed' ? 'Completed!' : 
                  scrapingProgress.status === 'failed' ? 'Failed' :
-                 `Processing: ${scrapingProgress.currentUrl || 'Initializing...'}`}
+                 `Current: ${scrapingProgress.currentUrl || 'Initializing...'}`}
               </p>
               
               {scrapingProgress.pageStatuses && (
-                <div className="mt-2 max-h-[500px] overflow-y-auto border rounded text-xs">
+                <div className="mt-2 max-h-[300px] overflow-y-auto border rounded-md text-xs bg-white dark:bg-zinc-900">
                   <table className="w-full">
-                    <thead className="bg-default-100 sticky top-0">
+                    <thead className="bg-default-100 sticky top-0 z-10">
                       <tr>
-                        <th className="p-2 text-left">URL</th>
-                        <th className="p-2 text-right">Status</th>
-                        <th className="p-2 text-right">Code</th>
+                        <th className="p-2 text-left font-semibold">URL</th>
+                        <th className="p-2 text-right font-semibold">Status</th>
+                        <th className="p-2 text-right font-semibold">Code</th>
                       </tr>
                     </thead>
                     <tbody>
                       {scrapingProgress.pageStatuses.slice().reverse().map((page, idx) => (
-                        <tr key={idx} className="border-b border-default-200 hover:bg-default-50">
-                          <td className="p-2 truncate max-w-[400px]" title={page.url}>{page.url}</td>
+                        <tr key={idx} className="border-b border-default-100 hover:bg-default-50">
+                          <td className="p-2 truncate max-w-[300px]" title={page.url}>{page.url}</td>
                           <td className={`p-2 text-right font-medium ${
                             page.status === 'success' ? 'text-success' : 
                             page.status === 'failed' ? 'text-danger' : 'text-warning'
@@ -598,8 +619,20 @@ export default function ScrapingPage() {
               )}
             </div>
           )}
+
+          <Divider className="my-2" />
+          
+          <div className="flex flex-col gap-4">
+            <h2 className="text-xl font-semibold">Scraped Content</h2>
+            <ScrapedDataTable 
+                scrapedData={scrapedData}
+                onRescrape={handleRescrapePages}
+                isLoading={retryLoading === 'scraping' || retryLoading === 'finding-pages'}
+                onFindMorePages={handleFindMorePages}
+            />
+          </div>
         </>
       ))}
-    </section>
+    </div>
   );
 }

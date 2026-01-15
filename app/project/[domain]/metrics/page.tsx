@@ -190,28 +190,9 @@ export default function MetricsPage() {
   }
 
   return (
-    <div className="min-h-screen bg-background p-4 md:p-8">
-      <div className="max-w-7xl mx-auto">
-        {/* Header */}
-        <div className="mb-6 flex items-center justify-between">
-          <div>
-            <Button
-              size="sm"
-              variant="light"
-              onPress={() => router.back()}
-              className="mb-2"
-            >
-              ← Back
-            </Button>
-            <h1 className="text-3xl font-bold text-foreground">
-              Metrics Dashboard
-            </h1>
-            <p className="text-default-500 mt-1">{domain}</p>
-          </div>
-        </div>
-
+    <div className="flex flex-col gap-6 py-6 transition-all duration-300 ease-in-out">
         {/* Summary Cards */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
           <Card>
             <CardBody className="text-center">
               <div className="text-3xl font-bold text-blue-500">
@@ -672,7 +653,6 @@ export default function MetricsPage() {
             )}
           </CardBody>
         </Card>
-      </div>
     </div>
   );
 }

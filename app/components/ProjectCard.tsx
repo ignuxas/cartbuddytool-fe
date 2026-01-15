@@ -71,7 +71,7 @@ export default function ProjectCard({ project, onSelect, onDelete }: ProjectCard
             </Button>
           </div>
         )}
-        <div className="flex justify-between items-start mb-2 pr-8">
+        <div className="flex justify-between items-start mb-2">
           <h4 className="text-lg font-semibold text-blue-600 truncate">
             {project.domain}
           </h4>

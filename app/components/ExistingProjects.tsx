@@ -139,7 +139,7 @@ const ExistingProjects: React.FC<ExistingProjectsProps> = ({ authKey, onSelectPr
 
   if (loading) {
     return (
-      <div className="w-full max-w-4xl">
+      <div className="w-full">
         <h3 className="text-2xl font-bold mb-6">Existing Projects</h3>
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
           {[...Array(3)].map((_, i) => <SkeletonCard key={i} />)}
@@ -150,7 +150,7 @@ const ExistingProjects: React.FC<ExistingProjectsProps> = ({ authKey, onSelectPr
 
   if (projects.length === 0) {
     return (
-        <div className="w-full max-w-4xl text-center py-16">
+        <div className="w-full text-center py-16">
             <EmptyStateIcon />
             <h3 className="text-xl font-semibold mt-4">No Projects Yet</h3>
             <p className="text-gray-500 mt-2">Start by scraping your first website to see your projects here.</p>
@@ -159,7 +159,7 @@ const ExistingProjects: React.FC<ExistingProjectsProps> = ({ authKey, onSelectPr
   }
 
   return (
-    <div className="w-full max-w-4xl pt-6">
+    <div className="w-full pt-6">
       <h3 className="text-2xl font-bold mb-6">Existing Projects ({projects.length})</h3>
       {projects.length > 0 && (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">

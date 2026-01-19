@@ -1,9 +1,10 @@
 interface ChatWidgetConfig {
   webhookUrl: string;
   siteName: string;
-  baseUrl?: string; // Base URL for external website deployment
+  baseUrl?: string; 
   primaryColor?: string;
   secondaryColor?: string;
+  backgroundColor?: string;
   textColor?: string;
   title?: string;
   welcomeMessage?: string;
@@ -15,39 +16,83 @@ interface ChatWidgetConfig {
   viewProductText?: string;
 }
 
-// The single source of truth for the chat widget script
-export function getChatWidgetScript({ 
-  webhookUrl, 
-  siteName, 
-  baseUrl = '',
-  primaryColor = '#3b82f6',
-  secondaryColor = '#1d4ed8',
-  textColor = '#ffffff',
-  title = 'Assistant',
-  welcomeMessage = "Welcome! I'm your AI assistant. Need help finding information?",
-  suggestions = [
-    'What can you help me with?',
-    'Tell me about this website',
-    'How does this work?',
-    'Show me popular content',
-    'Contact information'
-  ],
-  bubbleGreetingText = 'Welcome! How can I assist you today?',
-  bubbleButtonText = 'Chat with AI assistant',
-  inputPlaceholder = 'Send message...',
-  footerText = 'Ask me anything about this website',
-  viewProductText = 'View Product'
-}: ChatWidgetConfig): string {
-  // Build CSS with interpolated colors BEFORE the main template string
-  const cssContent = `.chat-widget-container{position:fixed;bottom:20px;right:20px;z-index:2147483647}.chat-bubble{display:flex;align-items:flex-end;cursor:pointer;position:relative}.chat-bubble-message.hiding{opacity:0;transform:translateY(-10px) scale(0.95)}.chat-bubble-close.hiding{opacity:0}.chat-bubble-close{position:absolute;top:0;right:80px;background:rgba(0,0,0,0.6);border:none;color:white;width:24px;height:24px;border-radius:50%;cursor:pointer;font-size:14px;line-height:22px;text-align:center;opacity:0;transition:opacity 0.2s ease;z-index:10;display:flex;align-items:center;justify-content:center;flex-shrink:0}.chat-bubble:hover .chat-bubble-close{opacity:1}.chat-bubble-close:hover{background:rgba(0,0,0,0.8)}.chat-bubble-message{background-color:white;padding:15px;border-radius:15px;box-shadow:0 4px 12px rgba(0,0,0,0.15);max-width:400px;margin-right:15px;opacity:1;transform:translateY(0) scale(1);transition:opacity 0.25s ease,transform 0.25s ease;animation:fadeInSlide 0.3s ease-in-out}.chat-bubble-message p{margin:0;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;color:#333;line-height:1.5}.chat-bubble-message .consultant-button{background-color:${primaryColor};color:${textColor};border:none;padding:10px 15px;border-radius:20px;margin-top:10px;cursor:pointer;font-weight:600;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;transition:background-color 0.2s}.chat-bubble-message .consultant-button:hover{background-color:${secondaryColor}}.avatar{width:64px;height:64px;border-radius:50%;overflow:hidden;display:flex;align-items:center;justify-content:center;box-shadow:0 4px 12px rgba(0,0,0,0.15);background:linear-gradient(135deg,${primaryColor} 0%,${secondaryColor} 100%);flex-shrink:0}.avatar img{width:100%;height:100%;object-fit:cover;border-radius:50%}.chat-window{width:550px;height:calc(100vh - 40px);background:#ffffff;border-radius:20px;box-shadow:0 20px 60px rgba(0,0,0,0.15);display:flex;flex-direction:column;overflow:hidden;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;animation:slideIn 0.4s cubic-bezier(0.25,0.46,0.45,0.94);z-index:2147483647}.chat-mini-header{display:flex;padding:12px 16px;background:linear-gradient(135deg,${primaryColor} 0%,${secondaryColor} 100%);color:${textColor};align-items:center;justify-content:center;gap:12px;position:relative;flex-shrink:0}.chat-mini-header .mini-avatar{width:32px;height:32px;border-radius:50%;background:rgba(255,255,255,0.2);display:flex;align-items:center;justify-content:center;font-size:16px;overflow:hidden;flex-shrink:0}.chat-mini-header .mini-avatar img{width:100%;height:100%;object-fit:cover;border-radius:50%}.chat-mini-header span{font-size:16px;font-weight:600}.close-button{position:absolute;top:50%;right:15px;transform:translateY(-50%);background:rgba(255,255,255,0.1);border:none;color:${textColor};width:28px;height:28px;border-radius:50%;cursor:pointer;font-size:16px;line-height:26px;text-align:center;transition:background-color 0.2s;display:flex;align-items:center;justify-content:center;flex-shrink:0}.close-button:hover{background:rgba(255,255,255,0.2)}.chat-body{flex:1;padding:20px;overflow-y:auto;scroll-behavior:smooth;background:#f8fafc;min-height:0}.suggestion-chips{display:flex;flex-wrap:wrap;justify-content:center;gap:8px;margin-top:20px;padding-bottom:15px}.chip{background-color:white;border:1px solid #e2e8f0;padding:8px 16px;border-radius:20px;cursor:pointer;transition:all 0.2s;color:#475569;font-size:14px;font-weight:500;box-shadow:0 1px 3px rgba(0,0,0,0.1)}.chip:hover{background-color:${primaryColor};color:${textColor};transform:translateY(-1px);box-shadow:0 4px 12px rgba(59,130,246,0.3)}.chat-footer{padding:16px 20px;background-color:white;border-top:1px solid #e2e8f0;flex-shrink:0}.input-area{display:flex;align-items:center;background-color:#f1f5f9;border-radius:25px;padding:8px 16px;border:2px solid transparent;transition:border-color 0.2s}.input-area:focus-within{border-color:${primaryColor}}.input-area input{flex:1;border:none;outline:none;background:transparent;padding:8px 0;font-size:14px;color:#1e293b}.input-area input::placeholder{color:#94a3b8}.send-button{background:${primaryColor};border-radius:50%;padding:10px;display:flex;align-items:center;justify-content:center;color:${textColor};transition:all 0.2s;margin-left:8px;border:none;cursor:pointer;flex-shrink:0}.send-button:hover{background:${secondaryColor};transform:scale(1.05)}.message-list{display:flex;flex-direction:column;gap:16px;margin-bottom:20px}.message{padding:12px 16px;border-radius:16px;max-width:90%;word-wrap:break-word;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;line-height:1.6;font-size:14px;box-shadow:0 2px 8px rgba(0,0,0,0.08)}.message h1,.message h2,.message h3,.message h4,.message h5,.message h6{margin:16px 0 8px 0;font-weight:600;color:#1e293b}.message h1{font-size:20px}.message h2{font-size:18px}.message h3{font-size:16px}.message p{margin:8px 0;color:#334155;line-height:1.6}.message strong{font-weight:600;color:#1e293b}.message em{font-style:italic;color:#64748b}.message code{background:#f1f5f9;padding:2px 6px;border-radius:4px;font-family:'SF Mono',Monaco,Consolas,monospace;font-size:13px;color:#e11d48;border:1px solid #e2e8f0}.message pre{background:#f8fafc;padding:16px;border-radius:8px;overflow-x:auto;white-space:pre-wrap;border:1px solid #e2e8f0;margin:12px 0}.message pre code{background:none;padding:0;border:none;color:#475569}.message ul{margin:12px 0;padding-left:0;list-style:none}.message li{margin:6px 0;padding-left:24px;position:relative;color:#475569}.message li:before{content:'•';color:${primaryColor};font-weight:bold;position:absolute;left:6px;line-height:1.6}.message ol{margin:12px 0;padding-left:24px}.message ol li{list-style:decimal;padding-left:4px;margin-bottom:6px}.message ol li:before{display:none}.message blockquote{border-left:4px solid ${primaryColor};padding-left:16px;margin:16px 0;color:#64748b;font-style:italic}.message a{color:${primaryColor};text-decoration:none;font-weight:500}.message a:hover{text-decoration:underline}.message-image-container{margin:12px 0;border-radius:8px;overflow:hidden;background:#f8fafc;border:1px solid #e2e8f0}.message-image{width:100%;max-height:300px;object-fit:cover;display:block}.message-image-caption{padding:8px 12px;margin:0;font-size:13px;color:#64748b;background:#ffffff;font-style:italic}.user-message{background:linear-gradient(135deg,${primaryColor} 0%,${secondaryColor} 100%);color:${textColor};align-self:flex-end;border-bottom-right-radius:4px}.user-message p,.user-message strong,.user-message em{color:${textColor}}.user-message a{color:#bfdbfe}.user-message code{background:rgba(255,255,255,0.2);color:${textColor};border:1px solid rgba(255,255,255,0.3)}.bot-message{background-color:#ffffff;color:#334155;align-self:flex-start;border-bottom-left-radius:4px;border:1px solid #e2e8f0}.product-card{background:linear-gradient(135deg,#ffffff 0%,#f8fafc 100%);border:1px solid #e2e8f0;border-radius:12px;padding:16px;margin:12px 0;box-shadow:0 4px 12px rgba(0,0,0,0.08);transition:all 0.2s}.product-card:hover{transform:translateY(-2px);box-shadow:0 8px 24px rgba(0,0,0,0.12)}.product-card-header{display:flex !important;align-items:flex-start !important;gap:12px !important;margin-bottom:12px !important}.product-card-image{width:72px !important;height:72px !important;border-radius:8px !important;overflow:hidden !important;background:#f1f5f9 !important;flex-shrink:0 !important}.product-card-image img{width:100% !important;height:100% !important;object-fit:cover !important}.product-card-info{flex:1 !important}.product-card-title{font-size:16px !important;font-weight:600 !important;color:#1e293b !important;margin:0 0 4px 0 !important;line-height:1.3 !important;display:block !important}.product-card-description{font-size:13px !important;color:#64748b !important;margin:0 0 8px 0 !important;line-height:1.4 !important;display:-webkit-box !important;-webkit-line-clamp:2 !important;-webkit-box-orient:vertical !important;overflow:hidden !important}.product-card-price{font-size:15px !important;font-weight:700 !important;color:#059669 !important;margin:0 !important;display:block !important}.product-card-footer{display:flex !important;justify-content:flex-end !important;align-items:center !important;margin-top:16px !important;gap:12px !important}.product-card-footer.has-meta{justify-content:space-between !important}.product-card span:not(.product-card-button):not(.product-card-button span){background:none !important;box-shadow:none !important;border:none !important;border-radius:4px !important;cursor:default !important;transform:none !important;transition:none !important}.product-card-button{all:unset !important;background:linear-gradient(135deg,${primaryColor} 0%,${secondaryColor} 100%) !important;color:${textColor} !important;border:none !important;padding:10px 16px !important;border-radius:8px !important;font-size:13px !important;font-weight:600 !important;cursor:pointer !important;transition:all 0.2s !important;text-decoration:none !important;display:inline-flex !important;align-items:center !important;justify-content:center !important;gap:6px !important;min-height:36px !important;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif !important}.product-card-button:hover{transform:translateY(-1px);box-shadow:0 4px 12px rgba(59,130,246,0.3);color:${textColor} !important;text-decoration:none !important;background:linear-gradient(135deg,${secondaryColor} 0%,${primaryColor} 100%)}.product-card-button svg{fill:${textColor} !important}.product-card-meta{font-size:12px;color:#94a3b8}.product-card-meta span{background:none !important;color:#94a3b8 !important;border:none !important;padding:2px 6px !important;border-radius:4px !important;font-size:12px !important;font-weight:400 !important;cursor:default !important;text-decoration:none !important;display:inline !important;box-shadow:none !important;transform:none !important;transition:none !important;margin-right:8px;background-color:#f1f5f9 !important}.loading-spinner{border:3px solid #f1f5f9;width:20px;height:20px;border-radius:50%;border-left-color:${primaryColor};animation:spin 1s ease infinite}.bot-message.loading{display:flex;align-items:center;justify-content:center;padding:20px}@keyframes spin{0%{transform:rotate(0deg)}100%{transform:rotate(360deg)}}@keyframes fadeInSlide{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:translateY(0)}}@keyframes slideIn{from{transform:translateY(20px);opacity:0}to{transform:translateY(0);opacity:1}}`;
+export function getChatWidgetScript(config: ChatWidgetConfig): string {
+    // defaults
+    const {
+        primaryColor = '#3b82f6',
+        secondaryColor = '#1d4ed8',
+        backgroundColor = '#ffffff',
+        textColor = '#ffffff',
+        title = 'Assistant',
+        welcomeMessage = "Welcome! I'm your AI assistant. Need help finding information?",
+        suggestions = [
+            'What can you help me with?',
+            'Tell me about this website',
+            'How does this work?',
+            'Show me popular content',
+            'Contact information'
+        ],
+        bubbleGreetingText = 'Welcome! How can I assist you today?',
+        bubbleButtonText = 'Chat with AI assistant',
+        inputPlaceholder = 'Send message...',
+        footerText = 'Ask me anything about this website',
+        viewProductText = 'View Product',
+        webhookUrl,
+        siteName,
+        baseUrl = ''
+    } = config;
 
-  // Escape the CSS for safe injection into JavaScript
-  const escapedCss = JSON.stringify(cssContent);
+    // We map to the structure expected by widget.js logic
+    const settings = {
+        primary_color: primaryColor,
+        secondary_color: secondaryColor,
+        background_color: backgroundColor,
+        text_color: textColor,
+        title,
+        welcome_message: welcomeMessage,
+        suggestions,
+        bubble_greeting_text: bubbleGreetingText,
+        bubble_button_text: bubbleButtonText,
+        input_placeholder: inputPlaceholder,
+        footer_text: footerText,
+        view_product_text: viewProductText,
+        webhook_url: webhookUrl,
+        max_message_length: 1000
+    };
 
-  return `<script>
+    const settingsJson = JSON.stringify(settings);
+
+    return `<script>
 (function() {
+    const settings = ${settingsJson};
+    const domain = "${siteName}";
+    const baseUrl = "${baseUrl}";
+
+    // Main logic from widget.js
+    const {
+        primary_color: primaryColor,
+        secondary_color: secondaryColor,
+        background_color: backgroundColor,
+        text_color: textColor,
+        title,
+        welcome_message: welcomeMessage,
+        suggestions,
+        bubble_greeting_text: bubbleGreetingText,
+        bubble_button_text: bubbleButtonText,
+        input_placeholder: inputPlaceholder,
+        footer_text: footerText,
+        view_product_text: viewProductText,
+        webhook_url: webhookUrl,
+        max_message_length: maxMessageLength = 1000
+    } = settings;
+
+    if (!webhookUrl) {
+        console.warn('CartBuddy Widget: Webhook URL not found for this domain. Chat may not function correctly.');
+    }
+
     // CSS to be injected with customized colors
-    const css = ${escapedCss};
+    const css = \`.chat-widget-container{position:fixed;bottom:24px;right:24px;z-index:2147483647;font-family:'Inter',system-ui,-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;-webkit-font-smoothing:antialiased}.chat-bubble{display:flex;align-items:flex-end;cursor:pointer;position:relative;transition:transform 0.2s cubic-bezier(0.34,1.56,0.64,1)}.chat-bubble:hover{transform:scale(1.02)}.chat-bubble-message{background-color:white;padding:16px 20px;border-radius:16px;border-bottom-right-radius:4px;box-shadow:0 4px 20px rgba(0,0,0,0.08);max-width:400px;margin-right:16px;margin-bottom:12px;opacity:1;transform-origin:bottom right;animation:bubbleIn 0.4s cubic-bezier(0.16,1,0.3,1)}.chat-bubble-message.hiding{opacity:0;transform:translateY(10px) scale(0.95)}.chat-bubble-message p{margin:0;color:#1f2937;line-height:1.5;font-size:14px}.chat-bubble-message strong{display:block;margin-bottom:4px;color:#111827;font-weight:600}.chat-bubble-message .consultant-button{background-color:\${primaryColor};color:\${textColor};border:none;padding:8px 16px;border-radius:8px;margin-top:12px;cursor:pointer;font-weight:500;font-size:13px;width:100%;transition:opacity 0.2s}.chat-bubble-message .consultant-button:hover{opacity:0.9}.chat-bubble-close{position:absolute;top:-8px;right:72px;background:white;border:1px solid #e5e7eb;color:#6b7280;width:24px;height:24px;border-radius:50%;cursor:pointer;display:flex;align-items:center;justify-content:center;font-size:16px;box-shadow:0 2px 6px rgba(0,0,0,0.05);transition:all 0.2s;z-index:10}.chat-bubble-close.hiding{opacity:0}.chat-bubble-close:hover{background:#f3f4f6;color:#111827}.avatar{width:60px;height:60px;border-radius:50%;overflow:hidden;display:flex;align-items:center;justify-content:center;box-shadow:0 8px 24px rgba(0,0,0,0.12);background:linear-gradient(135deg,\${primaryColor} 0%,\${secondaryColor} 100%);transition:transform 0.2s}.avatar img{width:100%;height:100%;object-fit:cover}.chat-window{width:550px;height:min(850px,calc(100vh - 100px));background:\${backgroundColor};border-radius:24px;box-shadow:0 25px 50px -12px rgba(0,0,0,0.15);display:flex;flex-direction:column;overflow:hidden;animation:windowIn 0.3s cubic-bezier(0.16,1,0.3,1);border:1px solid rgba(0,0,0,0.05)}.chat-mini-header{padding:16px 20px;background:\${backgroundColor};border-bottom:1px solid #f3f4f6;display:flex;align-items:center;gap:12px;position:relative}.chat-mini-header .mini-avatar{width:36px;height:36px;border-radius:50%;background:\${primaryColor};display:flex;align-items:center;justify-content:center;overflow:hidden}.chat-mini-header span{font-size:16px;font-weight:600;color:#111827}.close-button{margin-left:auto;background:transparent;border:none;color:#9ca3af;width:32px;height:32px;border-radius:50%;cursor:pointer;display:flex;align-items:center;justify-content:center;font-size:20px;transition:all 0.2s}.close-button:hover{background:#f3f4f6;color:#4b5563}.clear-button{background:transparent;border:none;color:#9ca3af;width:32px;height:32px;border-radius:50%;cursor:pointer;display:flex;align-items:center;justify-content:center;font-size:16px;transition:all 0.2s}.clear-button:hover{background:#f3f4f6;color:#4b5563}.chat-body{flex:1;padding:20px;overflow-y:auto;background:\${backgroundColor};scroll-behavior:smooth}.chat-body::-webkit-scrollbar{width:6px}.chat-body::-webkit-scrollbar-track{background:transparent}.chat-body::-webkit-scrollbar-thumb{background-color:#e5e7eb;border-radius:20px}.message-list{display:flex;flex-direction:column;gap:16px}.message{padding:12px 16px;border-radius:16px;max-width:90%;font-size:14px;line-height:1.6;position:relative;word-wrap:break-word}.message p{margin:0 0 8px 0}.message p:last-child{margin-bottom:0}.message ul{margin:8px 0;padding-left:0;list-style:none}.message li{margin-bottom:6px;padding-left:24px;position:relative}.message li:before{content:'•';color:\${primaryColor};font-weight:bold;position:absolute;left:6px;line-height:1.6}.message ol{margin:8px 0;padding-left:24px}.message ol li{list-style:decimal;padding-left:4px;margin-bottom:6px}.message ol li:before{display:none}.message h1,.message h2,.message h3{font-weight:600;margin:12px 0 8px 0;font-size:1.1em;line-height:1.4}.message blockquote{border-left:3px solid #e5e7eb;padding-left:12px;margin:8px 0;color:#6b7280;font-style:italic}.message code{background:rgba(0,0,0,0.05);padding:2px 4px;border-radius:4px;font-family:monospace;font-size:0.9em}.message pre{background:rgba(0,0,0,0.05);padding:12px;border-radius:8px;overflow-x:auto;margin:8px 0;white-space:pre-wrap}.message pre code{background:transparent;padding:0}.bot-message{background-color:#f3f4f6;color:#1f2937;align-self:flex-start;border-bottom-left-radius:4px}.user-message{background-color:\${primaryColor};color:\${textColor};align-self:flex-end;border-bottom-right-radius:4px}.user-message p{color:\${textColor}}.user-message code{background:rgba(255,255,255,0.2)}.user-message pre{background:rgba(255,255,255,0.2)}.chat-footer{padding:16px 20px;background:\${backgroundColor};border-top:1px solid #f3f4f6}.input-area{display:flex;align-items:center;background:#f9fafb;border:1px solid #e5e7eb;border-radius:12px;padding:4px 4px 4px 16px;transition:all 0.2s}.input-area:focus-within{border-color:\${primaryColor};background:white;box-shadow:0 0 0 3px rgba(59,130,246,0.1)}.input-area input{flex:1;border:none;background:transparent;padding:8px 0;font-size:14px;color:#1f2937;outline:none}.input-area input::placeholder{color:#9ca3af}.send-button{background:\${primaryColor};color:\${textColor};border:none;width:32px;height:32px;border-radius:8px;display:flex;align-items:center;justify-content:center;cursor:pointer;transition:all 0.2s;margin-left:8px}.send-button:hover{opacity:0.9;transform:scale(1.05)}.suggestion-chips{display:flex;flex-wrap:wrap;gap:8px;margin-bottom:16px}.chip{background:white;border:1px solid #e5e7eb;padding:8px 12px;border-radius:20px;font-size:13px;color:#4b5563;cursor:pointer;transition:all 0.2s}.chip:hover{border-color:\${primaryColor};color:\${primaryColor};background:#eff6ff}.product-card{background:white;border:1px solid #e5e7eb;border-radius:12px;padding:12px;margin-top:8px;transition:all 0.2s}.product-card:hover{border-color:\${primaryColor};box-shadow:0 4px 12px rgba(0,0,0,0.05)}.product-card-header{display:flex!important;gap:12px!important;margin-bottom:12px!important}.product-card-image{width:72px!important;height:72px!important;border-radius:8px!important;overflow:hidden!important;background:#f3f4f6!important;flex-shrink:0!important}.product-card-image img{width:100%!important;height:100%!important;object-fit:cover!important}.product-card-info{flex:1!important;min-width:0!important}.product-card-title{font-size:14px!important;font-weight:600!important;color:#111827!important;margin:0 0 4px 0!important;white-space:nowrap!important;overflow:hidden!important;text-overflow:ellipsis!important}.product-card-price{font-size:14px!important;font-weight:700!important;color:#059669!important}.product-card-button{display:block!important;width:100%!important;text-align:center!important;background:#f3f4f6!important;color:#1f2937!important;padding:8px!important;border-radius:8px!important;font-size:13px!important;font-weight:500!important;text-decoration:none!important;transition:all 0.2s!important}.product-card-button:hover{background:\${primaryColor}!important;color:\${textColor}!important}@keyframes bubbleIn{from{opacity:0;transform:scale(0.9) translateY(10px)}to{opacity:1;transform:scale(1) translateY(0)}}@keyframes windowIn{from{opacity:0;transform:translateY(20px) scale(0.95)}to{opacity:1;transform:translateY(0) scale(1)}}@keyframes spin{to{transform:rotate(360deg)}}.loading-spinner{width:20px;height:20px;border:2px solid #e5e7eb;border-top-color:\${primaryColor};border-radius:50%;animation:spin 0.8s linear infinite}.bot-message.loading{display:flex;align-items:center;justify-content:center;padding:20px}@media(max-width:480px){.chat-window{width:100%;height:100%;bottom:0;right:0;border-radius:0}.chat-widget-container{bottom:0;right:0}.chat-bubble{position:fixed;bottom:20px;right:20px}}\`;
+
     const style = document.createElement('style');
     style.textContent = css;
     style.setAttribute('data-chat-widget', 'true');
@@ -141,11 +186,11 @@ export function getChatWidgetScript({
         bubble.innerHTML = \`
             <button class="chat-bubble-close" onclick="event.stopPropagation(); window.closeChatBubble?.();">&times;</button>
             <div class="chat-bubble-message">
-                <p><strong>${bubbleGreetingText}</strong><br>${welcomeMessage}</p>
-                <button class="consultant-button">${bubbleButtonText}</button>
+                <p><strong>\${bubbleGreetingText}</strong><br>\${welcomeMessage}</p>
+                <button class="consultant-button">\${bubbleButtonText}</button>
             </div>
             <div class="avatar">
-                <img src="${baseUrl}/lukas.png" alt="AI Assistant" onerror="this.style.display='none'; this.parentElement.innerHTML='🛒';">
+                <img src="\${baseUrl}/api/static/lukas.png" alt="AI Assistant" onerror="this.style.display='none'; this.parentElement.innerHTML='🛒';">
             </div>
         \`;
         return bubble;
@@ -178,7 +223,7 @@ export function getChatWidgetScript({
                         // Recreate the message and close button
                         const newMessage = document.createElement('div');
                         newMessage.className = 'chat-bubble-message';
-                        newMessage.innerHTML = \`<p><strong>${bubbleGreetingText}</strong><br>${welcomeMessage}</p><button class="consultant-button">${bubbleButtonText}</button>\`;
+                        newMessage.innerHTML = \`<p><strong>\${bubbleGreetingText}</strong><br>\${welcomeMessage}</p><button class="consultant-button">\${bubbleButtonText}</button>\`;
                         
                         const newCloseBtn = document.createElement('button');
                         newCloseBtn.className = 'chat-bubble-close';
@@ -205,24 +250,32 @@ export function getChatWidgetScript({
         windowDiv.innerHTML = \`
             <div class="chat-mini-header">
                 <div class="mini-avatar">
-                    <img src="${baseUrl}/lukas.png" alt="AI Assistant" onerror="this.style.display='none'; this.parentElement.innerHTML='🛒';">
+                    <img src="\${baseUrl}/api/static/lukas.png" alt="AI Assistant" onerror="this.style.display='none'; this.parentElement.innerHTML='🛒';">
                 </div>
-                <span>${title}</span>
-                <button class="close-button" onclick="window.toggleAIAssistant()">&times;</button>
+                <span>\${title}</span>
+                <div style="margin-left:auto; display:flex; gap:4px; align-items:center;">
+                    <button class="clear-button" title="Restart conversation" onclick="window.clearConversation()" style="display: \${messages.length > 0 ? 'flex' : 'none'}">
+                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <polyline points="1 4 1 10 7 10"></polyline>
+                            <path d="M3.51 15a9 9 0 1 0 2.13-9.36L1 10"></path>
+                        </svg>
+                    </button>
+                    <button class="close-button" style="margin-left:0;" onclick="window.toggleAIAssistant()">&times;</button>
+                </div>
             </div>
             <div class="chat-body">
                 <div class="message-list" id="messageList"></div>
             </div>
             <div class="chat-footer">
                 <div class="input-area">
-                    <input type="text" id="chatInput" placeholder="${inputPlaceholder}" onkeypress="if(event.key==='Enter') window.sendMessage()">
+                    <input type="text" id="chatInput" placeholder="\${inputPlaceholder}" maxlength="\${maxMessageLength}" onkeypress="if(event.key==='Enter') window.sendMessage()">
                     <button class="send-button" onclick="window.sendMessage()">
                         <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor">
                             <path d="M2.01 21L23 12 2.01 3 2 10l15 2-15 2z"/>
                         </svg>
                     </button>
                 </div>
-                <p style="text-align:center;font-size:0.8em;color:#999;margin-top:10px">${footerText}</p>
+                <p style="text-align:center;font-size:0.8em;color:#999;margin-top:10px">\${footerText}</p>
             </div>
         \`;
 
@@ -233,7 +286,7 @@ export function getChatWidgetScript({
         });
 
         if (messages.length === 0) {
-            const suggestionsList = ${JSON.stringify(suggestions)};
+            const suggestionsList = suggestions;
             const suggestionChips = document.createElement('div');
             suggestionChips.className = 'suggestion-chips';
             suggestionsList.forEach(item => {
@@ -259,28 +312,18 @@ export function getChatWidgetScript({
     function processMarkdownAndLinks(text, sender) {
         let processedText = text;
         
-        // Debug: log the raw text to see what we're working with
-        if (text.includes('PRODUCT_CARD')) {
-            console.log('Raw text with product cards:', text);
-        }
-        
         // Handle literal \\n characters that might come from the API
         processedText = processedText.replace(/\\\\n/g, '\\n');
         
-        // First, extract and process product cards - fix the regex pattern
+        // First, extract and process product cards
         const productCardRegex = /\\[PRODUCT_CARD\\]([\\s\\S]*?)\\[\\/PRODUCT_CARD\\]/g;
         
-        let cardCount = 0;
         processedText = processedText.replace(productCardRegex, (match, cardData) => {
             try {
                 const card = JSON.parse(cardData.trim());
-                cardCount++;
-                console.log(\`Processing product card \${cardCount}:\`, card);
-                const productCardHtml = createProductCard(card);
-                console.log(\`Generated HTML for card \${cardCount}:\`, productCardHtml);
-                return productCardHtml;
+                return createProductCard(card);
             } catch (e) {
-                console.warn('Failed to parse product card:', e, 'Raw data:', cardData);
+                console.warn('Failed to parse product card:', e);
                 return match;
             }
         });
@@ -293,12 +336,10 @@ export function getChatWidgetScript({
                 const card = JSON.parse(cardData.trim());
                 return createLinkCard(card);
             } catch (e) {
-                console.warn('Failed to parse link card:', e, 'Raw data:', cardData);
+                console.warn('Failed to parse link card:', e);
                 return match;
             }
         });
-        
-        console.log(\`Total product cards processed: \${cardCount}\`);
         
         // Handle markdown links FIRST to avoid URL regex issues later
         processedText = processedText.replace(/\\[([^\\]]+)\\]\\(([^)]+)\\)/g, '<a href="$2" target="_blank">$1</a>');
@@ -389,12 +430,9 @@ export function getChatWidgetScript({
         processedText = result.join('');
         
         // Handle standalone URLs - avoid URLs already in <a> tags
-        // Split by <a> tags to avoid processing URLs that are already links
         const parts = processedText.split(/(<a[^>]*>.*?<\\/a>)/g);
         processedText = parts.map((part, index) => {
-            // Only process parts that are NOT anchor tags (odd indices are the splits)
             if (index % 2 === 0) {
-                // Replace standalone URLs with links
                 return part.replace(/(^|[\\s(<>])((https?:\\/\\/)[^\\s<>"']+)/g, (match, prefix, url) => {
                     const cleanUrl = url.replace(/[.,;!?]+$/, '');
                     return prefix + \`<a href="\${cleanUrl}" target="_blank">\${cleanUrl}</a>\`;
@@ -425,7 +463,7 @@ export function getChatWidgetScript({
             ? description.substring(0, 80) + '...' 
             : description;
 
-        return \`<div class="product-card"><div class="product-card-header">\${imageHtml}<div class="product-card-info"><h4 class="product-card-title">\${title}</h4>\${truncatedDescription ? \`<p class="product-card-description">\${truncatedDescription}</p>\` : ''}\${price ? \`<p class="product-card-price">\${price}</p>\` : ''}</div></div><div class="product-card-footer\${hasMeta ? ' has-meta' : ''}">\${hasMeta ? \`<div class="product-card-meta">\${availability ? \`<span>\${availability}</span>\` : ''}\${rating ? \`<span>⭐ \${rating}</span>\` : ''}</div>\` : ''}<a href="\${url}" target="_blank" class="product-card-button">${viewProductText}</a></div></div>\`;
+        return \`<div class="product-card"><div class="product-card-header">\${imageHtml}<div class="product-card-info"><h4 class="product-card-title">\${title}</h4>\${truncatedDescription ? \`<p class="product-card-description">\${truncatedDescription}</p>\` : ''}\${price ? \`<p class="product-card-price">\${price}</p>\` : ''}</div></div><div class="product-card-footer\${hasMeta ? ' has-meta' : ''}">\${hasMeta ? \`<div class="product-card-meta">\${availability ? \`<span>\${availability}</span>\` : ''}\${rating ? \`<span>⭐ \${rating}</span>\` : ''}</div>\` : ''}<a href="\${url}" target="_blank" class="product-card-button">\${viewProductText}</a></div></div>\`;
     }
 
     function createLinkCard(cardData) {
@@ -481,17 +519,29 @@ export function getChatWidgetScript({
     }
 
     // Global functions for user interaction
+    window.clearConversation = function() {
+        // Clear state
+        messages = [];
+        sessionStorage.removeItem(SESSION_STORAGE_KEY);
+        localStorage.removeItem('ai_assistant_session_id'); // Clear session to ensure fresh context
+        
+        // Refresh UI if open
+        if (isOpen && widget) {
+            widget.innerHTML = '';
+            widget.appendChild(createChatWindow());
+            scrollToBottom();
+        }
+    };
+
     window.toggleAIAssistant = function() {
         isOpen = !isOpen;
         widget.innerHTML = '';
         if (isOpen) {
             widget.appendChild(createChatWindow());
             chatBubble = null;
-            // When opening chat, hide the welcome message permanently
             setBubbleClosed(true);
         } else {
             chatBubble = createChatBubble();
-            // Remove message and close button since user has interacted
             const message = chatBubble.querySelector('.chat-bubble-message');
             const closeBtn = chatBubble.querySelector('.chat-bubble-close');
             if (message) message.remove();
@@ -509,11 +559,9 @@ export function getChatWidgetScript({
             const closeBtn = chatBubble.querySelector('.chat-bubble-close');
             
             if (message) {
-                // Add hiding class for animation
                 message.classList.add('hiding');
                 if (closeBtn) closeBtn.classList.add('hiding');
                 
-                // Remove elements after animation completes
                 setTimeout(() => {
                     if (message) message.remove();
                     if (closeBtn) closeBtn.remove();
@@ -532,6 +580,21 @@ export function getChatWidgetScript({
     window.sendMessage = function() {
         const input = document.getElementById('chatInput');
         const message = input.value.trim();
+        
+        // Show clear button when first message is sent
+        const clearBtn = widget.querySelector('.clear-button');
+        if (clearBtn) clearBtn.style.display = 'flex';
+
+        if (message.length > maxMessageLength) {
+            const errorMessage = { text: \`Message is too long. Please keep it under \${maxMessageLength} characters.\`, sender: 'bot' };
+            messages.push(errorMessage);
+            saveChatHistory();
+            const messageElement = createMessageElement(errorMessage.text, errorMessage.sender);
+            messageList.appendChild(messageElement);
+            scrollToBottom();
+            return;
+        }
+
         if (message) {
             const suggestionChips = widget.querySelector('.suggestion-chips');
             if (suggestionChips) {
@@ -540,7 +603,7 @@ export function getChatWidgetScript({
 
             const userMessage = { text: message, sender: 'user' };
             messages.push(userMessage);
-            saveChatHistory(); // Save after adding user message
+            saveChatHistory();
             const messageElement = createMessageElement(userMessage.text, userMessage.sender);
             messageList.appendChild(messageElement);
             input.value = '';
@@ -551,8 +614,17 @@ export function getChatWidgetScript({
 
     // Function to send message to webhook
     function sendToWebhook(userMessage) {
+        if (!webhookUrl) {
+            const errorMessage = { text: "Chat is not configured correctly (missing webhook URL).", sender: 'bot' };
+            messages.push(errorMessage);
+            saveChatHistory();
+            const messageElement = createMessageElement(errorMessage.text, errorMessage.sender);
+            messageList.appendChild(messageElement);
+            scrollToBottom();
+            return;
+        }
+
         showLoading(true);
-        const webhookUrl = '${webhookUrl}';
         let sessionId = localStorage.getItem('ai_assistant_session_id');
         if (!sessionId) {
             sessionId = 'session_' + Date.now() + '_' + Math.random().toString(36).substr(2, 9);
@@ -564,7 +636,8 @@ export function getChatWidgetScript({
             sessionId: sessionId,
             timestamp: new Date().toISOString(),
             userAgent: navigator.userAgent,
-            url: window.location.href
+            url: window.location.href,
+            domain: domain
         };
 
         fetch(webhookUrl, {
@@ -577,7 +650,7 @@ export function getChatWidgetScript({
             showLoading(false);
             const botMessage = { text: data.output || "I'm having trouble connecting. Please try again.", sender: 'bot' };
             messages.push(botMessage);
-            saveChatHistory(); // Save after adding bot message
+            saveChatHistory();
             const messageElement = createMessageElement(botMessage.text, botMessage.sender);
             messageList.appendChild(messageElement);
             scrollToBottom();
@@ -590,7 +663,7 @@ export function getChatWidgetScript({
             console.error('Error sending to webhook:', error);
             const errorMessage = { text: "I'm sorry, I'm having trouble connecting right now. Please try again later.", sender: 'bot' };
             messages.push(errorMessage);
-            saveChatHistory(); // Save after adding error message
+            saveChatHistory();
             const messageElement = createMessageElement(errorMessage.text, errorMessage.sender);
             messageList.appendChild(messageElement);
             scrollToBottom();
@@ -600,7 +673,6 @@ export function getChatWidgetScript({
     // Initial render of the chat bubble
     chatBubble = createChatBubble();
     if (isBubbleClosed()) {
-        // If previously closed, show only the avatar
         const message = chatBubble.querySelector('.chat-bubble-message');
         const closeBtn = chatBubble.querySelector('.chat-bubble-close');
         if (message) message.remove();
@@ -609,20 +681,7 @@ export function getChatWidgetScript({
     widget.appendChild(chatBubble);
     document.body.appendChild(widget);
     
-    // Add scroll event listener
     window.addEventListener('scroll', handleScroll, { passive: true });
 })();
 </script>`;
-}
-
-// For generating embed code (just wraps the single script)
-export function generateChatWidgetScript(config: ChatWidgetConfig): string {
-  return getChatWidgetScript(config);
-}
-
-// For React component usage (returns just the script content without <script> tags)
-export function getChatWidgetScriptContent(config: ChatWidgetConfig): string {
-  const fullScript = getChatWidgetScript(config);
-  // Remove <script> and </script> tags to get just the content
-  return fullScript.replace(/^<script>/, '').replace(/<\/script>$/, '');
 }

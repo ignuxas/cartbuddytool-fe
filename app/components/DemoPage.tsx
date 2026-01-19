@@ -5,12 +5,15 @@ import { useSearchParams, useRouter } from "next/navigation";
 import { config } from "@/lib/config";
 import { addToast } from "@heroui/toast";
 import { Button } from "@heroui/button";
+import { Tooltip } from "@heroui/tooltip";
 import { getChatWidgetScript } from "@/app/utils/chatWidgetGenerator";
+import { useAuth } from "@/app/contexts/AuthContext";
 import DemoPreview from "./DemoPreview";
 
 interface WidgetSettings {
   primary_color: string;
   secondary_color: string;
+  background_color?: string;
   text_color: string;
   title: string;
   welcome_message: string;
@@ -25,14 +28,17 @@ interface WidgetSettings {
 export default function DemoPage() {
   const searchParams = useSearchParams();
   const router = useRouter();
+  const { isAuthenticated, authKey } = useAuth();
   const domain = searchParams.get("domain");
   const webhookUrl = searchParams.get("webhook");
   
   const [loading, setLoading] = useState(true);
+  const [refreshingScreenshot, setRefreshingScreenshot] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [widgetSettings, setWidgetSettings] = useState<WidgetSettings | null>(null);
   const [retryCount, setRetryCount] = useState(0);
   const [htmlContent, setHtmlContent] = useState<string>("");
+  const [fromCache, setFromCache] = useState(false);
   const maxRetries = 2;
 
   useEffect(() => {
@@ -45,13 +51,19 @@ export default function DemoPage() {
     loadDemoContent();
   }, [domain, webhookUrl]);
 
-  const loadDemoContent = async () => {
+  const loadDemoContent = async (forceRefresh: boolean = false) => {
     try {
-      setLoading(true);
+      if (forceRefresh) {
+        setRefreshingScreenshot(true);
+      } else {
+        setLoading(true);
+      }
       setError(null);
-      setHtmlContent(""); // Clear previous content
+      if (!forceRefresh) {
+        setHtmlContent(""); // Clear previous content only on initial load
+      }
 
-      console.log("Loading demo for domain:", domain);
+      console.log("Loading demo for domain:", domain, "forceRefresh:", forceRefresh);
 
       // Load widget settings (public endpoint, no auth required)
       const settingsResponse = await fetch(
@@ -71,46 +83,68 @@ export default function DemoPage() {
       setWidgetSettings(settings);
       console.log("Widget settings loaded:", settings);
 
-      // Fetch the website HTML (public endpoint, no auth required)
-      console.log("Fetching HTML from server for domain:", domain);
+      // Fetch the website screenshot (public endpoint, no auth required)
+      console.log("Fetching screenshot from server for domain:", domain);
       const htmlResponse = await fetch(
-        `${config.serverUrl}/api/demo/html/`,
+        `${config.serverUrl}/api/demo/html/`, // Endpoint name kept for compatibility
         {
           method: "POST",
           headers: {
             "Content-Type": "application/json",
           },
-          body: JSON.stringify({ domain }),
+          body: JSON.stringify({ domain, force_refresh: forceRefresh }),
         }
       );
 
       if (!htmlResponse.ok) {
         const errorData = await htmlResponse.json();
-        console.error("HTML fetch failed:", errorData);
-        throw new Error(errorData.error || "Failed to fetch website HTML");
+        console.error("Screenshot fetch failed:", errorData);
+        throw new Error(errorData.error || "Failed to fetch website screenshot");
       }
 
-      const { html } = await htmlResponse.json();
-      console.log("HTML received, length:", html?.length || 0);
+      const responseData = await htmlResponse.json();
+      const screenshotUrl = responseData.screenshot_url || responseData.html; // Fallback supports old behavior if any
+      setFromCache(responseData.from_cache || false);
 
-      // Validate HTML content
-      if (!html || html.trim().length === 0) {
-        console.error("Empty HTML received from server");
-        throw new Error("Server returned empty HTML content");
+      console.log("Screenshot URL received:", screenshotUrl, "from_cache:", responseData.from_cache);
+
+      // Validate URL
+      if (!screenshotUrl) {
+        console.error("Empty result received from server");
+        throw new Error("Server returned empty result");
       }
 
-      if (html.trim().length < 100) {
-        console.error("HTML too short:", html.trim().length);
-        throw new Error("Server returned insufficient HTML content");
+      // Construct HTML with the screenshot
+      // specific logic if it's a URL (screenshot) vs HTML (fallback)
+      let html = "";
+      if (screenshotUrl.startsWith("http")) {
+          html = `<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <style>
+    body { margin: 0; padding: 0; overflow-x: hidden; background: #f0f0f0; }
+    img { width: 100%; height: auto; display: block; }
+  </style>
+</head>
+<body>
+  <img src="${screenshotUrl}" alt="Website Preview" />
+</body>
+</html>`;
+      } else {
+          // Fallback to old behavior if backend returns HTML (shouldn't happen with new backend code)
+          html = screenshotUrl;
       }
 
       // Generate the chat widget script with settings
       const widgetScript = getChatWidgetScript({
         webhookUrl: webhookUrl!,
         siteName: domain!,
-        baseUrl: window.location.origin, // Use current origin to load static assets
+        baseUrl: config.serverUrl, // Point to backend for static assets like lukas.png
         primaryColor: settings.primary_color,
         secondaryColor: settings.secondary_color,
+        backgroundColor: settings.background_color,
         textColor: settings.text_color,
         title: settings.title,
         welcomeMessage: settings.welcome_message,
@@ -129,7 +163,16 @@ export default function DemoPage() {
       console.log("HTML prepared, setting content state");
       setHtmlContent(modifiedHtml);
       setLoading(false);
+      setRefreshingScreenshot(false);
       setRetryCount(0); // Reset retry count on success
+      
+      if (forceRefresh) {
+        addToast({
+          title: "Screenshot Updated",
+          description: "The preview screenshot has been refreshed.",
+          color: "success",
+        });
+      }
     } catch (err: any) {
       console.error("Error loading demo:", err);
       
@@ -250,6 +293,14 @@ export default function DemoPage() {
           </div>
         </div>
         <div className="flex items-center gap-3">
+          {fromCache && (
+            <div className="hidden sm:flex items-center gap-2 px-3 py-1.5 bg-blue-50 border border-blue-200 rounded-lg">
+              <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" className="w-4 h-4 text-blue-600">
+                <path strokeLinecap="round" strokeLinejoin="round" d="M20.25 6.375c0 2.278-3.694 4.125-8.25 4.125S3.75 8.653 3.75 6.375m16.5 0c0-2.278-3.694-4.125-8.25-4.125S3.75 4.097 3.75 6.375m16.5 0v11.25c0 2.278-3.694 4.125-8.25 4.125s-8.25-1.847-8.25-4.125V6.375m16.5 0v3.75m-16.5-3.75v3.75m16.5 0v3.75C20.25 16.153 16.556 18 12 18s-8.25-1.847-8.25-4.125v-3.75m16.5 0c0 2.278-3.694 4.125-8.25 4.125s-8.25-1.847-8.25-4.125" />
+              </svg>
+              <span className="text-xs font-medium text-blue-700">Cached Preview</span>
+            </div>
+          )}
           <div className="flex items-center gap-2 px-3 py-1.5 bg-green-50 border border-green-200 rounded-lg">
             <div className="w-2 h-2 bg-green-500 rounded-full animate-pulse" />
             <span className="text-xs font-medium text-green-700">Live Preview</span>
@@ -260,7 +311,27 @@ export default function DemoPage() {
             </svg>
             <span className="text-xs font-medium text-amber-700">Demo Mode</span>
           </div>
-          <Button color="primary" variant="flat" size="sm" onClick={loadDemoContent} isDisabled={loading}>
+          {isAuthenticated && fromCache && (
+            <Tooltip content="Regenerate the preview screenshot (this may take a few seconds)">
+              <Button 
+                color="secondary" 
+                variant="flat" 
+                size="sm" 
+                onClick={() => loadDemoContent(true)} 
+                isDisabled={loading || refreshingScreenshot}
+                isLoading={refreshingScreenshot}
+                startContent={!refreshingScreenshot && (
+                  <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" className="w-4 h-4">
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M6.827 6.175A2.31 2.31 0 0 1 5.186 7.23c-.38.054-.757.112-1.134.175C2.999 7.58 2.25 8.507 2.25 9.574V18a2.25 2.25 0 0 0 2.25 2.25h15A2.25 2.25 0 0 0 21.75 18V9.574c0-1.067-.75-1.994-1.802-2.169a47.865 47.865 0 0 0-1.134-.175 2.31 2.31 0 0 1-1.64-1.055l-.822-1.316a2.192 2.192 0 0 0-1.736-1.039 48.774 48.774 0 0 0-5.232 0 2.192 2.192 0 0 0-1.736 1.039l-.821 1.316Z" />
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M16.5 12.75a4.5 4.5 0 1 1-9 0 4.5 4.5 0 0 1 9 0ZM18.75 10.5h.008v.008h-.008V10.5Z" />
+                  </svg>
+                )}
+              >
+                Update Screenshot
+              </Button>
+            </Tooltip>
+          )}
+          <Button color="primary" variant="flat" size="sm" onClick={() => loadDemoContent(false)} isDisabled={loading}>
             Refresh
           </Button>
         </div>

@@ -8,6 +8,8 @@ import { useRouter } from "next/navigation";
 import { ThemeProvider as NextThemesProvider } from "next-themes";
 import { ToastProvider } from "@heroui/toast";
 import { AuthProvider } from "./contexts/AuthContext";
+import { SWRConfig } from "swr";
+import { swrConfig } from "./utils/swr";
 
 export interface ProvidersProps {
   children: React.ReactNode;
@@ -26,13 +28,15 @@ export function Providers({ children, themeProps }: ProvidersProps) {
   const router = useRouter();
 
   return (
-    <HeroUIProvider navigate={router.push}>
-      <NextThemesProvider {...themeProps}>
-        <AuthProvider>
-          {children}
-        </AuthProvider>
-        <ToastProvider placement="top-right" />
-      </NextThemesProvider>
-    </HeroUIProvider>
+    <SWRConfig value={swrConfig}>
+      <HeroUIProvider navigate={router.push}>
+        <NextThemesProvider {...themeProps}>
+          <AuthProvider>
+            {children}
+          </AuthProvider>
+          <ToastProvider placement="top-right" />
+        </NextThemesProvider>
+      </HeroUIProvider>
+    </SWRConfig>
   );
 }

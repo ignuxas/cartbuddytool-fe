@@ -11,6 +11,8 @@ import { Button } from "@heroui/button";
 import { Link } from "@heroui/link";
 import { Card, CardBody } from "@heroui/card";
 import { Divider } from "@heroui/divider";
+import { Modal, ModalContent, ModalHeader, ModalBody, ModalFooter, useDisclosure } from "@heroui/modal";
+import BlacklistManager from "@/app/components/BlacklistManager";
 
 interface ScrapedDataItem {
   url: string;
@@ -79,9 +81,15 @@ export default function ScrapingPage() {
   const [useAI, setUseAI] = useState(false);
   const [retryCount, setRetryCount] = useState(3);
   const [retryDelay, setRetryDelay] = useState(1.0);
-  const [isRetryModalOpen, setIsRetryModalOpen] = useState(false);
   const [scrapedData, setScrapedData] = useState<ScrapedDataItem[]>([]);
   const [activeJobId, setActiveJobId] = useState<string | null>(null);
+  const [blacklist, setBlacklist] = useState<string[]>([]);
+  
+  // Modals state
+  const blacklistModal = useDisclosure();
+  const rescrapeModal = useDisclosure();
+  const [itemsToBlacklist, setItemsToBlacklist] = useState<string[]>([]);
+
   const [scrapingProgress, setScrapingProgress] = useState<{ 
     current: number; 
     total: number; 
@@ -143,8 +151,88 @@ export default function ScrapingPage() {
 
     if (isAuthenticated) {
       loadProjectData();
+      fetchBlacklist();
     }
   }, [isAuthenticated, domain, authKey]);
+
+  const fetchBlacklist = async () => {
+      try {
+        const res = await fetch(`${config.serverUrl}/api/scrape/blacklist/?domain=${domain}`, {
+            headers: { "X-Auth-Key": authKey! },
+        });
+        const data = await res.json();
+        if (res.ok) {
+            setBlacklist(data.blacklist || []);
+        }
+      } catch (e) {
+          console.error("Error fetching blacklist", e);
+      }
+  };
+
+  const updateBlacklist = async (newList: string[]) => {
+      try {
+          const res = await fetch(`${config.serverUrl}/api/scrape/blacklist/`, {
+              method: "POST",
+              headers: {
+                  "Content-Type": "application/json",
+                  "X-Auth-Key": authKey!,
+              },
+              body: JSON.stringify({ domain, blacklist: newList }),
+          });
+          const data = await res.json();
+          if (res.ok) {
+              setBlacklist(data.blacklist);
+              return true;
+          } else {
+              addToast({ title: "Error", description: "Failed to update blacklist", color: "danger" });
+              return false;
+          }
+      } catch (e) {
+          addToast({ title: "Error", description: "Error updating blacklist", color: "danger" });
+          return false;
+      }
+  };
+
+  const handleBlacklistItems = (items: string[]) => {
+      if (!items.length) return;
+      setItemsToBlacklist(items);
+      blacklistModal.onOpen();
+  };
+
+  const confirmBlacklistItems = async () => {
+      const items = itemsToBlacklist;
+      blacklistModal.onClose();
+      
+      setLoading(true);
+      
+      // 1. Update Blacklist
+      const uniqueItems = items.filter(item => !blacklist.includes(item));
+      const newList = [...blacklist, ...uniqueItems];
+      const success = await updateBlacklist(newList);
+      
+      if (success) {
+          // 2. Delete from scraped data
+          try {
+              await makeApiCall(
+                  `${config.serverUrl}/api/scrape/items/delete/`,
+                  {
+                      method: "DELETE",
+                      headers: getAuthHeaders(),
+                      body: JSON.stringify({ urls: items, domain }),
+                  },
+                  "delete-blacklisted-items"
+              );
+              
+              setScrapedData(prev => prev.filter(p => !items.includes(p.url)));
+              addToast({ title: "Success", description: "Items blacklisted and removed", color: "success" });
+          } catch (e) {
+              console.error("Failed to delete items after blacklisting", e);
+              addToast({ title: "Warning", description: "Items blacklisted but failed to delete from current data", color: "warning" });
+          }
+      }
+      setLoading(false);
+      setItemsToBlacklist([]);
+  };
 
   const pollScrapingStatus = async (jobId: string) => {
     const poll = async () => {
@@ -195,16 +283,18 @@ export default function ScrapingPage() {
   };
 
   const handleOpenRetryModal = () => {
-      if (window.confirm("Are you sure you want to re-scrape the entire site? This will update all pages.")) {
-          handleRetryScraping(true);
-      }
+      rescrapeModal.onOpen();
+  };
+
+  const confirmRescrape = () => {
+      rescrapeModal.onClose();
+      handleRetryScraping(true);
   };
 
   const handleRescrapePages = async (urlsToRescrape: string[], options?: { keepImages: boolean; useAI: boolean }) => {
     if (urlsToRescrape.length === 0) return;
 
     setRetryLoading('scraping');
-    setIsRetryModalOpen(false);
     clearMessages();
     setScrapingProgress({ current: 0, total: urlsToRescrape.length, status: 'pending' });
 
@@ -568,6 +658,11 @@ export default function ScrapingPage() {
                 retryDelay={retryDelay}
                 setRetryDelay={setRetryDelay}
             />
+            
+            <BlacklistManager 
+                blacklist={blacklist}
+                onUpdate={updateBlacklist}
+            />
           </div>
 
           {scrapingProgress && (
@@ -629,10 +724,56 @@ export default function ScrapingPage() {
                 onRescrape={handleRescrapePages}
                 isLoading={retryLoading === 'scraping' || retryLoading === 'finding-pages'}
                 onFindMorePages={handleFindMorePages}
+                onBlacklist={handleBlacklistItems}
             />
           </div>
         </>
       ))}
+
+      <Modal isOpen={blacklistModal.isOpen} onClose={blacklistModal.onClose}>
+        <ModalContent>
+          {(onClose) => (
+            <>
+              <ModalHeader>Confirm Blacklist</ModalHeader>
+              <ModalBody>
+                <p>Are you sure you want to blacklist {itemsToBlacklist.length} item(s)?</p>
+                <p className="text-small text-default-500">
+                   This will remove them from the list and prevent them from being scraped again.
+                </p>
+                <div className="max-h-32 overflow-y-auto bg-default-100 p-2 rounded-md">
+                     {itemsToBlacklist.map(item => (
+                         <div key={item} className="text-xs truncate">{item}</div>
+                     ))}
+                </div>
+              </ModalBody>
+              <ModalFooter>
+                <Button variant="light" onPress={onClose}>Cancel</Button>
+                <Button color="danger" onPress={confirmBlacklistItems}>Blacklist & Delete</Button>
+              </ModalFooter>
+            </>
+          )}
+        </ModalContent>
+      </Modal>
+
+      <Modal isOpen={rescrapeModal.isOpen} onClose={rescrapeModal.onClose}>
+        <ModalContent>
+          {(onClose) => (
+            <>
+              <ModalHeader>Confirm Full Rescrape</ModalHeader>
+              <ModalBody>
+                <p>Are you sure you want to re-scrape the entire site?</p>
+                <p className="text-small text-default-500">
+                    This will update all pages. If AI extraction is enabled, it may consume a significant amount of credits/time.
+                </p>
+              </ModalBody>
+              <ModalFooter>
+                <Button variant="light" onPress={onClose}>Cancel</Button>
+                <Button color="primary" onPress={confirmRescrape}>Rescrape All</Button>
+              </ModalFooter>
+            </>
+          )}
+        </ModalContent>
+      </Modal>
     </div>
   );
 }

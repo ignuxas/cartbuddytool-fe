@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef } from "react";
 import { config } from "@/lib/config";
 import ResultsDisplay from "@/app/components/ResultsDisplay";
 import AuthModal from "@/app/components/AuthModal";
@@ -11,6 +11,7 @@ import { Button } from "@heroui/button";
 
 import { Link } from "@heroui/link";
 import { Card, CardBody } from "@heroui/card";
+import { useProjectData, useWebhookSecret, invalidateProjectCache, useAdditionalUrls } from "@/app/utils/swr";
 
 interface ScrapedDataItem {
   url: string;
@@ -85,6 +86,15 @@ export default function ProjectPage() {
   const domain = params.domain as string;
   const { isAuthenticated, authKey, isLoading: authIsLoading, login } = useAuthContext();
   const router = useRouter();
+  
+  // SWR Hooks
+  const { projectData, isLoading: projectIsLoading, error: projectError } = useProjectData(domain, authKey);
+  const { secret: cachedSecret } = useWebhookSecret(
+    domain, 
+    authKey, 
+    !!projectData?.existing_workflow // Only fetch if workflow exists
+  );
+
   const [loading, setLoading] = useState(true);
   const [retryLoading, setRetryLoading] = useState<string | null>(null);
   const [errorMessage, setErrorMessage] = useState("");
@@ -99,6 +109,7 @@ export default function ProjectPage() {
   const [retryCount, setRetryCount] = useState(3);
   const [retryDelay, setRetryDelay] = useState(1.0);
   const [webhookSecret, setWebhookSecret] = useState<string | null>(null);
+  const [lastSmartUpdate, setLastSmartUpdate] = useState<string | null>(null);
   const [scrapingProgress, setScrapingProgress] = useState<{ 
     current: number; 
     total: number; 
@@ -107,6 +118,9 @@ export default function ProjectPage() {
     pageStatuses?: { url: string; status: string; error?: string; status_code?: number }[];
   } | null>(null);
   const [showDetails, setShowDetails] = useState(false);
+  
+  // Ref to track the active polling job to prevent duplicate loops
+  const pollingJobRef = useRef<string | null>(null);
 
   const url = `http://${domain}`;
 
@@ -119,80 +133,65 @@ export default function ProjectPage() {
     "X-Auth-Key": authKey!,
   });
 
+  // Effect to sync SWR data with local state
   useEffect(() => {
-    const loadProjectData = async () => {
-      if (!authKey || !domain) return;
+    if (projectIsLoading) return;
+    setLoading(projectIsLoading);
 
-      setLoading(true);
-      clearMessages();
-
-      try {
-        console.log("[ProjectPage] Loading project data for:", domain);
-        
-        const checkData = await makeApiCall(
-          `${config.serverUrl}/api/scrape/check-existing/`,
-          {
-            method: "POST",
-            headers: getAuthHeaders(),
-            body: JSON.stringify({ url: `http://${domain}` }),
-          },
-          "project-load"
-        );
-
-        if (checkData.active_job) {
-            console.log("Found active scraping job:", checkData.active_job);
-            setRetryLoading('scraping');
-            pollScrapingStatus(checkData.active_job.id);
-        }
-
-        if (checkData.has_existing_data) {
-          setScrapedData((checkData.existing_data || []).map((item: ScrapedDataItem) => ({ ...item, selected: false })));
-          if (checkData.existing_prompt) {
-            setPrompt(checkData.existing_prompt);
-            setSavedPrompt(checkData.existing_prompt); // Track initial saved state
-          }
-          if (checkData.existing_workflow) {
-            setWorkflowResult(checkData.existing_workflow);
-            
-            // Fetch webhook secret if workflow exists
-            try {
-              const secretData = await makeApiCall(
-                  `${config.serverUrl}/api/widget/secret/`,
-                  {
-                      method: 'POST',
-                      headers: getAuthHeaders(),
-                      body: JSON.stringify({ domain }),
-                  },
-                  "fetch-secret"
-              );
-              if (secretData.secret) {
-                  setWebhookSecret(secretData.secret);
-              }
-            } catch (e) {
-                console.error("Failed to fetch webhook secret", e);
-            }
-          }
-          // Toast removed - silently load project data
-        } else if (!checkData.active_job) {
-          const message = "No data found for this project. Redirecting to home page.";
-          addToast({ title: "Error", description: message, color: "danger" });
-          setErrorMessage(message);
-          setTimeout(() => router.push('/'), 3000);
-        }
-      } catch (error: any) {
-        logError("loadProjectData", error, { domain });
-        const message = error.message || "Failed to load project data";
-        addToast({ title: "Error", description: message, color: "danger" });
-        setErrorMessage(message);
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    if (isAuthenticated) {
-      loadProjectData();
+    if (projectError) {
+      logError("loadProjectData", projectError, { domain });
+      const message = projectError.message || "Failed to load project data";
+      addToast({ title: "Error", description: message, color: "danger" });
+      setErrorMessage(message);
+      return;
     }
-  }, [isAuthenticated, domain, authKey, router]);
+
+    if (!projectData) return;
+    
+    // Handle data loaded successfully
+    console.log("[ProjectPage] Project data loaded:", domain);
+    
+    if (projectData.active_job) {
+        // Only start polling if not already polling this job
+        if (pollingJobRef.current !== projectData.active_job.id) {
+            console.log("Found active scraping job, starting poll:", projectData.active_job.id);
+            pollScrapingStatus(projectData.active_job.id);
+        }
+    } else {
+        // If no active job, ensure we stop polling (e.g. if we navigated back to a completed state)
+        if (pollingJobRef.current) {
+            console.log("No active job reported, stopping local poll");
+            pollingJobRef.current = null;
+        }
+    }
+
+    if (projectData.has_existing_data) {
+      setScrapedData((projectData.existing_data || []).map((item: ScrapedDataItem) => ({ ...item, selected: false })));
+      
+      const newPrompt = projectData.existing_prompt || "";
+      // Only update prompt if it hasn't been edited by user yet
+      setPrompt(prev => prev === "" ? newPrompt : prev);
+      setSavedPrompt(newPrompt);
+
+      if (projectData.existing_workflow) {
+        setWorkflowResult(projectData.existing_workflow);
+      }
+      
+      if (projectData.last_smart_update) {
+         setLastSmartUpdate(projectData.last_smart_update);
+      }
+    } else if (!projectData.active_job && !loading) { // Only redirect if fully loaded and no job
+      const message = "No data found for this project. Redirecting to home page.";
+      addToast({ title: "Error", description: message, color: "danger" });
+      setErrorMessage(message);
+      setTimeout(() => router.push('/'), 3000);
+    }
+  }, [projectData, projectIsLoading, projectError, domain, router]);
+
+  // Sync webhook secret when it loads
+  useEffect(() => {
+    if (cachedSecret) setWebhookSecret(cachedSecret);
+  }, [cachedSecret]);
 
   const handleScrapeAdditionalPages = async () => {
     const selectedAdditionalUrls = additionalUrls.filter(item => item.selected).map(item => item.url);
@@ -224,6 +223,10 @@ export default function ProjectPage() {
 
       setScrapedData((data.all_data || []).map((item: ScrapedDataItem) => ({ ...item, selected: false })));
       setPrompt(data.prompt || "");
+      
+      // Invalidate cache to reflect new data
+      invalidateProjectCache(domain);
+
       addToast({
         title: "Success",
         description: data.message || "Additional pages scraped successfully",
@@ -292,7 +295,19 @@ export default function ProjectPage() {
   };
 
   const pollScrapingStatus = async (jobId: string) => {
+    // Determine if this is a new poll or continuing an existing one
+    if (pollingJobRef.current !== jobId) {
+      pollingJobRef.current = jobId;
+      setRetryLoading('scraping');
+    }
+
     const poll = async () => {
+      // Stop polling if the job ID has changed (e.g. cancelled or new job started)
+      if (pollingJobRef.current !== jobId) {
+          console.log(`[pollScrapingStatus] Stopping poll for job ${jobId} (current: ${pollingJobRef.current})`);
+          return;
+      }
+
       try {
         const statusData = await makeApiCall(
           `${config.serverUrl}/api/scrape/status/${jobId}/`,
@@ -314,30 +329,16 @@ export default function ProjectPage() {
         if (statusData.status === 'completed') {
             setRetryLoading(null);
             setScrapingProgress(null);
+            pollingJobRef.current = null; // Clean up
             addToast({ title: "Success", description: "Scraping completed", color: "success" });
             
-            // Reload project data
-            const checkData = await makeApiCall(
-                `${config.serverUrl}/api/scrape/check-existing/`,
-                {
-                  method: "POST",
-                  headers: getAuthHeaders(),
-                  body: JSON.stringify({ url: `http://${domain}` }),
-                },
-                "reload-project-data"
-              );
-        
-            if (checkData.has_existing_data) {
-                setScrapedData((checkData.existing_data || []).map((item: ScrapedDataItem) => ({ ...item, selected: false })));
-                if (checkData.existing_prompt) {
-                    setPrompt(checkData.existing_prompt);
-                    setSavedPrompt(checkData.existing_prompt); // Update saved state after reload
-                }
-            }
+            // Reload project data via SWR cache invalidation
+            invalidateProjectCache(domain);
 
         } else if (statusData.status === 'failed') {
             setRetryLoading(null);
             setScrapingProgress(null);
+            pollingJobRef.current = null; // Clean up
             setErrorMessage(statusData.error_message || "Scraping failed");
             addToast({ title: "Error", description: statusData.error_message || "Scraping failed", color: "danger" });
         } else {
@@ -404,6 +405,9 @@ export default function ProjectPage() {
           if (data.sheet_id) {
             setSheetId(data.sheet_id);
           }
+          
+          invalidateProjectCache(domain);
+          
           setRetryLoading(null);
           setScrapingProgress(null);
       }
@@ -457,19 +461,8 @@ export default function ProjectPage() {
       }
 
       // Reload project data to show updated content
-      const checkData = await makeApiCall(
-        `${config.serverUrl}/api/scrape/check-existing/`,
-        {
-          method: "POST",
-          headers: getAuthHeaders(),
-          body: JSON.stringify({ url }),
-        },
-        "reload-project-data"
-      );
-
-      if (checkData.has_existing_data && checkData.existing_data) {
-        setScrapedData(checkData.existing_data.map((item: ScrapedDataItem) => ({ ...item, selected: false })));
-      }
+      invalidateProjectCache(domain);
+      
     } catch (error: any) {
       logError("handleSmartRescrapeImages", error, { url });
       const message = error.message || "Failed to update pages";
@@ -499,6 +492,10 @@ export default function ProjectPage() {
 
       setPrompt(data.prompt || "");
       setSavedPrompt(data.prompt || ""); // Update saved state after regeneration
+      
+      // Update cache
+      invalidateProjectCache(domain);
+
       addToast({
         title: "Success",
         description: data.message || "Prompt regenerated successfully",
@@ -582,23 +579,8 @@ export default function ProjectPage() {
         webhook_url: data.webhook_url
       });
       
-      // Fetch secret
-      try {
-        const secretData = await makeApiCall(
-            `${config.serverUrl}/api/widget/secret/`,
-            {
-                method: 'POST',
-                headers: getAuthHeaders(),
-                body: JSON.stringify({ domain }),
-            },
-            "fetch-secret-create"
-        );
-        if (secretData.secret) {
-            setWebhookSecret(secretData.secret);
-        }
-      } catch (e) {
-          console.error("Failed to fetch webhook secret", e);
-      }
+      // Update cache
+      invalidateProjectCache(domain);
 
       setSavedPrompt(prompt); // Prompt is now saved with the new workflow
       addToast({
@@ -639,23 +621,8 @@ export default function ProjectPage() {
         webhook_url: data.webhook_url
       });
       
-      // Fetch secret
-      try {
-        const secretData = await makeApiCall(
-            `${config.serverUrl}/api/widget/secret/`,
-            {
-                method: 'POST',
-                headers: getAuthHeaders(),
-                body: JSON.stringify({ domain }),
-            },
-            "fetch-secret-regen"
-        );
-        if (secretData.secret) {
-            setWebhookSecret(secretData.secret);
-        }
-      } catch (e) {
-          console.error("Failed to fetch webhook secret", e);
-      }
+      // Update cache
+      invalidateProjectCache(domain);
 
       setSavedPrompt(prompt); // Prompt is now saved with the regenerated workflow
       addToast({
@@ -691,6 +658,9 @@ export default function ProjectPage() {
         },
         "toggle-main"
       );
+      
+      // Update cache
+      invalidateProjectCache(domain);
     } catch (error: any) {
       // Revert UI on error
       setScrapedData((prevData) =>
@@ -722,6 +692,32 @@ export default function ProjectPage() {
       // Optimistically remove from UI
       setScrapedData(prevData => prevData.filter(item => !item.selected));
       
+      // Blacklist before deleting
+      try {
+          const blacklistRes = await makeApiCall(
+              `${config.serverUrl}/api/scrape/blacklist/?domain=${domain}`,
+              { headers: getAuthHeaders(), method: "GET" },
+              "fetch-blacklist-bulk-delete"
+          );
+          const currentBlacklist = blacklistRes.blacklist || [];
+          const newItems = urlsToDelete.filter(u => !currentBlacklist.includes(u));
+          
+          if (newItems.length > 0) {
+              const newBlacklist = [...currentBlacklist, ...newItems];
+              await makeApiCall(
+                `${config.serverUrl}/api/scrape/blacklist/`,
+                {
+                    method: "POST",
+                    headers: getAuthHeaders(),
+                    body: JSON.stringify({ domain, blacklist: newBlacklist }),
+                },
+                "blacklist-bulk-items"
+             );
+          }
+      } catch (e) {
+          console.warn("Failed to blacklist items during bulk delete", e);
+      }
+
       await makeApiCall(
         `${config.serverUrl}/api/scrape/items/delete/`,
         {
@@ -732,9 +728,12 @@ export default function ProjectPage() {
         "delete-selected-items"
       );
       
+      // Update cache
+      invalidateProjectCache(domain);
+      
       addToast({
         title: "Success",
-        description: `${urlsToDelete.length} item(s) deleted successfully`,
+        description: `${urlsToDelete.length} item(s) deleted and blacklisted`,
         color: "success",
       });
     } catch (error: any) {
@@ -755,11 +754,43 @@ export default function ProjectPage() {
 
   const handleDeleteItem = async (urlToDelete: string) => {
     try {
-      console.log("[handleDeleteItem] Deleting item:", urlToDelete);
+      console.log("[handleDeleteItem] Deleting and blacklisting item:", urlToDelete);
       
+      const confirmMessage = "Are you sure you want to delete this page? It will also be added to the blacklist to prevent future scraping.";
+      if (!confirm(confirmMessage)) return;
+
       // Optimistically remove from UI first
-      setScrapedData(prevData => prevData.filter(item => item.url !== urlToDelete));
-      
+      setScrapedData(prev => prev.filter(item => item.url !== urlToDelete));
+
+      // 1. Blacklist the URL
+      try {
+          // Check/Fetch current blacklist to avoid overwrite (similar to New Project flow)
+          // Or assume we can just append if backend supported it, but it doesn't yet.
+          // Better approach: Use the bulk delete+blacklist logic if possible or replicate it.
+          // Let's replicate smart logic:
+          const blacklistRes = await makeApiCall(
+              `${config.serverUrl}/api/scrape/blacklist/?domain=${domain}`,
+              { headers: getAuthHeaders(), method: "GET" },
+              "fetch-blacklist-single-delete"
+          );
+          const currentBlacklist = blacklistRes.blacklist || [];
+          if (!currentBlacklist.includes(urlToDelete)) {
+             const newBlacklist = [...currentBlacklist, urlToDelete];
+             await makeApiCall(
+                `${config.serverUrl}/api/scrape/blacklist/`,
+                {
+                    method: "POST",
+                    headers: getAuthHeaders(),
+                    body: JSON.stringify({ domain, blacklist: newBlacklist }),
+                },
+                "blacklist-single-item"
+             );
+          }
+      } catch (e) {
+          console.warn("Failed to blacklist item during delete", e);
+      }
+
+      // 2. Delete the item
       await makeApiCall(
         `${config.serverUrl}/api/scrape/item/delete/`,
         {
@@ -770,15 +801,18 @@ export default function ProjectPage() {
         "delete-item"
       );
       
+      // Update cache
+      invalidateProjectCache(domain);
+      
       addToast({
         title: "Success",
-        description: "Item deleted successfully",
+        description: "Page deleted and blacklisted",
         color: "success",
       });
     } catch (error: any) {
       logError("handleDeleteItem", error, { urlToDelete, domain });
-      const message = "Failed to delete item from server, but it has been removed from the view";
-      addToast({ title: "Error", description: message, color: "danger" });
+      const message = "Failed to delete item from server, but it has been removed from the view. You may want to reload.";
+      addToast({ title: "Error", description: message, color: "warning" });
       setErrorMessage(message);
     }
   };
@@ -808,6 +842,9 @@ export default function ProjectPage() {
         );
       }
       
+      // Update cache
+      invalidateProjectCache(domain);
+
       addToast({
         title: "Success",
         description: "Page re-scraped successfully",
@@ -841,6 +878,9 @@ export default function ProjectPage() {
       setScrapedData(prev => prev.map(item => 
         item.url === url ? { ...item, image: newImageUrl } : item
       ));
+      
+      // Update cache
+      invalidateProjectCache(domain);
 
     } catch (error: any) {
       logError('handleUpdateImage', error);
@@ -918,6 +958,7 @@ export default function ProjectPage() {
             <div className="mt-4">
               <h2 className="text-xl font-bold mb-4">Project Data</h2>
               <ResultsDisplay
+                lastSmartUpdate={lastSmartUpdate}
                 sheetId={sheetId}
                 prompt={prompt}
                 workflowResult={workflowResult}

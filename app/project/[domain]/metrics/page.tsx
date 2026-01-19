@@ -4,16 +4,16 @@ import React, { useEffect, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { Card, CardBody, CardHeader } from "@heroui/card";
 import { Button } from "@heroui/button";
-import { Chip } from "@heroui/chip";
+import { Chip } from "@heroui/chip"; 
+import { Pagination } from "@heroui/pagination";
 import { config } from "@/lib/config";
+import FormattedMessage from "@/app/components/FormattedMessage";
+import { useWidgetSettings } from "@/app/utils/swr";
 import {
   LineChart,
   Line,
   BarChart,
   Bar,
-  PieChart,
-  Pie,
-  Cell,
   XAxis,
   YAxis,
   CartesianGrid,
@@ -56,19 +56,6 @@ interface MetricsData {
   }>;
 }
 
-const COLORS = [
-  "#0088FE",
-  "#00C49F",
-  "#FFBB28",
-  "#FF8042",
-  "#8884D8",
-  "#82CA9D",
-  "#FFC658",
-  "#FF6B9D",
-  "#C9A0DC",
-  "#20B2AA",
-];
-
 export default function MetricsPage() {
   const params = useParams();
   const router = useRouter();
@@ -76,6 +63,70 @@ export default function MetricsPage() {
   const [metrics, setMetrics] = useState<MetricsData | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [authKey, setAuthKey] = useState<string | null>(null);
+
+  // Pagination states
+  const [interactionsPage, setInteractionsPage] = useState(1);
+  const [errorsPage, setErrorsPage] = useState(1);
+  const [interactionsTotal, setInteractionsTotal] = useState(0);
+  const [errorsTotal, setErrorsTotal] = useState(0);
+  const [paginatedInteractions, setPaginatedInteractions] = useState<MetricsData['recent_metrics']>([]);
+  const [paginatedErrors, setPaginatedErrors] = useState<MetricsData['recent_errors']>([]);
+  const [isLoadingInteractions, setIsLoadingInteractions] = useState(false);
+  const [isLoadingErrors, setIsLoadingErrors] = useState(false);
+
+  const ITEMS_PER_PAGE = 10;
+  const { settings: widgetSettings } = useWidgetSettings(domain, authKey); 
+
+  // Function to fetch specific page of interactions
+  const fetchInteractionsPage = async (page: number) => {
+    if (!authKey) return;
+    try {
+      setIsLoadingInteractions(true);
+      const res = await fetch(
+        `${config.serverUrl}/api/metrics/?domain=${encodeURIComponent(domain)}&view=interactions&page=${page}&limit=${ITEMS_PER_PAGE}`,
+        { headers: { "X-Auth-Key": authKey } }
+      );
+      if (res.ok) {
+        const data = await res.json();
+        setPaginatedInteractions(data.interactions);
+        setInteractionsTotal(data.total);
+      }
+    } catch (e) {
+      console.error("Failed to fetch interactions page", e);
+    } finally {
+      setIsLoadingInteractions(false);
+    }
+  };
+
+  // Function to fetch specific page of errors
+  const fetchErrorsPage = async (page: number) => {
+    if (!authKey) return;
+    try {
+      setIsLoadingErrors(true);
+      const res = await fetch(
+        `${config.serverUrl}/api/metrics/?domain=${encodeURIComponent(domain)}&view=errors&page=${page}&limit=${ITEMS_PER_PAGE}`,
+        { headers: { "X-Auth-Key": authKey } }
+      );
+      if (res.ok) {
+        const data = await res.json();
+        setPaginatedErrors(data.errors);
+        setErrorsTotal(data.total);
+      }
+    } catch (e) {
+      console.error("Failed to fetch errors page", e);
+    } finally {
+      setIsLoadingErrors(false);
+    }
+  };
+
+  useEffect(() => {
+    if (authKey) {
+      // Initial fetch for first page
+      fetchInteractionsPage(1);
+      fetchErrorsPage(1);
+    }
+  }, [authKey]);
 
   useEffect(() => {
     const fetchMetrics = async () => {
@@ -92,9 +143,10 @@ export default function MetricsPage() {
           return null;
         };
         
-        const authKey = getCookie('cartbuddy_auth_key');
+        const key = getCookie('cartbuddy_auth_key');
+        setAuthKey(key);
 
-        if (!authKey) {
+        if (!key) {
           setError("Not authenticated. Please log in.");
           setLoading(false);
           return;
@@ -104,7 +156,7 @@ export default function MetricsPage() {
           `${config.serverUrl}/api/metrics/?domain=${encodeURIComponent(domain)}`,
           {
             headers: {
-              "X-Auth-Key": authKey,
+              "X-Auth-Key": key,
             },
           }
         );
@@ -343,24 +395,56 @@ export default function MetricsPage() {
           </Card>
         </div>
 
-        {/* Error Analysis Row */}
-        {metrics.total_errors > 0 && (
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
-            {/* Error Types Distribution */}
+        {/* Top Queries and Error Analysis */}
+        <div className={`grid grid-cols-1 ${metrics.total_errors > 0 ? 'lg:grid-cols-2' : ''} gap-6 mb-6`}>
+          {/* Top Queries - Replaces Interactions by Mode */}
+          <Card>
+            <CardHeader>
+              <h3 className="text-xl font-semibold">Top User Queries</h3>
+            </CardHeader>
+            <CardBody>
+              {metrics.top_queries && metrics.top_queries.length > 0 ? (
+                <div className="space-y-2 max-h-60 overflow-y-auto pr-2">
+                  {metrics.top_queries.map((item, idx) => (
+                    <div
+                      key={idx}
+                      className="flex items-center justify-between p-3 bg-default-100 rounded-lg"
+                    >
+                      <div className="flex-1 mr-4">
+                        <div className="text-sm font-medium text-foreground truncate" title={item.query}>
+                          {item.query}
+                        </div>
+                      </div>
+                      <Chip size="sm" color="primary" variant="flat">
+                        {item.count}
+                      </Chip>
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <div className="text-center text-default-500 py-12">
+                  No query data available
+                </div>
+              )}
+            </CardBody>
+          </Card>
+
+          {/* Error Types Distribution - Only if errors exist */}
+          {metrics.total_errors > 0 && (
             <Card>
               <CardHeader>
                 <h3 className="text-xl font-semibold">Error Types Distribution</h3>
               </CardHeader>
               <CardBody>
                 {metrics.error_types && metrics.error_types.length > 0 ? (
-                  <div className="space-y-2">
+                  <div className="space-y-2 max-h-60 overflow-y-auto pr-2">
                     {metrics.error_types.map((errorType, idx) => (
                       <div
                         key={idx}
                         className="flex items-center justify-between p-3 bg-default-100 rounded-lg"
                       >
                         <div className="flex-1 mr-4">
-                          <div className="text-sm font-medium text-foreground truncate">
+                          <div className="text-sm font-medium text-foreground truncate" title={errorType.error_type}>
                             {errorType.error_type}
                           </div>
                         </div>
@@ -377,282 +461,192 @@ export default function MetricsPage() {
                 )}
               </CardBody>
             </Card>
+          )}
+        </div>
 
-            {/* Daily Activity with Errors */}
+        {/* Recent Items Grid */}
+        <div className={`grid grid-cols-1 ${paginatedErrors && paginatedErrors.length > 0 ? 'lg:grid-cols-2' : ''} gap-6`}>
+          {/* Recent Errors */}
+          {paginatedErrors && paginatedErrors.length > 0 && (
             <Card>
-              <CardHeader>
-                <h3 className="text-xl font-semibold">Daily Activity with Errors</h3>
+              <CardHeader className="flex justify-between items-center">
+                <h3 className="text-xl font-semibold text-red-500">Recent Errors</h3>
+                {errorsTotal > ITEMS_PER_PAGE && (
+                  <Chip size="sm" variant="flat" color="danger">
+                    {errorsTotal} Total
+                  </Chip>
+                )}
               </CardHeader>
               <CardBody>
-                {metrics.daily_stats.length > 0 ? (
-                  <ResponsiveContainer width="100%" height={300}>
-                    <LineChart data={metrics.daily_stats}>
-                      <CartesianGrid strokeDasharray="3 3" stroke="#374151" />
-                      <XAxis
-                        dataKey="date"
-                        stroke="#9CA3AF"
-                        tickFormatter={(value: any) => {
-                          const date = new Date(value);
-                          return `${date.getMonth() + 1}/${date.getDate()}`;
+                <div className={`space-y-4 ${isLoadingErrors ? 'opacity-50' : ''} max-h-[600px] overflow-y-auto pr-2`}>
+                  {paginatedErrors.map((error) => (
+                    <div
+                      key={error.id}
+                      className="p-4 bg-red-50 dark:bg-red-950/20 rounded-lg border-2 border-red-200 dark:border-red-900"
+                    >
+                      <div className="flex items-start justify-between mb-3">
+                        <div className="flex-1">
+                          <div className="flex items-center gap-2 mb-1">
+                            <Chip size="sm" variant="flat" color="danger">
+                              ID: {error.id}
+                            </Chip>
+                            <div className="text-xs text-default-500">
+                              {formatDateTime(error.date)}
+                            </div>
+                          </div>
+                          <div className="text-sm font-semibold text-red-600 dark:text-red-400 mb-2">
+                            {error.error_message}
+                          </div>
+                        </div>
+                      </div>
+                      
+                      <div className="grid grid-cols-1 gap-3 mb-3">
+                        <div className="space-y-2">
+                          {error.last_node_executed && error.last_node_executed !== '-' && (
+                            <div>
+                              <div className="text-xs font-semibold text-default-600 mb-1">
+                                Last Node:
+                              </div>
+                              <div className="text-xs text-default-500 bg-content2 p-2 rounded">
+                                {error.last_node_executed}
+                              </div>
+                            </div>
+                          )}
+                        </div>
+                        
+                        <div className="space-y-2">
+                          {error.execution_url && error.execution_url !== '-' && (
+                            <div>
+                              <div className="text-xs font-semibold text-default-600 mb-1">
+                                URL:
+                              </div>
+                              <a
+                                href={error.execution_url}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="text-xs text-blue-500 hover:text-blue-600 underline break-all block"
+                              >
+                                {error.execution_url}
+                              </a>
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                      
+                      {error.error_stack && error.error_stack !== '' && (
+                        <div>
+                          <div className="text-xs font-semibold text-default-600 mb-1">
+                            Stack:
+                          </div>
+                          <div className="text-xs text-default-500 bg-content2 p-2 rounded max-h-40 overflow-y-auto font-mono whitespace-pre-wrap">
+                            {error.error_stack}
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  ))}
+                </div>
+                {errorsTotal > ITEMS_PER_PAGE && (
+                  <div className="flex justify-center mt-4">
+                     <Pagination 
+                        total={Math.ceil(errorsTotal / ITEMS_PER_PAGE)}
+                        initialPage={1}
+                        page={errorsPage}
+                        onChange={(page) => {
+                          setErrorsPage(page);
+                          fetchErrorsPage(page);
                         }}
-                      />
-                      <YAxis stroke="#9CA3AF" />
-                      <Tooltip
-                        labelFormatter={(value: any) => formatDate(value)}
-                        contentStyle={{
-                          backgroundColor: '#1F2937',
-                          border: '1px solid #374151',
-                          borderRadius: '6px',
-                          color: '#F3F4F6'
-                        }}
-                      />
-                      <Legend />
-                      <Line
-                        type="monotone"
-                        dataKey="count"
-                        stroke="#3B82F6"
-                        strokeWidth={2}
-                        name="Total Interactions"
-                      />
-                      <Line
-                        type="monotone"
-                        dataKey="errors"
-                        stroke="#EF4444"
-                        strokeWidth={2}
-                        name="Errors"
-                      />
-                    </LineChart>
-                  </ResponsiveContainer>
-                ) : (
-                  <div className="text-center text-default-500 py-12">
-                    No daily activity data available
+                        size="sm"
+                        color="danger"
+                     />
                   </div>
                 )}
               </CardBody>
             </Card>
-          </div>
-        )}
+          )}
 
-        {/* Interactions by Mode */}
-        <Card className="mb-6">
-          <CardHeader>
-            <h3 className="text-xl font-semibold">Interactions by Mode</h3>
-          </CardHeader>
-          <CardBody>
-            {metrics.interactions_by_mode.length > 0 ? (
-              <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-                <div className="space-y-2">
-                  {metrics.interactions_by_mode.map((item, idx) => (
+          {/* Recent Interactions */}
+          <Card>
+            <CardHeader className="flex justify-between items-center">
+              <h3 className="text-xl font-semibold">Recent Interactions</h3>
+              {interactionsTotal > ITEMS_PER_PAGE && (
+                <Chip size="sm" variant="flat" color="primary">
+                  {interactionsTotal} Total
+                </Chip>
+              )}
+            </CardHeader>
+            <CardBody>
+              {paginatedInteractions.length > 0 ? (
+                <>
+                <div className={`space-y-4 ${isLoadingInteractions ? 'opacity-50' : ''} max-h-[600px] overflow-y-auto pr-2`}>
+                  {paginatedInteractions.map((metric) => (
                     <div
-                      key={idx}
-                      className="flex items-center justify-between p-3 bg-default-100 rounded-lg"
+                      key={metric.id}
+                      className="p-4 bg-default-100 rounded-lg border border-default-200"
                     >
-                      <div className="flex-1 mr-4">
-                        <div className="text-sm font-medium text-foreground truncate">
-                          {item.mode}
+                      <div className="flex items-start justify-between mb-2">
+                        <div className="text-xs text-default-500">
+                          {formatDateTime(metric.created_at)}
+                        </div>
+                        <div className="flex gap-2">
+                          {metric.sessionId !== "-" && (
+                            <Chip size="sm" variant="flat" color="secondary">
+                              {metric.sessionId.slice(0, 8)}...
+                            </Chip>
+                          )}
                         </div>
                       </div>
-                      <Chip size="sm" color="primary" variant="flat">
-                        {item.count}
-                      </Chip>
+                      <div className="mb-2">
+                        <div className="text-sm font-semibold text-foreground mb-1">
+                          Input:
+                        </div>
+                        <div className="text-sm text-default-600 bg-content2 p-2 rounded">
+                          {metric.chatInput !== "-" ? metric.chatInput : "N/A"}
+                        </div>
+                      </div>
+                      <div>
+                        <div className="text-sm font-semibold text-foreground mb-1">
+                          Output:
+                        </div>
+                        {/* eslint-disable-next-line */}
+                        <div 
+                          className="p-3 rounded-lg max-h-64 overflow-y-auto"
+                          style={{ backgroundColor: widgetSettings?.background_color || '#f4f4f5' }}
+                        >
+                          {metric.output !== "-" ? (
+                             <FormattedMessage content={metric.output} />
+                          ) : (
+                             <span className="text-default-500 text-sm">N/A</span>
+                          )}
+                        </div>
+                      </div>
                     </div>
                   ))}
                 </div>
-                <div>
-                  <ResponsiveContainer width="100%" height={300}>
-                    <PieChart>
-                      <Pie
-                        data={metrics.interactions_by_mode}
-                        dataKey="count"
-                        nameKey="mode"
-                        cx="50%"
-                        cy="50%"
-                        outerRadius={100}
-                        label={(entry: any) => `${entry.count}`}
-                      >
-                        {metrics.interactions_by_mode.map((entry, index) => (
-                          <Cell
-                            key={`cell-${index}`}
-                            fill={COLORS[index % COLORS.length]}
-                          />
-                        ))}
-                      </Pie>
-                      <Tooltip
-                        contentStyle={{
-                          backgroundColor: '#1F2937',
-                          border: '1px solid #374151',
-                          borderRadius: '6px',
-                          color: '#F3F4F6'
+                {interactionsTotal > ITEMS_PER_PAGE && (
+                  <div className="flex justify-center mt-4">
+                     <Pagination 
+                        total={Math.ceil(interactionsTotal / ITEMS_PER_PAGE)}
+                        initialPage={1}
+                        page={interactionsPage}
+                        onChange={(page) => {
+                          setInteractionsPage(page);
+                          fetchInteractionsPage(page);
                         }}
-                      />
-                      <Legend />
-                    </PieChart>
-                  </ResponsiveContainer>
-                </div>
-              </div>
-            ) : (
-              <div className="text-center text-default-500 py-12">
-                No mode data available
-              </div>
-            )}
-          </CardBody>
-        </Card>
-
-        {/* Recent Errors */}
-        {metrics.recent_errors && metrics.recent_errors.length > 0 && (
-          <Card className="mb-6">
-            <CardHeader>
-              <h3 className="text-xl font-semibold text-red-500">Recent Errors</h3>
-            </CardHeader>
-            <CardBody>
-              <div className="space-y-4 max-h-[600px] overflow-y-auto">
-                {metrics.recent_errors.map((error) => (
-                  <div
-                    key={error.id}
-                    className="p-4 bg-red-50 dark:bg-red-950/20 rounded-lg border-2 border-red-200 dark:border-red-900"
-                  >
-                    <div className="flex items-start justify-between mb-3">
-                      <div className="flex-1">
-                        <div className="flex items-center gap-2 mb-1">
-                          <Chip size="sm" variant="flat" color="danger">
-                            Error ID: {error.id}
-                          </Chip>
-                          <div className="text-xs text-default-500">
-                            {formatDateTime(error.date)}
-                          </div>
-                        </div>
-                        <div className="text-sm font-semibold text-red-600 dark:text-red-400 mb-2">
-                          {error.error_message}
-                        </div>
-                      </div>
-                    </div>
-                    
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-3 mb-3">
-                      <div className="space-y-2">
-                        {error.last_node_executed && error.last_node_executed !== '-' && (
-                          <div>
-                            <div className="text-xs font-semibold text-default-600 mb-1">
-                              Last Node Executed:
-                            </div>
-                            <div className="text-xs text-default-500 bg-content2 p-2 rounded">
-                              {error.last_node_executed}
-                            </div>
-                          </div>
-                        )}
-                        {error.mode && error.mode !== '-' && (
-                          <div>
-                            <div className="text-xs font-semibold text-default-600 mb-1">
-                              Execution Mode:
-                            </div>
-                            <Chip size="sm" variant="flat" color="default">
-                              {error.mode}
-                            </Chip>
-                          </div>
-                        )}
-                      </div>
-                      
-                      <div className="space-y-2">
-                        {error.retryOf && error.retryOf !== '-' && (
-                          <div>
-                            <div className="text-xs font-semibold text-default-600 mb-1">
-                              Retry Of:
-                            </div>
-                            <Chip size="sm" variant="flat" color="warning">
-                              Execution #{error.retryOf}
-                            </Chip>
-                          </div>
-                        )}
-                        {error.execution_url && error.execution_url !== '-' && (
-                          <div>
-                            <div className="text-xs font-semibold text-default-600 mb-1">
-                              Execution URL:
-                            </div>
-                            <a
-                              href={error.execution_url}
-                              target="_blank"
-                              rel="noopener noreferrer"
-                              className="text-xs text-blue-500 hover:text-blue-600 underline break-all"
-                            >
-                              {error.execution_url}
-                            </a>
-                          </div>
-                        )}
-                      </div>
-                    </div>
-                    
-                    {error.error_stack && error.error_stack !== '' && (
-                      <div>
-                        <div className="text-xs font-semibold text-default-600 mb-1">
-                          Stack Trace:
-                        </div>
-                        <div className="text-xs text-default-500 bg-content2 p-2 rounded max-h-40 overflow-y-auto font-mono whitespace-pre-wrap">
-                          {error.error_stack}
-                        </div>
-                      </div>
-                    )}
+                        size="sm"
+                        color="primary"
+                     />
                   </div>
-                ))}
-              </div>
+                )}
+                </>
+              ) : (
+                <div className="text-center text-default-500 py-12">
+                  No recent interactions available
+                </div>
+              )}
             </CardBody>
           </Card>
-        )}
-
-        {/* Recent Interactions */}
-        <Card>
-          <CardHeader>
-            <h3 className="text-xl font-semibold">Recent Interactions</h3>
-          </CardHeader>
-          <CardBody>
-            {metrics.recent_metrics.length > 0 ? (
-              <div className="space-y-4 max-h-[600px] overflow-y-auto">
-                {metrics.recent_metrics.map((metric) => (
-                  <div
-                    key={metric.id}
-                    className="p-4 bg-default-100 rounded-lg border border-default-200"
-                  >
-                    <div className="flex items-start justify-between mb-2">
-                      <div className="text-xs text-default-500">
-                        {formatDateTime(metric.created_at)}
-                      </div>
-                      <div className="flex gap-2">
-                        {metric.sessionId !== "-" && (
-                          <Chip size="sm" variant="flat" color="secondary">
-                            Session: {metric.sessionId.slice(0, 8)}...
-                          </Chip>
-                        )}
-                        {metric.ip !== "-" && (
-                          <Chip size="sm" variant="flat" color="default">
-                            {metric.ip}
-                          </Chip>
-                        )}
-                      </div>
-                    </div>
-                    <div className="mb-2">
-                      <div className="text-sm font-semibold text-foreground mb-1">
-                        Input:
-                      </div>
-                      <div className="text-sm text-default-600 bg-content2 p-2 rounded">
-                        {metric.chatInput !== "-" ? metric.chatInput : "N/A"}
-                      </div>
-                    </div>
-                    <div>
-                      <div className="text-sm font-semibold text-foreground mb-1">
-                        Output:
-                      </div>
-                      <div className="text-sm text-default-600 bg-content2 p-2 rounded max-h-32 overflow-y-auto">
-                        {metric.output !== "-" ? metric.output : "N/A"}
-                      </div>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            ) : (
-              <div className="text-center text-default-500 py-12">
-                No recent interactions available
-              </div>
-            )}
-          </CardBody>
-        </Card>
+        </div>
     </div>
   );
 }

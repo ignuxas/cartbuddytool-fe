@@ -27,6 +27,7 @@ interface ScrapedDataTableProps {
   onRescrape: (urls: string[], options?: { keepImages: boolean; useAI: boolean }) => void;
   isLoading: boolean;
   onFindMorePages?: () => void;
+  onBlacklist?: (urls: string[]) => void;
 }
 
 const SearchIcon = (props: any) => (
@@ -62,6 +63,7 @@ export default function ScrapedDataTable({
   onRescrape,
   isLoading,
   onFindMorePages,
+  onBlacklist,
 }: ScrapedDataTableProps) {
   const [selectedKeys, setSelectedKeys] = useState<any>(new Set([]));
   const [filterValue, setFilterValue] = useState("");
@@ -112,6 +114,18 @@ export default function ScrapedDataTable({
       onRescrape([url], { keepImages, useAI });
   };
 
+  const handleBlacklistSelected = () => {
+      if (!onBlacklist) return;
+      let selectedUrls: string[] = [];
+      if (selectedKeys === "all") {
+          selectedUrls = filteredItems.map(i => i.url);
+      } else {
+          selectedUrls = Array.from(selectedKeys as Set<string>);
+      }
+      onBlacklist(selectedUrls);
+      setSelectedKeys(new Set([]));
+  };
+
   return (
       <div className="flex flex-col gap-4">
         <div className="flex flex-col md:flex-row justify-between gap-3 items-end">
@@ -144,6 +158,16 @@ export default function ScrapedDataTable({
                             onPress={onFindMorePages}
                         >
                             Find New Pages
+                        </Button>
+                    )}
+                    {(selectedKeys === "all" || (selectedKeys instanceof Set && selectedKeys.size > 0)) && onBlacklist && (
+                        <Button
+                            color="danger"
+                            variant="flat"
+                            onPress={handleBlacklistSelected}
+                            isLoading={isLoading}
+                        >
+                            Blacklist Selected
                         </Button>
                     )}
                     <Button 
@@ -237,7 +261,20 @@ export default function ScrapedDataTable({
                           <div className="col-span-1 text-small text-default-500">
                               {item.textLength.toLocaleString()}
                           </div>
-                          <div className="col-span-2 flex justify-end">
+                          <div className="col-span-2 flex justify-end gap-1">
+                              {onBlacklist && (
+                                <Button
+                                    size="sm"
+                                    variant="light"
+                                    color="danger"
+                                    isIconOnly
+                                    title="Blacklist & Delete"
+                                    onPress={() => onBlacklist([item.url])}
+                                    isLoading={isLoading}
+                                >
+                                    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"></circle><line x1="4.93" y1="4.93" x2="19.07" y2="19.07"></line></svg>
+                                </Button>
+                              )}
                               <Button 
                                   size="sm" 
                                   variant="light" 

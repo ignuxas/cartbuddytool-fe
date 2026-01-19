@@ -69,6 +69,7 @@ interface ResultsDisplayProps {
   numSelected: number;
   handleUpdateImage?: (url: string, newImageUrl: string) => Promise<void>;
   promptModified?: boolean;
+  lastSmartUpdate?: string | null;
 }
 
 const EditIcon = (props: any) => (
@@ -156,6 +157,7 @@ export default function ResultsDisplay({
   numSelected,
   handleUpdateImage,
   promptModified,
+  lastSmartUpdate
 }: ResultsDisplayProps) {
   const {isOpen, onOpen, onOpenChange} = useDisclosure();
   const [editingItem, setEditingItem] = React.useState<ScrapedDataItem | null>(null);
@@ -610,9 +612,16 @@ export default function ResultsDisplay({
       {scrapedData.length > 0 && (
         <div>
           <div className="flex justify-between items-center mb-2">
-            <h3 className="text-xl font-bold">
-              Scraped Pages ({scrapedData.length})
-            </h3>
+            <div>
+              <h3 className="text-xl font-bold">
+                Scraped Pages ({scrapedData.length})
+              </h3>
+              {lastSmartUpdate && (
+                <p className="text-xs text-default-500">
+                  Last Smart Update: {new Date(lastSmartUpdate).toLocaleString()}
+                </p>
+              )}
+            </div>
             <div className="flex gap-2">
               {numSelected > 0 && (
                 <Button

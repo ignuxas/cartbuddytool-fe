@@ -373,6 +373,7 @@ export default function NewProjectPage() {
 
   const handleStartScraping = async () => {
     const selectedUrls = sitemapUrls.filter(item => item.selected).map(item => item.url);
+    const unselectedUrls = sitemapUrls.filter(item => !item.selected).map(item => item.url);
     const mainUrls = mainPageUrls.filter(item => item.main).map(item => item.url);
 
     if (selectedUrls.length === 0) {
@@ -387,9 +388,42 @@ export default function NewProjectPage() {
 
     try {
       console.log("[handleStartScraping] Starting scraping process for", selectedUrls.length, "URLs");
-      console.log("[handleStartScraping] Selected URLs:", selectedUrls);
-      console.log("[handleStartScraping] Base URL:", url);
-      console.log("[handleStartScraping] Auth headers:", getAuthHeaders());
+      
+      const domain = new URL(url).hostname;
+      
+      // Blacklist unselected URLs
+      if (unselectedUrls.length > 0) {
+          try {
+              console.log("[handleStartScraping] Blacklisting", unselectedUrls.length, "unselected URLs");
+              
+             try {
+                const blacklistRes = await makeApiCall(
+                    `${config.serverUrl}/api/scrape/blacklist/?domain=${domain}`,
+                    { headers: getAuthHeaders(), method: "GET" },
+                    "fetch-blacklist"
+                );
+                const existingBlacklist = blacklistRes.blacklist || [];
+                const newBlacklist = [...existingBlacklist, ...unselectedUrls];
+                const uniqueBlacklist = Array.from(new Set(newBlacklist));
+                
+                if (uniqueBlacklist.length > existingBlacklist.length) {
+                     await makeApiCall(
+                        `${config.serverUrl}/api/scrape/blacklist/`,
+                        {
+                            method: "POST",
+                            headers: getAuthHeaders(),
+                            body: JSON.stringify({ domain, blacklist: uniqueBlacklist }),
+                        },
+                        "save-blacklist"
+                    );
+                }
+             } catch (e) {
+                 console.warn("Error managing blacklist", e);
+             }
+          } catch (e) {
+              console.warn("Failed to blacklist unselected URLs", e);
+          }
+      }
       
       const requestBody = { url, urls_to_scrape: selectedUrls, main_page_urls: mainUrls };
       console.log("[handleStartScraping] Request body:", requestBody);
@@ -515,6 +549,17 @@ export default function NewProjectPage() {
 
   const handleToggleMainSelection = (urlToToggle: string) => {
     try {
+      const targetItem = mainPageUrls.find(item => item.url === urlToToggle);
+      
+      // Check limit before enabling a new one
+      if (targetItem && !targetItem.main) {
+          const currentSelected = mainPageUrls.filter(item => item.main).length;
+          if (currentSelected >= 5) {
+              alert("Maximum 5 main pages allowed.");
+              return;
+          }
+      }
+
       setMainPageUrls(prev =>
         prev.map(item =>
           item.url === urlToToggle ? { ...item, main: !item.main } : item
@@ -527,6 +572,10 @@ export default function NewProjectPage() {
 
   const handleSelectAllMain = (select: boolean) => {
     try {
+      if (select && mainPageUrls.length > 5) {
+        alert("Cannot select all pages as main. Maximum 5 allowed. Please select individually.");
+        return;
+      }
       setMainPageUrls(prev => prev.map(item => ({ ...item, main: select })));
     } catch (error: any) {
       logError("handleSelectAllMain", error, { select });
@@ -748,7 +797,7 @@ export default function NewProjectPage() {
                         <li><strong>Always available</strong>: Main pages are always accessible to the AI as context</li>
                         <li><strong>Static content</strong>: Choose pages with core business information</li>
                         <li><strong>Essential pages</strong>: Home, About, Services, Contact, FAQ, Policies</li>
-                        <li><strong>Limit recommendation</strong>: 5-15 main pages for optimal performance</li>
+                        <li><strong>Limit recommendation</strong>: Maximum 5 main pages allowed for optimal performance</li>
                       </ul>
                     </div>
                   </div>
@@ -763,9 +812,11 @@ export default function NewProjectPage() {
                 variant="bordered"
                 onClick={() => {
                   // Smart selection for main pages
-                  setMainPageUrls(prev => prev.map(item => {
-                    const url = item.url.toLowerCase();
-                    const isMainPage = url.includes('/about') || 
+                  setMainPageUrls(prev => {
+                    let count = 0;
+                    return prev.map(item => {
+                      const url = item.url.toLowerCase();
+                      let isMainPage = url.includes('/about') || 
                                      url.includes('/contact') || 
                                      url.includes('/service') || 
                                      url.includes('/home') || 
@@ -782,8 +833,19 @@ export default function NewProjectPage() {
                                       !url.includes('/tag/') &&
                                       !url.match(/\/\d{4}\//) && // year in URL
                                       !url.match(/\/page\/\d+/)); // pagination
-                    return { ...item, main: isMainPage };
-                  }));
+
+                      // Limit to 5 main pages
+                      if (isMainPage) {
+                        if (count < 5) {
+                          count++;
+                        } else {
+                          isMainPage = false;
+                        }
+                      }
+                      
+                      return { ...item, main: isMainPage };
+                    });
+                  });
                 }}
               >
                 Smart Select Main

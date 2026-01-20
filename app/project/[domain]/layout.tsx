@@ -62,6 +62,7 @@ export default function ProjectLayout({
   if (pathname?.includes("/scraping")) selected = "scraping";
   else if (pathname?.includes("/bot")) selected = "bot";
   else if (pathname?.includes("/metrics")) selected = "metrics";
+  else if (pathname?.includes("/prompt")) selected = "prompt";
 
   return (
     <div className="flex flex-col gap-6 w-full max-w-7xl mx-auto">
@@ -99,6 +100,7 @@ export default function ProjectLayout({
             <Tab key="scraping" title="Scraping & Data" />
             <Tab key="bot" title="Bot Configuration" />
             <Tab key="metrics" title="Metrics" />
+            <Tab key="prompt" title="Prompt Generation" />
         </Tabs>
       </div>
       <div className="w-full">

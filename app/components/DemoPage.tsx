@@ -23,6 +23,7 @@ interface WidgetSettings {
   input_placeholder: string;
   footer_text: string;
   view_product_text: string;
+  webhook_url?: string;
 }
 
 export default function DemoPage() {
@@ -138,8 +139,11 @@ export default function DemoPage() {
       }
 
       // Generate the chat widget script with settings
+      // Use the webhook URL from settings (which points to the proxy) to avoid CORS issues
+      const effectiveWebhookUrl = settings.webhook_url || webhookUrl!;
+
       const widgetScript = getChatWidgetScript({
-        webhookUrl: webhookUrl!,
+        webhookUrl: effectiveWebhookUrl,
         siteName: domain!,
         baseUrl: config.serverUrl, // Point to backend for static assets like lukas.png
         primaryColor: settings.primary_color,

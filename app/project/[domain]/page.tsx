@@ -193,7 +193,7 @@ export default function ProjectPage() {
     if (cachedSecret) setWebhookSecret(cachedSecret);
   }, [cachedSecret]);
 
-  const handleScrapeAdditionalPages = async () => {
+  const handleScrapeAdditionalPages = async (usePlaywright = false) => {
     const selectedAdditionalUrls = additionalUrls.filter(item => item.selected).map(item => item.url);
     
     if (selectedAdditionalUrls.length === 0) {
@@ -207,7 +207,7 @@ export default function ProjectPage() {
     clearMessages();
 
     try {
-      console.log("[handleScrapeAdditionalPages] Scraping additional pages:", selectedAdditionalUrls.length);
+      console.log("[handleScrapeAdditionalPages] Scraping additional pages:", selectedAdditionalUrls.length, "Playwright:", usePlaywright);
       const data = await makeApiCall(
         `${config.serverUrl}/api/scrape/additional/`,
         {
@@ -215,7 +215,8 @@ export default function ProjectPage() {
           headers: getAuthHeaders(),
           body: JSON.stringify({ 
             url, 
-            additional_urls: selectedAdditionalUrls 
+            additional_urls: selectedAdditionalUrls,
+            use_playwright: usePlaywright
           }),
         },
         "scrape-additional"
@@ -744,6 +745,43 @@ export default function ProjectPage() {
     }
   };
 
+  const handleRescrapeSelected = async (usePlaywright: boolean) => {
+    const selectedUrls = scrapedData.filter(item => item.selected).map(item => item.url);
+    if (selectedUrls.length === 0) {
+      addToast({ title: "Warning", description: "No pages selected.", color: "warning" });
+      return;
+    }
+
+    try {
+      console.log(`[handleRescrapeSelected] Re-scraping ${selectedUrls.length} pages (Playwright: ${usePlaywright})`);
+      addToast({ title: "Started", description: `Re-scraping ${selectedUrls.length} pages... (This may take a while)`, color: "primary" });
+      
+      await makeApiCall(
+        `${config.serverUrl}/api/scrape/additional-pages/`,
+        {
+          method: "POST",
+          headers: getAuthHeaders(),
+          body: JSON.stringify({
+            url: url, // Main project URL
+            additional_urls: selectedUrls,
+            force_rescrape: true,
+            use_playwright: usePlaywright,
+            use_ai: false // Default to heuristic for speed unless user has specific setting?
+          }),
+        },
+        "rescrape-selected-items"
+      );
+      
+      // Update cache
+      invalidateProjectCache(domain);
+      
+      addToast({ title: "Success", description: "Selected pages re-scraped successfully.", color: "success" });
+    } catch (error: any) {
+      logError("handleRescrapeSelected", error, { selectedCount: selectedUrls.length });
+      addToast({ title: "Error", description: "Failed to re-scrape selected pages.", color: "danger" });
+    }
+  };
+
   const handleToggleSelect = (urlToToggle: string) => {
     setScrapedData(prevData =>
       prevData.map(item =>
@@ -817,16 +855,16 @@ export default function ProjectPage() {
     }
   };
 
-  const handleRescrapeItem = async (pageUrl: string, domain: string) => {
+  const handleRescrapeItem = async (pageUrl: string, domain: string, usePlaywright = false) => {
     try {
-      console.log("[handleRescrapeItem] Re-scraping item:", pageUrl);
+      console.log("[handleRescrapeItem] Re-scraping item:", pageUrl, "Playwright:", usePlaywright);
       
       const data = await makeApiCall(
         `${config.serverUrl}/api/scrape/single-page/`,
         {
           method: "POST",
           headers: getAuthHeaders(),
-          body: JSON.stringify({ page_url: pageUrl, domain }),
+          body: JSON.stringify({ page_url: pageUrl, domain, use_playwright: usePlaywright }),
         },
         "rescrape-item"
       );
@@ -999,6 +1037,7 @@ export default function ProjectPage() {
                 setAdditionalUrls([]);
               }}
               handleDeleteSelected={handleDeleteSelected}
+              handleRescrapeSelected={handleRescrapeSelected}
               numSelected={scrapedData.filter(item => item.selected).length}
             />
             </div>

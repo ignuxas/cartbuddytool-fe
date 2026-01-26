@@ -5,6 +5,7 @@ import UrlForm from "../components/UrlForm";
 import AuthModal from "../components/AuthModal";
 import { Button } from "@heroui/button";
 import { Input } from "@heroui/input";
+import { Switch } from "@heroui/switch";
 import { Card, CardBody } from "@heroui/card";
 import { config } from "@/lib/config";
 import { useRouter } from "next/navigation";
@@ -168,6 +169,7 @@ export default function NewProjectPage() {
     methodUsed: string;
   } | null>(null);
   const [showPageLimitTips, setShowPageLimitTips] = useState(false);
+  const [usePlaywright, setUsePlaywright] = useState(false);
 
   const clearMessages = () => {
     setErrorMessage("");
@@ -425,7 +427,7 @@ export default function NewProjectPage() {
           }
       }
       
-      const requestBody = { url, urls_to_scrape: selectedUrls, main_page_urls: mainUrls };
+      const requestBody = { url, urls_to_scrape: selectedUrls, main_page_urls: mainUrls, use_playwright: usePlaywright };
       console.log("[handleStartScraping] Request body:", requestBody);
       
       const result = await makeApiCall(
@@ -897,21 +899,29 @@ export default function NewProjectPage() {
                 </tbody>
               </table>
             </div>
-            <div className="flex gap-2 justify-between">
-              <Button
-                variant="bordered"
-                onClick={() => setStep("selection")}
+            <div className="flex justify-between items-center gap-4">
+              <Switch
+                  isSelected={usePlaywright}
+                  onValueChange={setUsePlaywright}
               >
-                Back to Page Selection
-              </Button>
-              <Button
-                color="primary"
-                onClick={handleStartScraping}
-                isLoading={loading}
-                disabled={loading}
-              >
-                Scrape {sitemapUrls.filter(u => u.selected).length} Pages ({mainPageUrls.filter(u => u.main).length} main, {mainPageUrls.filter(u => !u.main).length} vectorized)
-              </Button>
+                  Use Playwright
+              </Switch>
+              <div className="flex gap-2">
+                <Button
+                  variant="bordered"
+                  onClick={() => setStep("selection")}
+                >
+                  Back to Page Selection
+                </Button>
+                <Button
+                  color="primary"
+                  onClick={handleStartScraping}
+                  isLoading={loading}
+                  disabled={loading}
+                >
+                  Scrape {sitemapUrls.filter(u => u.selected).length} Pages ({mainPageUrls.filter(u => u.main).length} main, {mainPageUrls.filter(u => !u.main).length} vectorized)
+                </Button>
+              </div>
             </div>
           </div>
         )}

@@ -2,18 +2,14 @@
 
 import React from "react";
 import {
-  Table,
-  TableHeader,
-  TableColumn,
-  TableBody,
-  TableRow,
-  TableCell,
   getKeyValue,
   SortDescriptor,
 } from "@heroui/table";
 import { Modal, ModalContent, ModalHeader, ModalBody, ModalFooter, useDisclosure } from "@heroui/modal";
+import { Dropdown, DropdownTrigger, DropdownMenu, DropdownItem } from "@heroui/dropdown";
 import { Button } from "@heroui/button";
 import { TrashIcon } from "./TrashIcon";
+import { VerticalDotsIcon } from "./VerticalDotsIcon";
 import { Textarea } from "@heroui/input";
 import { Input } from "@heroui/input";
 import { Switch } from "@heroui/switch";
@@ -23,6 +19,7 @@ import { Chip } from "@heroui/chip";
 import { addToast } from "@heroui/toast";
 import { config } from "@/lib/config";
 import { useRouter } from "next/navigation";
+import ScrapedPagesTable, { ScrapedDataItem as TableScrapedDataItem } from "./ScrapedPagesTable";
 
 interface ScrapedDataItem {
   url: string;
@@ -56,16 +53,17 @@ interface ResultsDisplayProps {
   handleDeleteItem: (url: string, domain: string) => void;
   handleToggleMain?: (url: string, currentMain: boolean) => void;
   handleToggleSelect: (url: string) => void;
-  handleRescrapeItem?: (url: string, domain: string) => void;
+  handleRescrapeItem?: (url: string, domain: string, usePlaywright?: boolean) => void;
   setPrompt: (prompt: string) => void;
   showAddMorePages: boolean;
   onShowAddMorePages: () => void;
   additionalUrls: { url: string; selected: boolean }[];
   onToggleAdditionalUrl: (url: string) => void;
   onAddAdditionalUrl: (url: string) => void;
-  onScrapeAdditionalPages: () => void;
+  onScrapeAdditionalPages: (usePlaywright?: boolean) => void;
   onCancelAddMorePages: () => void;
   handleDeleteSelected: () => void;
+  handleRescrapeSelected?: (usePlaywright: boolean) => void;
   numSelected: number;
   handleUpdateImage?: (url: string, newImageUrl: string) => Promise<void>;
   promptModified?: boolean;
@@ -154,134 +152,19 @@ export default function ResultsDisplay({
   onCancelAddMorePages,
   handleToggleSelect,
   handleDeleteSelected,
+  handleRescrapeSelected,
   numSelected,
   handleUpdateImage,
   promptModified,
   lastSmartUpdate
 }: ResultsDisplayProps) {
-  const {isOpen, onOpen, onOpenChange} = useDisclosure();
-  const [editingItem, setEditingItem] = React.useState<ScrapedDataItem | null>(null);
-  const [newImageUrl, setNewImageUrl] = React.useState("");
-  const [isUpdatingImage, setIsUpdatingImage] = React.useState(false);
 
-  const openEditImageModal = (item: ScrapedDataItem) => {
-    setEditingItem(item);
-    setNewImageUrl(item.image || "");
-    onOpen();
-  };
-
-  const handleSaveImage = async () => {
-    if (!editingItem || !handleUpdateImage) return;
-    
-    setIsUpdatingImage(true);
-    try {
-      await handleUpdateImage(editingItem.url, newImageUrl);
-      onOpenChange(); // Close modal
-      addToast({
-        title: "Success",
-        description: "Image updated successfully",
-        color: "success",
-      });
-    } catch (error: any) {
-      addToast({
-        title: "Error",
-        description: error.message || "Failed to update image",
-        color: "danger",
-      });
-    } finally {
-      setIsUpdatingImage(false);
-    }
-  };
-
-  const [sortDescriptor, setSortDescriptor] = React.useState<SortDescriptor>({
-    column: "url",
-    direction: "ascending",
-  });
   const [newAdditionalUrl, setNewAdditionalUrl] = React.useState("");
+  const [usePlaywrightForAdditional, setUsePlaywrightForAdditional] = React.useState(false);
+  const [showSecret, setShowSecret] = React.useState(false);
   const [embedCodeWithSettings, setEmbedCodeWithSettings] = React.useState<string>("");
-  const [page, setPage] = React.useState(1);
-  const [searchQuery, setSearchQuery] = React.useState("");
-  const [rescrapingUrl, setRescrapingUrl] = React.useState<string | null>(null);
-  const rowsPerPage = 20;
   const router = useRouter();
 
-  const sortedItems = React.useMemo(() => {
-    try {
-      // Remove duplicates based on URL before sorting
-      const uniqueData = scrapedData.reduce((acc, item) => {
-        if (!acc.find(existing => existing.url === item.url)) {
-          acc.push(item);
-        }
-        return acc;
-      }, [] as ScrapedDataItem[]);
-
-      // Filter by search query
-      const filteredData = uniqueData.filter(item => {
-        if (!searchQuery) return true;
-        const query = searchQuery.toLowerCase();
-        return (
-          item.url.toLowerCase().includes(query) ||
-          item.title.toLowerCase().includes(query)
-        );
-      });
-
-      return [...filteredData].sort((a, b) => {
-        if (sortDescriptor.column === 'select') return 0; // Don't sort by select column
-        
-        // Handle the main column specifically
-        if (sortDescriptor.column === 'main') {
-          const aMain = a.main ? 1 : 0;
-          const bMain = b.main ? 1 : 0;
-          let cmp = aMain - bMain;
-          if (sortDescriptor.direction === "descending") {
-            cmp *= -1;
-          }
-          return cmp;
-        }
-        
-        const first = a[sortDescriptor.column as keyof Omit<ScrapedDataItem, 'selected'>];
-        const second = b[sortDescriptor.column as keyof Omit<ScrapedDataItem, 'selected'>];
-        
-        if (first === undefined || second === undefined) return 0;
-        
-        let cmp =
-          (parseInt(first as string) || first) <
-          (parseInt(second as string) || second)
-            ? -1
-            : 1;
-
-        if (sortDescriptor.direction === "descending") {
-          cmp *= -1;
-        }
-
-        return cmp;
-      });
-    } catch (error: any) {
-      logComponentError("sortedItems", error, { sortDescriptor, dataLength: scrapedData.length });
-      addToast({
-        title: "Error",
-        description: "An error occurred while sorting the data.",
-        color: "danger",
-      });
-      return scrapedData; // Return unsorted data as fallback
-    }
-  }, [sortDescriptor, scrapedData, searchQuery]);
-
-  // Paginated items - only render items for current page
-  const paginatedItems = React.useMemo(() => {
-    const start = (page - 1) * rowsPerPage;
-    const end = start + rowsPerPage;
-    return sortedItems.slice(start, end);
-  }, [sortedItems, page]);
-
-  const totalPages = Math.ceil(sortedItems.length / rowsPerPage);
-  
-  const [showSecret, setShowSecret] = React.useState(false);
-
-  // Reset to page 1 when data changes or sorting changes
-  React.useEffect(() => {
-    setPage(1);
-  }, [scrapedData.length, sortDescriptor]);
 
   // Load embed code with widget settings when workflow result is available
   React.useEffect(() => {
@@ -308,157 +191,6 @@ export default function ResultsDisplay({
 
     loadEmbedCode();
   }, [workflowResult, url]);
-
-  const renderCell = React.useCallback(
-    (item: ScrapedDataItem, columnKey: React.Key) => {
-      try {
-        const cellValue = getKeyValue(item, columnKey as keyof ScrapedDataItem);
-
-        switch (columnKey) {
-          case "select":
-            return (
-              <Checkbox
-                isSelected={item.selected}
-                onValueChange={() => handleToggleSelect(item.url)}
-                aria-label={`Select row ${item.url}`}
-              />
-            );
-          case "main":
-            return handleToggleMain ? (
-              <Switch
-                isSelected={!!item.main}
-                size="sm"
-                color="success"
-                onValueChange={() => handleToggleMain(item.url, !!item.main)}
-                aria-label={`Toggle main status for ${item.url}`}
-              />
-            ) : (
-              <Chip
-                color={item.main ? "success" : "default"}
-                variant="flat"
-                size="sm"
-              >
-                {item.main ? "Yes" : "No"}
-              </Chip>
-            );
-          case "url":
-            return (
-              <a
-                href={item.url}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="text-blue-500 hover:underline truncate"
-                onClick={(e) => {
-                  // Additional error handling for link clicks
-                  try {
-                    new URL(item.url); // Validate URL before opening
-                  } catch {
-                    e.preventDefault();
-                    const message = `Invalid URL: ${item.url}`;
-                    console.error(message);
-                    addToast({ title: "Error", description: message, color: "danger" });
-                  }
-                }}
-              >
-                {item.url}
-              </a>
-            );
-          case "title":
-            return <span className="truncate" title={item.title}>{item.title}</span>;
-          case "image":
-            return item.image ? (
-              <img 
-                src={item.image} 
-                alt={item.title || "Page image"} 
-                className="w-16 h-16 object-cover rounded"
-                onError={(e) => {
-                  // Hide broken images
-                  e.currentTarget.style.display = 'none';
-                }}
-              />
-            ) : (
-              <span className="text-gray-400 text-sm">No image</span>
-            );
-          case "actions":
-            return (
-              <div className="flex gap-1">
-                {handleUpdateImage && (
-                  <Button
-                    isIconOnly
-                    size="sm"
-                    variant="light"
-                    color="primary"
-                    onPress={() => openEditImageModal(item)}
-                    title="Edit Image"
-                  >
-                    <EditIcon />
-                  </Button>
-                )}
-                {handleRescrapeItem && (
-                  <Button
-                    isIconOnly
-                    size="sm"
-                    variant="light"
-                    color="secondary"
-                    isLoading={rescrapingUrl === item.url}
-                    onPress={async () => {
-                      try {
-                        const domain = new URL(url).hostname;
-                        setRescrapingUrl(item.url);
-                        await handleRescrapeItem(item.url, domain);
-                        setRescrapingUrl(null);
-                      } catch (error: any) {
-                        setRescrapingUrl(null);
-                        const message = "Failed to re-scrape item.";
-                        logComponentError("rescrapeItem", error, { itemUrl: item.url, url });
-                        console.error(message, error.message);
-                        addToast({ title: "Error", description: message, color: "danger" });
-                      }
-                    }}
-                    aria-label={`Re-scrape item ${item.url}`}
-                    title="Re-scrape this page"
-                  >
-                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
-                    </svg>
-                  </Button>
-                )}
-                <Button
-                  isIconOnly
-                  size="sm"
-                  variant="light"
-                  onPress={() => {
-                    try {
-                      const domain = new URL(url).hostname;
-                      handleDeleteItem(item.url, domain);
-                    } catch (error: any) {
-                      const message = "Failed to delete item.";
-                      logComponentError("deleteItem", error, { itemUrl: item.url, url });
-                      console.error(message, error.message);
-                      addToast({ title: "Error", description: message, color: "danger" });
-                    }
-                  }}
-                  aria-label={`Delete item ${item.url}`}
-                >
-                  <TrashIcon className="text-lg text-danger" />
-                </Button>
-              </div>
-            );
-          default:
-            return cellValue;
-        }
-      } catch (error: any) {
-        logComponentError("renderCell", error, { item, columnKey });
-        addToast({
-          title: "Error",
-          description: "An error occurred while rendering a cell.",
-          color: "danger",
-        });
-        return <span className="text-red-500">Error</span>;
-      }
-    },
-    [handleDeleteItem, handleRescrapeItem, url, handleToggleSelect, rescrapingUrl, handleToggleMain]
-  );
 
   const handleAddAdditionalUrl = () => {
     try {
@@ -624,15 +356,45 @@ export default function ResultsDisplay({
             </div>
             <div className="flex gap-2">
               {numSelected > 0 && (
-                <Button
-                  size="sm"
-                  color="danger"
-                  variant="solid"
-                  onPress={handleDeleteSelected}
-                  disabled={retryLoading !== null}
-                >
-                  {`Delete Selected (${numSelected})`}
-                </Button>
+                <>
+                   {handleRescrapeSelected && (
+                     <Dropdown>
+                       <DropdownTrigger>
+                         <Button
+                           size="sm"
+                           color="primary"
+                           variant="flat"
+                           disabled={retryLoading !== null}
+                         >
+                           {`Rescrape Selected (${numSelected})`}
+                         </Button>
+                       </DropdownTrigger>
+                       <DropdownMenu aria-label="Rescrape options">
+                         <DropdownItem 
+                           key="rescrape-standard" 
+                           onPress={() => handleRescrapeSelected(false)}
+                         >
+                           Rescrape (Standard)
+                         </DropdownItem>
+                         <DropdownItem 
+                           key="rescrape-playwright"
+                           onPress={() => handleRescrapeSelected(true)}
+                         >
+                           Rescrape (Playwright)
+                         </DropdownItem>
+                       </DropdownMenu>
+                     </Dropdown>
+                   )}
+                    <Button
+                      size="sm"
+                      color="danger"
+                      variant="solid"
+                      onPress={handleDeleteSelected}
+                      disabled={retryLoading !== null}
+                    >
+                      {`Delete Selected (${numSelected})`}
+                    </Button>
+                </>
               )}
               <Button
                 size="sm"
@@ -746,138 +508,76 @@ export default function ResultsDisplay({
                     Add
                   </Button>
                 </div>
-                <div className="flex gap-2">
-                  <Button
-                    color="primary"
-                    onClick={onScrapeAdditionalPages}
-                    isLoading={retryLoading === "additional"}
-                    disabled={additionalUrls.filter((u) => u.selected).length === 0}
-                  >
-                    Scrape{" "}
-                    {additionalUrls.filter((u) => u.selected).length} Selected Pages
-                  </Button>
-                  <Button
-                    variant="bordered"
-                    onClick={onCancelAddMorePages}
-                    disabled={retryLoading === "additional"}
-                  >
-                    Cancel
-                  </Button>
+                <div className="flex flex-col gap-2">
+                  <div className="flex items-center gap-2 px-1">
+                    <Switch
+                        isSelected={usePlaywrightForAdditional}
+                        onValueChange={setUsePlaywrightForAdditional}
+                        size="sm"
+                    >
+                        <span className="text-sm">Use Playwright</span>
+                    </Switch>
+                  </div>
+                  <div className="flex gap-2">
+                    <Button
+                      color="primary"
+                      onClick={() => onScrapeAdditionalPages(usePlaywrightForAdditional)}
+                      isLoading={retryLoading === "additional"}
+                      disabled={additionalUrls.filter((u) => u.selected).length === 0}
+                    >
+                      Scrape{" "}
+                      {additionalUrls.filter((u) => u.selected).length} Selected Pages
+                    </Button>
+                    <Button
+                      variant="bordered"
+                      onClick={onCancelAddMorePages}
+                      disabled={retryLoading === "additional"}
+                    >
+                      Cancel
+                    </Button>
+                  </div>
                 </div>
               </CardBody>
             </Card>
           )}
 
-          {/* Search Bar */}
-          <div className="mb-3">
-            <Input
-              type="text"
-              placeholder="Search by URL or title..."
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              isClearable
-              onClear={() => setSearchQuery("")}
-              startContent={
-                <svg className="w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
-                </svg>
-              }
-            />
-            {searchQuery && (
-              <p className="text-sm text-gray-500 mt-1">
-                Showing {sortedItems.length} of {scrapedData.length} pages
-              </p>
-            )}
-          </div>
-
-          <div className="max-h-[600px] overflow-auto rounded-lg">
-            <Table
-              aria-label="Scraped data table"
-              sortDescriptor={sortDescriptor}
-              onSortChange={setSortDescriptor}
-            >
-              <TableHeader columns={columns}>
-              {(column) => {
-                if (column.key === "select") {
-                  return (
-                    <TableColumn key={column.key} allowsSorting={false}>
-                      <Checkbox
-                        isSelected={
-                          paginatedItems.length > 0 &&
-                          paginatedItems.every((item) => item.selected)
-                        }
-                        isIndeterminate={
-                          paginatedItems.length > 0 &&
-                          !paginatedItems.every((item) => item.selected) &&
-                          paginatedItems.some((item) => item.selected)
-                        }
-                        onValueChange={(isSelected) => {
-                          paginatedItems.forEach((item) => {
-                            if (item.selected !== isSelected) {
-                              handleToggleSelect(item.url);
-                            }
-                          });
-                        }}
-                        aria-label="Select all rows on current page"
-                      />
-                    </TableColumn>
-                  );
+          <ScrapedPagesTable 
+            data={scrapedData}
+            onToggleSelect={handleToggleSelect}
+            // We use a custom selection change handler to interface with parent's single-toggle method
+            onSelectionChange={(urls, isSelected) => {
+                urls.forEach(url => {
+                   // Only toggle if state differs (assuming handleToggleSelect toggles boolean)
+                   const item = scrapedData.find(i => i.url === url);
+                   if (item && item.selected !== isSelected) {
+                       handleToggleSelect(url);
+                   }
+                });
+            }}
+            onDelete={(deletedUrl) => {
+               try {
+                   // Extract hostname as done in previous implementation
+                    const domain = new URL(url).hostname;
+                    handleDeleteItem(deletedUrl, domain);
+               } catch (e: any) {
+                    console.error("Delete error", e);
+                    addToast({ title: "Error", description: "Failed to delete item", color: "danger" });
+               }
+            }}
+            onRescrape={handleRescrapeItem ? async (rescrapeUrl) => {
+                try {
+                    const domain = new URL(url).hostname;
+                    await handleRescrapeItem(rescrapeUrl, domain);
+                } catch (e: any) {
+                     console.error("Rescrape error", e);
+                     const message = "Failed to re-scrape item.";
+                     addToast({ title: "Error", description: message, color: "danger" });
                 }
-                return (
-                  <TableColumn
-                    key={column.key}
-                    allowsSorting={column.key !== "actions"}
-                  >
-                    {column.label}
-                  </TableColumn>
-                );
-              }}
-            </TableHeader>
-            <TableBody
-              items={paginatedItems}
-              emptyContent={"No pages scraped yet."}
-            >
-              {(item) => (
-                <TableRow key={`${item.url}-${item.textLength}`}>
-                  {(columnKey) => (
-                    <TableCell>{renderCell(item, columnKey)}</TableCell>
-                  )}
-                </TableRow>
-              )}
-            </TableBody>
-          </Table>
-          </div>
+            } : undefined}
+            onUpdateImage={handleUpdateImage}
+            onToggleMain={handleToggleMain}
+          />
 
-          {/* Pagination Controls */}
-          {totalPages > 1 && (
-            <div className="flex justify-center items-center gap-4 mt-4">
-              <Button
-                size="sm"
-                variant="flat"
-                isDisabled={page === 1}
-                onPress={() => setPage(page - 1)}
-              >
-                ← Previous
-              </Button>
-              <div className="flex items-center gap-2">
-                <span className="text-sm text-default-500">
-                  Page <span className="font-semibold text-default-700">{page}</span> of <span className="font-semibold text-default-700">{totalPages}</span>
-                </span>
-                <span className="text-sm text-default-400">•</span>
-                <span className="text-sm text-default-500">
-                  Showing <span className="font-semibold text-default-700">{(page - 1) * rowsPerPage + 1}</span>-<span className="font-semibold text-default-700">{Math.min(page * rowsPerPage, sortedItems.length)}</span> of <span className="font-semibold text-default-700">{sortedItems.length}</span> items
-                </span>
-              </div>
-              <Button
-                size="sm"
-                variant="flat"
-                isDisabled={page === totalPages}
-                onPress={() => setPage(page + 1)}
-              >
-                Next →
-              </Button>
-            </div>
-          )}
         </div>
       )}
 
@@ -1116,48 +816,7 @@ export default function ResultsDisplay({
           </Card>
         </div>
       )}
-      <Modal isOpen={isOpen} onOpenChange={onOpenChange}>
-        <ModalContent>
-          {(onClose) => (
-            <>
-              <ModalHeader className="flex flex-col gap-1">Edit Image URL</ModalHeader>
-              <ModalBody>
-                <p className="text-sm text-gray-500 mb-2">
-                  Enter a new image URL for: <span className="font-mono">{editingItem?.url}</span>
-                </p>
-                <Input
-                  label="Image URL"
-                  placeholder="https://example.com/image.jpg"
-                  value={newImageUrl}
-                  onValueChange={setNewImageUrl}
-                  variant="bordered"
-                />
-                {newImageUrl && (
-                  <div className="mt-2">
-                    <p className="text-xs text-gray-500 mb-1">Preview:</p>
-                    <img 
-                      src={newImageUrl} 
-                      alt="Preview" 
-                      className="w-full h-48 object-contain border rounded bg-gray-50"
-                      onError={(e) => {
-                        e.currentTarget.style.display = 'none';
-                      }}
-                    />
-                  </div>
-                )}
-              </ModalBody>
-              <ModalFooter>
-                <Button color="danger" variant="light" onPress={onClose}>
-                  Cancel
-                </Button>
-                <Button color="primary" onPress={handleSaveImage} isLoading={isUpdatingImage}>
-                  Save
-                </Button>
-              </ModalFooter>
-            </>
-          )}
-        </ModalContent>
-      </Modal>
+
     </div>
   );
 }

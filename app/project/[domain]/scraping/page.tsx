@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import { config } from "@/lib/config";
 import ActionButtons from "@/app/components/ActionButtons";
-import ScrapedDataTable from "@/app/components/ScrapedDataTable";
+import ScrapedPagesTable from "@/app/components/ScrapedPagesTable";
 import { useRouter, useParams } from "next/navigation";
 import { addToast } from "@heroui/toast";
 import { useAuthContext } from "@/app/contexts/AuthContext";
@@ -13,6 +13,7 @@ import { Card, CardBody } from "@heroui/card";
 import { Divider } from "@heroui/divider";
 import { Modal, ModalContent, ModalHeader, ModalBody, ModalFooter, useDisclosure } from "@heroui/modal";
 import BlacklistManager from "@/app/components/BlacklistManager";
+import { Switch } from "@heroui/switch";
 
 interface ScrapedDataItem {
   url: string;
@@ -21,6 +22,7 @@ interface ScrapedDataItem {
   textLength: number;
   main?: boolean;
   image?: string;
+  selected: boolean;
 }
 
 // Enhanced error logging
@@ -84,6 +86,8 @@ export default function ScrapingPage() {
   const [scrapedData, setScrapedData] = useState<ScrapedDataItem[]>([]);
   const [activeJobId, setActiveJobId] = useState<string | null>(null);
   const [blacklist, setBlacklist] = useState<string[]>([]);
+  const [keepImages, setKeepImages] = useState(true);
+  const [usePlaywright, setUsePlaywright] = useState(false);
   
   // Modals state
   const blacklistModal = useDisclosure();
@@ -137,7 +141,7 @@ export default function ScrapingPage() {
         }
 
         if (checkData.has_existing_data) {
-          setScrapedData(checkData.existing_data || []);
+          setScrapedData((checkData.existing_data || []).map((item: any) => ({ ...item, selected: false })));
         }
       } catch (error: any) {
         logError("loadProjectData", error, { domain });
@@ -291,7 +295,7 @@ export default function ScrapingPage() {
       handleRetryScraping(true);
   };
 
-  const handleRescrapePages = async (urlsToRescrape: string[], options?: { keepImages: boolean; useAI: boolean }) => {
+  const handleRescrapePages = async (urlsToRescrape: string[], options?: { keepImages: boolean; useAI: boolean; usePlaywright?: boolean }) => {
     if (urlsToRescrape.length === 0) return;
 
     setRetryLoading('scraping');
@@ -312,7 +316,8 @@ export default function ScrapingPage() {
             retry_count: retryCount,
             retry_delay: retryDelay,
             use_ai: options?.useAI ?? useAI,
-            keep_images: options?.keepImages ?? false
+            keep_images: options?.keepImages ?? false,
+            use_playwright: options?.usePlaywright ?? usePlaywright
           }),
         },
         "rescrape-pages"
@@ -345,7 +350,7 @@ export default function ScrapingPage() {
           );
 
           if (checkData.has_existing_data) {
-            setScrapedData(checkData.existing_data || []);
+            setScrapedData((checkData.existing_data || []).map((item: any) => ({ ...item, selected: false })));
           }
           setRetryLoading(null);
           setScrapingProgress(null);
@@ -393,7 +398,8 @@ export default function ScrapingPage() {
              title: "Found (Not Scraped)",
              content: "",
              textLength: 0,
-             main: false
+             main: false,
+             selected: false
           }));
           setScrapedData(prev => [...prev, ...newItems]);
           successMessage += `Found ${newUrls.length} new pages. `;
@@ -571,6 +577,33 @@ export default function ScrapingPage() {
     }
   };
 
+  const handleUpdateImage = async (pageUrl: string, newImageUrl: string) => {
+    try {
+      await makeApiCall(
+        `${config.serverUrl}/api/scrape/update-image/`,
+        {
+          method: 'POST',
+          headers: getAuthHeaders(),
+          body: JSON.stringify({
+            domain,
+            url: pageUrl,
+            image_url: newImageUrl,
+          }),
+        },
+        'updateImage'
+      );
+
+      // Update local state
+      setScrapedData(prev => prev.map(item => 
+        item.url === pageUrl ? { ...item, image: newImageUrl } : item
+      ));
+
+    } catch (error: any) {
+      logError('handleUpdateImage', error);
+      throw error; // Re-throw to be handled by the component
+    }
+  };
+
   const handleStopScraping = async () => {
     if (!activeJobId) return;
     
@@ -589,6 +622,24 @@ export default function ScrapingPage() {
       logError("handleStopScraping", error, { activeJobId });
       addToast({ title: "Error", description: "Failed to stop scraping", color: "danger" });
     }
+  };
+
+  const handleToggleSelect = (urlToToggle: string) => {
+    setScrapedData(prevData =>
+      prevData.map(item =>
+        item.url === urlToToggle ? { ...item, selected: !item.selected } : item
+      )
+    );
+  };
+
+  const handleRescrapeSelected = () => {
+    const selectedUrls = scrapedData.filter(i => i.selected).map(i => i.url);
+    handleRescrapePages(selectedUrls, { keepImages, useAI, usePlaywright });
+  };
+  
+  const handleBlacklistSelected = () => {
+    const selectedUrls = scrapedData.filter(i => i.selected).map(i => i.url);
+    handleBlacklistItems(selectedUrls);
   };
 
   if (authIsLoading) {
@@ -719,12 +770,65 @@ export default function ScrapingPage() {
           
           <div className="flex flex-col gap-4">
             <h2 className="text-xl font-semibold">Scraped Content</h2>
-            <ScrapedDataTable 
-                scrapedData={scrapedData}
-                onRescrape={handleRescrapePages}
-                isLoading={retryLoading === 'scraping' || retryLoading === 'finding-pages'}
-                onFindMorePages={handleFindMorePages}
-                onBlacklist={handleBlacklistItems}
+            <ScrapedPagesTable 
+                data={scrapedData}
+                onToggleSelect={handleToggleSelect}
+                onSelectionChange={(urls, isSelected) => {
+                     setScrapedData(prev => prev.map(item => 
+                        urls.includes(item.url) ? { ...item, selected: isSelected } : item
+                     ));
+                }}
+                onDelete={(url) => handleBlacklistItems([url])}
+                onRescrape={async (url) => handleRescrapePages([url], { keepImages, useAI, usePlaywright })}
+                onUpdateImage={handleUpdateImage}
+                headerContent={(
+                    <div className="flex flex-col md:flex-row justify-end gap-3 items-end mb-2">
+                         <div className="flex flex-col gap-2 items-end w-full md:w-auto">
+                            <div className="flex gap-4 items-center flex-wrap justify-end">
+                                <Switch isSelected={usePlaywright} onValueChange={setUsePlaywright} size="sm" color="warning">
+                                    Use Playwright
+                                </Switch>
+                                <Switch isSelected={keepImages} onValueChange={setKeepImages} size="sm">
+                                    Keep old images
+                                </Switch>
+                                {!keepImages && (
+                                    <Switch isSelected={useAI} onValueChange={setUseAI} size="sm" color="secondary">
+                                        AI Image Selection
+                                    </Switch>
+                                )}
+                            </div>
+                            <div className="flex gap-3">
+                                {handleFindMorePages && (
+                                    <Button 
+                                        color="secondary" 
+                                        variant="flat"
+                                        isLoading={retryLoading === 'finding-pages'}
+                                        onPress={handleFindMorePages}
+                                    >
+                                        Find New Pages
+                                    </Button>
+                                )}
+                                <Button
+                                    color="danger"
+                                    variant="flat"
+                                    onPress={handleBlacklistSelected}
+                                    isLoading={retryLoading === 'scraping'}
+                                    isDisabled={!scrapedData.some(i => i.selected)}
+                                >
+                                    Blacklist Selected
+                                </Button>
+                                <Button 
+                                    color="primary" 
+                                    isDisabled={!scrapedData.some(i => i.selected)}
+                                    isLoading={retryLoading === 'scraping'}
+                                    onPress={handleRescrapeSelected}
+                                >
+                                    Re-scrape Selected
+                                </Button>
+                            </div>
+                        </div>
+                    </div>
+                )}
             />
           </div>
         </>

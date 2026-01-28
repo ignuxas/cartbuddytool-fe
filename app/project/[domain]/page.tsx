@@ -12,6 +12,7 @@ import { Button } from "@heroui/button";
 import { Link } from "@heroui/link";
 import { Card, CardBody } from "@heroui/card";
 import { useProjectData, useWebhookSecret, invalidateProjectCache, useAdditionalUrls } from "@/app/utils/swr";
+import { KnowledgeBase } from "@/app/components/KnowledgeBase";
 
 interface ScrapedDataItem {
   url: string;
@@ -103,13 +104,7 @@ export default function ProjectPage() {
   const [savedPrompt, setSavedPrompt] = useState(""); // Track saved state for comparison
   const [workflowResult, setWorkflowResult] = useState<WorkflowResult | null>(null);
   const [sheetId, setSheetId] = useState<string | null>(null);
-  const [showAddMorePages, setShowAddMorePages] = useState(false);
-  const [additionalUrls, setAdditionalUrls] = useState<{ url: string; selected: boolean }[]>([]);
-  const [useAI, setUseAI] = useState(false); // AI toggle for image extraction
-  const [retryCount, setRetryCount] = useState(3);
-  const [retryDelay, setRetryDelay] = useState(1.0);
   const [webhookSecret, setWebhookSecret] = useState<string | null>(null);
-  const [lastSmartUpdate, setLastSmartUpdate] = useState<string | null>(null);
   const [scrapingProgress, setScrapingProgress] = useState<{ 
     current: number; 
     total: number; 
@@ -117,7 +112,6 @@ export default function ProjectPage() {
     currentUrl?: string;
     pageStatuses?: { url: string; status: string; error?: string; status_code?: number }[];
   } | null>(null);
-  const [showDetails, setShowDetails] = useState(false);
   
   // Ref to track the active polling job to prevent duplicate loops
   const pollingJobRef = useRef<string | null>(null);
@@ -177,9 +171,6 @@ export default function ProjectPage() {
         setWorkflowResult(projectData.existing_workflow);
       }
       
-      if (projectData.last_smart_update) {
-         setLastSmartUpdate(projectData.last_smart_update);
-      }
     } else if (!projectData.active_job && !loading) { // Only redirect if fully loaded and no job
       const message = "No data found for this project. Redirecting to home page.";
       addToast({ title: "Error", description: message, color: "danger" });
@@ -192,108 +183,6 @@ export default function ProjectPage() {
   useEffect(() => {
     if (cachedSecret) setWebhookSecret(cachedSecret);
   }, [cachedSecret]);
-
-  const handleScrapeAdditionalPages = async (usePlaywright = false) => {
-    const selectedAdditionalUrls = additionalUrls.filter(item => item.selected).map(item => item.url);
-    
-    if (selectedAdditionalUrls.length === 0) {
-      const message = "Please select at least one additional URL to scrape.";
-      addToast({ title: "Error", description: message, color: "danger" });
-      setErrorMessage(message);
-      return;
-    }
-
-    setRetryLoading('additional');
-    clearMessages();
-
-    try {
-      console.log("[handleScrapeAdditionalPages] Scraping additional pages:", selectedAdditionalUrls.length, "Playwright:", usePlaywright);
-      const data = await makeApiCall(
-        `${config.serverUrl}/api/scrape/additional/`,
-        {
-          method: "POST",
-          headers: getAuthHeaders(),
-          body: JSON.stringify({ 
-            url, 
-            additional_urls: selectedAdditionalUrls,
-            use_playwright: usePlaywright
-          }),
-        },
-        "scrape-additional"
-      );
-
-      setScrapedData((data.all_data || []).map((item: ScrapedDataItem) => ({ ...item, selected: false })));
-      setPrompt(data.prompt || "");
-      
-      // Invalidate cache to reflect new data
-      invalidateProjectCache(domain);
-
-      addToast({
-        title: "Success",
-        description: data.message || "Additional pages scraped successfully",
-        color: "success",
-      });
-      if (data.warnings) {
-        addToast({
-          title: "Warning",
-          description: data.warnings,
-          color: "warning",
-        });
-      }
-      setShowAddMorePages(false);
-      setAdditionalUrls([]);
-    } catch (error: any) {
-      logError("handleScrapeAdditionalPages", error, { url, selectedUrls: selectedAdditionalUrls });
-      const message = error.message || "Failed to scrape additional pages";
-      addToast({ title: "Error", description: message, color: "danger" });
-      setErrorMessage(message);
-    } finally {
-      setRetryLoading(null);
-    }
-  };
-
-  const handleShowAddMorePages = async () => {
-    setLoading(true);
-    clearMessages();
-
-    try {
-      console.log("[handleShowAddMorePages] Fetching additional URLs");
-      const data = await makeApiCall(
-        `${config.serverUrl}/api/scrape/get-urls/`,
-        {
-          method: "POST",
-          headers: getAuthHeaders(),
-          body: JSON.stringify({ url }),
-        },
-        "show-add-more-pages"
-      );
-
-      // Filter out URLs that are already scraped
-      const existingUrls = new Set(scrapedData.map(item => item.url));
-      const newUrls = (data.urls || []).filter((u: string) => !existingUrls.has(u));
-      
-      if (newUrls.length === 0) {
-        addToast({
-          title: "Info",
-          description: "No new pages found in the sitemap that haven't been scraped yet.",
-          color: "primary",
-        });
-        setShowAddMorePages(true); // Still show the UI to allow manual entry
-        setAdditionalUrls([]);
-        return;
-      }
-      
-      setAdditionalUrls(newUrls.map((u: string) => ({ url: u, selected: true })));
-      setShowAddMorePages(true);
-    } catch (error: any) {
-      logError("handleShowAddMorePages", error, { url });
-      const message = error.message || "Failed to fetch additional pages";
-      addToast({ title: "Error", description: message, color: "danger" });
-      setErrorMessage(message);
-    } finally {
-      setLoading(false);
-    }
-  };
 
   const pollScrapingStatus = async (jobId: string) => {
     // Determine if this is a new poll or continuing an existing one
@@ -353,122 +242,38 @@ export default function ProjectPage() {
     poll();
   };
 
-  const handleRetryScraping = async (forceRescrape = false) => {
-    setRetryLoading('scraping');
-    clearMessages();
-    setScrapingProgress({ current: 0, total: 0, status: 'pending' });
-
+  const handleImprovePrompt = async (currentPrompt: string, improvements: string) => {
+    setRetryLoading('improve-prompt');
+    
     try {
-      console.log("[handleRetryScraping] Retrying scraping, force:", forceRescrape, "use_ai:", useAI);
       const data = await makeApiCall(
-        `${config.serverUrl}/api/scrape/retry/`,
+        `${config.serverUrl}/api/prompt/improve/`,
         {
           method: "POST",
           headers: getAuthHeaders(),
-          body: JSON.stringify({ 
-            url, 
-            force_rescrape: forceRescrape, 
-            use_ai: useAI,
-            retry_count: retryCount,
-            retry_delay: retryDelay
+          body: JSON.stringify({
+            domain,
+            current_prompt: currentPrompt,
+            improvements: improvements,
           }),
         },
-        "retry-scraping"
+        "improve-prompt"
       );
 
-      if (data.job_id) {
-          addToast({
-            title: "Started",
-            description: "Scraping started in background...",
-            color: "primary",
-          });
-          pollScrapingStatus(data.job_id);
-      } else {
-          // Fallback for synchronous response
-          addToast({
-            title: "Success",
-            description: data.message || "Scraping retry completed",
-            color: "success",
-          });
-          if (data.warnings) {
-            addToast({
-              title: "Warning",
-              description: data.warnings,
-              color: "warning",
-            });
-          }
-          if (data.scraped_data) {
-            setScrapedData(data.scraped_data.map((item: ScrapedDataItem) => ({ ...item, selected: false })));
-          }
-          if (data.prompt) {
-            setPrompt(data.prompt);
-          }
-          if (data.sheet_id) {
-            setSheetId(data.sheet_id);
-          }
-          
-          invalidateProjectCache(domain);
-          
-          setRetryLoading(null);
-          setScrapingProgress(null);
-      }
-
-    } catch (error: any) {
-      logError("handleRetryScraping", error, { url, forceRescrape });
-      const message = error.message || "Failed to retry scraping";
-      addToast({ title: "Error", description: message, color: "danger" });
-      setErrorMessage(message);
-      setRetryLoading(null);
-      setScrapingProgress(null);
-    }
-  };
-
-  const handleSmartRescrapeImages = async () => {
-    setRetryLoading('smart-images');
-    clearMessages();
-
-    try {
-      console.log("[handleSmartRescrapeImages] Starting smart re-scrape, use_ai:", useAI);
-      const data = await makeApiCall(
-        `${config.serverUrl}/api/scrape/smart-images/`,
-        {
-          method: "POST",
-          headers: getAuthHeaders(),
-          body: JSON.stringify({ url, use_ai: useAI }),
-        },
-        "smart-rescrape-images"
-      );
-
+      setPrompt(data.improved_prompt);
+      
       addToast({
         title: "Success",
-        description: data.message || "Pages updated successfully",
+        description: `Prompt improved! ${data.remaining_quota} requests remaining.`,
         color: "success",
       });
-      
-      if (data.completion_percentage !== undefined) {
-        addToast({
-          title: "Update Summary",
-          description: `${data.completion_percentage}% of pages now have images (${data.pages_with_images}/${data.total_pages})`,
-          color: "secondary",
-        });
-      }
-      
-      if (data.warnings) {
-        addToast({
-          title: "Warning",
-          description: data.warnings,
-          color: "warning",
-        });
-      }
-
-      // Reload project data to show updated content
-      invalidateProjectCache(domain);
-      
     } catch (error: any) {
-      logError("handleSmartRescrapeImages", error, { url });
-      const message = error.message || "Failed to update pages";
-      addToast({ title: "Error", description: message, color: "danger" });
-      setErrorMessage(message);
+      logError("handleImprovePrompt", error, { domain });
+      addToast({
+        title: "Error",
+        description: error.message || "Failed to improve prompt",
+        color: "danger",
+      });
     } finally {
       setRetryLoading(null);
     }
@@ -494,6 +299,9 @@ export default function ProjectPage() {
       setPrompt(data.prompt || "");
       setSavedPrompt(data.prompt || ""); // Update saved state after regeneration
       
+      // Update saved prompt state as well, since the backend now auto-saves
+      setSavedPrompt(data.prompt || "");
+
       // Update cache
       invalidateProjectCache(domain);
 
@@ -519,12 +327,6 @@ export default function ProjectPage() {
       return;
     }
 
-    if (!workflowResult?.workflow_id) {
-      const message = "No workflow exists. Please create a workflow first.";
-      addToast({ title: "Error", description: message, color: "danger" });
-      return;
-    }
-
     setRetryLoading('save-prompt');
     clearMessages();
     
@@ -532,7 +334,7 @@ export default function ProjectPage() {
       console.log("[handleSavePromptToWorkflow] Saving prompt for domain:", domain);
       
       const data = await makeApiCall(
-        `${config.serverUrl}/api/workflow/prompt/`,
+        `${config.serverUrl}/api/widget/prompt/`,
         {
           method: "PUT",
           headers: getAuthHeaders(),
@@ -544,12 +346,12 @@ export default function ProjectPage() {
       setSavedPrompt(prompt); // Update saved state after successful save
       addToast({
         title: "Success",
-        description: data.message || "Prompt saved to workflow successfully",
+        description: data.message || "Prompt saved successfully",
         color: "success",
       });
     } catch (error: any) {
       logError("handleSavePromptToWorkflow", error, { domain, promptLength: prompt.length });
-      const message = error.message || "Failed to save prompt to workflow";
+      const message = error.message || "Failed to save prompt";
       addToast({ title: "Error", description: message, color: "danger" });
       setErrorMessage(message);
     } finally {
@@ -557,374 +359,8 @@ export default function ProjectPage() {
     }
   };
 
-  const handleCreateWorkflow = async () => {
-    setRetryLoading('workflow');
-    clearMessages();
-    
-    try {
-      console.log("[handleCreateWorkflow] Creating workflow for domain:", domain);
-      
-      const data = await makeApiCall(
-        `${config.serverUrl}/api/workflow/create/`,
-        {
-          method: "POST",
-          headers: getAuthHeaders(),
-          body: JSON.stringify({ domain, prompt }),
-        },
-        "create-workflow"
-      );
 
-      setWorkflowResult({
-        workflow_id: data.workflow_id,
-        workflow_url: data.workflow_url,
-        webhook_url: data.webhook_url
-      });
-      
-      // Update cache
-      invalidateProjectCache(domain);
-
-      setSavedPrompt(prompt); // Prompt is now saved with the new workflow
-      addToast({
-        title: "Success",
-        description: data.message || "Workflow created successfully",
-        color: "success",
-      });
-    } catch (error: any) {
-      logError("handleCreateWorkflow", error, { url, promptLength: prompt.length });
-      const message = error.message || "Failed to create workflow";
-      addToast({ title: "Error", description: message, color: "danger" });
-      setErrorMessage(message);
-    } finally {
-      setRetryLoading(null);
-    }
-  };
-
-  const handleForceRegenerateWorkflow = async () => {
-    setRetryLoading('workflow');
-    clearMessages();
-    
-    try {
-      console.log("[handleForceRegenerateWorkflow] Force regenerating workflow for domain:", domain);
-      
-      const data = await makeApiCall(
-        `${config.serverUrl}/api/workflow/create/`,
-        {
-          method: "POST",
-          headers: getAuthHeaders(),
-          body: JSON.stringify({ domain, prompt, force_regenerate: true }),
-        },
-        "force-regenerate-workflow"
-      );
-
-      setWorkflowResult({
-        workflow_id: data.workflow_id,
-        workflow_url: data.workflow_url,
-        webhook_url: data.webhook_url
-      });
-      
-      // Update cache
-      invalidateProjectCache(domain);
-
-      setSavedPrompt(prompt); // Prompt is now saved with the regenerated workflow
-      addToast({
-        title: "Success",
-        description: data.message || "Workflow regenerated successfully",
-        color: "success",
-      });
-    } catch (error: any) {
-      logError("handleForceRegenerateWorkflow", error, { url, promptLength: prompt.length });
-      const message = error.message || "Failed to regenerate workflow";
-      addToast({ title: "Error", description: message, color: "danger" });
-      setErrorMessage(message);
-    } finally {
-      setRetryLoading(null);
-    }
-  };
-
-  const handleToggleMain = async (urlToToggle: string, currentMain: boolean = false) => {
-    // Optimistic UI update
-    setScrapedData((prevData) =>
-      prevData.map((item) =>
-        item.url === urlToToggle ? { ...item, main: !item.main } : item
-      )
-    );
-
-    try {
-      await makeApiCall(
-        `${config.serverUrl}/api/scrape/toggle-main/`,
-        {
-          method: "POST",
-          headers: getAuthHeaders(),
-          body: JSON.stringify({ url: urlToToggle, domain, main: !currentMain }),
-        },
-        "toggle-main"
-      );
-      
-      // Update cache
-      invalidateProjectCache(domain);
-    } catch (error: any) {
-      // Revert UI on error
-      setScrapedData((prevData) =>
-        prevData.map((item) =>
-          item.url === urlToToggle ? { ...item, main: currentMain } : item
-        )
-      );
-      logError("handleToggleMain", error, { url: urlToToggle });
-      addToast({
-        title: "Error",
-        description: "Failed to update main status",
-        color: "danger",
-      });
-    }
-  };
-
-  const handleDeleteSelected = async () => {
-    const urlsToDelete = scrapedData.filter(item => item.selected).map(item => item.url);
-    if (urlsToDelete.length === 0) {
-      const message = "No items selected for deletion.";
-      addToast({ title: "Warning", description: message, color: "warning" });
-      setErrorMessage(message);
-      return;
-    }
-
-    try {
-      console.log("[handleDeleteSelected] Deleting selected items:", urlsToDelete);
-      
-      // Optimistically remove from UI
-      setScrapedData(prevData => prevData.filter(item => !item.selected));
-      
-      // Blacklist before deleting
-      try {
-          const blacklistRes = await makeApiCall(
-              `${config.serverUrl}/api/scrape/blacklist/?domain=${domain}`,
-              { headers: getAuthHeaders(), method: "GET" },
-              "fetch-blacklist-bulk-delete"
-          );
-          const currentBlacklist = blacklistRes.blacklist || [];
-          const newItems = urlsToDelete.filter(u => !currentBlacklist.includes(u));
-          
-          if (newItems.length > 0) {
-              const newBlacklist = [...currentBlacklist, ...newItems];
-              await makeApiCall(
-                `${config.serverUrl}/api/scrape/blacklist/`,
-                {
-                    method: "POST",
-                    headers: getAuthHeaders(),
-                    body: JSON.stringify({ domain, blacklist: newBlacklist }),
-                },
-                "blacklist-bulk-items"
-             );
-          }
-      } catch (e) {
-          console.warn("Failed to blacklist items during bulk delete", e);
-      }
-
-      await makeApiCall(
-        `${config.serverUrl}/api/scrape/items/delete/`,
-        {
-          method: "DELETE",
-          headers: getAuthHeaders(),
-          body: JSON.stringify({ urls: urlsToDelete, domain }),
-        },
-        "delete-selected-items"
-      );
-      
-      // Update cache
-      invalidateProjectCache(domain);
-      
-      addToast({
-        title: "Success",
-        description: `${urlsToDelete.length} item(s) deleted and blacklisted`,
-        color: "success",
-      });
-    } catch (error: any) {
-      logError("handleDeleteSelected", error, { urlsToDelete, domain });
-      const message = "Failed to delete items from server, but they have been removed from the view. You may want to reload.";
-      addToast({ title: "Error", description: message, color: "danger" });
-      setErrorMessage(message);
-    }
-  };
-
-  const handleRescrapeSelected = async (usePlaywright: boolean) => {
-    const selectedUrls = scrapedData.filter(item => item.selected).map(item => item.url);
-    if (selectedUrls.length === 0) {
-      addToast({ title: "Warning", description: "No pages selected.", color: "warning" });
-      return;
-    }
-
-    try {
-      console.log(`[handleRescrapeSelected] Re-scraping ${selectedUrls.length} pages (Playwright: ${usePlaywright})`);
-      addToast({ title: "Started", description: `Re-scraping ${selectedUrls.length} pages... (This may take a while)`, color: "primary" });
-      
-      await makeApiCall(
-        `${config.serverUrl}/api/scrape/additional-pages/`,
-        {
-          method: "POST",
-          headers: getAuthHeaders(),
-          body: JSON.stringify({
-            url: url, // Main project URL
-            additional_urls: selectedUrls,
-            force_rescrape: true,
-            use_playwright: usePlaywright,
-            use_ai: false // Default to heuristic for speed unless user has specific setting?
-          }),
-        },
-        "rescrape-selected-items"
-      );
-      
-      // Update cache
-      invalidateProjectCache(domain);
-      
-      addToast({ title: "Success", description: "Selected pages re-scraped successfully.", color: "success" });
-    } catch (error: any) {
-      logError("handleRescrapeSelected", error, { selectedCount: selectedUrls.length });
-      addToast({ title: "Error", description: "Failed to re-scrape selected pages.", color: "danger" });
-    }
-  };
-
-  const handleToggleSelect = (urlToToggle: string) => {
-    setScrapedData(prevData =>
-      prevData.map(item =>
-        item.url === urlToToggle ? { ...item, selected: !item.selected } : item
-      )
-    );
-  };
-
-  const handleDeleteItem = async (urlToDelete: string) => {
-    try {
-      console.log("[handleDeleteItem] Deleting and blacklisting item:", urlToDelete);
-      
-      const confirmMessage = "Are you sure you want to delete this page? It will also be added to the blacklist to prevent future scraping.";
-      if (!confirm(confirmMessage)) return;
-
-      // Optimistically remove from UI first
-      setScrapedData(prev => prev.filter(item => item.url !== urlToDelete));
-
-      // 1. Blacklist the URL
-      try {
-          // Check/Fetch current blacklist to avoid overwrite (similar to New Project flow)
-          // Or assume we can just append if backend supported it, but it doesn't yet.
-          // Better approach: Use the bulk delete+blacklist logic if possible or replicate it.
-          // Let's replicate smart logic:
-          const blacklistRes = await makeApiCall(
-              `${config.serverUrl}/api/scrape/blacklist/?domain=${domain}`,
-              { headers: getAuthHeaders(), method: "GET" },
-              "fetch-blacklist-single-delete"
-          );
-          const currentBlacklist = blacklistRes.blacklist || [];
-          if (!currentBlacklist.includes(urlToDelete)) {
-             const newBlacklist = [...currentBlacklist, urlToDelete];
-             await makeApiCall(
-                `${config.serverUrl}/api/scrape/blacklist/`,
-                {
-                    method: "POST",
-                    headers: getAuthHeaders(),
-                    body: JSON.stringify({ domain, blacklist: newBlacklist }),
-                },
-                "blacklist-single-item"
-             );
-          }
-      } catch (e) {
-          console.warn("Failed to blacklist item during delete", e);
-      }
-
-      // 2. Delete the item
-      await makeApiCall(
-        `${config.serverUrl}/api/scrape/item/delete/`,
-        {
-          method: "DELETE",
-          headers: getAuthHeaders(),
-          body: JSON.stringify({ url: urlToDelete, domain }),
-        },
-        "delete-item"
-      );
-      
-      // Update cache
-      invalidateProjectCache(domain);
-      
-      addToast({
-        title: "Success",
-        description: "Page deleted and blacklisted",
-        color: "success",
-      });
-    } catch (error: any) {
-      logError("handleDeleteItem", error, { urlToDelete, domain });
-      const message = "Failed to delete item from server, but it has been removed from the view. You may want to reload.";
-      addToast({ title: "Error", description: message, color: "warning" });
-      setErrorMessage(message);
-    }
-  };
-
-  const handleRescrapeItem = async (pageUrl: string, domain: string, usePlaywright = false) => {
-    try {
-      console.log("[handleRescrapeItem] Re-scraping item:", pageUrl, "Playwright:", usePlaywright);
-      
-      const data = await makeApiCall(
-        `${config.serverUrl}/api/scrape/single-page/`,
-        {
-          method: "POST",
-          headers: getAuthHeaders(),
-          body: JSON.stringify({ page_url: pageUrl, domain, use_playwright: usePlaywright }),
-        },
-        "rescrape-item"
-      );
-      
-      // Update the item in the UI with the new data
-      if (data.updated_data) {
-        setScrapedData(prevData => 
-          prevData.map(item => 
-            item.url === pageUrl 
-              ? { ...item, ...data.updated_data, selected: item.selected }
-              : item
-          )
-        );
-      }
-      
-      // Update cache
-      invalidateProjectCache(domain);
-
-      addToast({
-        title: "Success",
-        description: "Page re-scraped successfully",
-        color: "success",
-      });
-    } catch (error: any) {
-      logError("handleRescrapeItem", error, { pageUrl, domain });
-      const message = error.message || "Failed to re-scrape page";
-      addToast({ title: "Error", description: message, color: "danger" });
-      throw error; // Re-throw to let the button handle loading state
-    }
-  };
-
-  const handleUpdateImage = async (url: string, newImageUrl: string) => {
-    try {
-      await makeApiCall(
-        `${config.serverUrl}/api/scrape/update-image/`,
-        {
-          method: 'POST',
-          headers: getAuthHeaders(),
-          body: JSON.stringify({
-            domain,
-            url,
-            image_url: newImageUrl,
-          }),
-        },
-        'updateImage'
-      );
-
-      // Update local state
-      setScrapedData(prev => prev.map(item => 
-        item.url === url ? { ...item, image: newImageUrl } : item
-      ));
-      
-      // Update cache
-      invalidateProjectCache(domain);
-
-    } catch (error: any) {
-      logError('handleUpdateImage', error);
-      throw error; // Re-throw to be handled by the component
-    }
-  };
+   // Functions removed: handleCreateWorkflow, handleForceRegenerateWorkflow, handleToggleMain, etc.
 
   if (authIsLoading) {
     return (
@@ -954,8 +390,14 @@ export default function ProjectPage() {
                 isPressable
                 onPress={() => {
                    let demoUrl = `/demo?domain=${domain}`;
+                   // Try to use legacy workflow URL first, then fall back to the standard Django endpoint
                    if (workflowResult?.webhook_url) {
                        demoUrl += `&webhook=${encodeURIComponent(workflowResult.webhook_url)}`;
+                   } else {
+                       // New Architecture: Use the backend chat proxy directly
+                       const serverUrl = process.env.NEXT_PUBLIC_SERVER_URL || 'http://localhost:8000';
+                       const chatUrl = `${serverUrl}/api/chat/`;
+                       demoUrl += `&webhook=${encodeURIComponent(chatUrl)}`;
                    }
                    router.push(demoUrl);
                 }}
@@ -996,50 +438,21 @@ export default function ProjectPage() {
             <div className="mt-4">
               <h2 className="text-xl font-bold mb-4">Project Data</h2>
               <ResultsDisplay
-                lastSmartUpdate={lastSmartUpdate}
                 sheetId={sheetId}
                 prompt={prompt}
                 workflowResult={workflowResult}
                 webhookSecret={webhookSecret}
                 scrapedData={scrapedData}
                 url={url}
-              loading={loading}
-              retryLoading={retryLoading}
-              handleRegeneratePrompt={handleRegeneratePrompt}
-              handleCreateWorkflow={handleCreateWorkflow}
-              handleForceRegenerateWorkflow={handleForceRegenerateWorkflow}
-              handleSavePromptToWorkflow={handleSavePromptToWorkflow}
-              handleDeleteItem={handleDeleteItem}
-              handleToggleMain={handleToggleMain}
-              handleRescrapeItem={handleRescrapeItem}
-              handleUpdateImage={handleUpdateImage}
-              handleToggleSelect={handleToggleSelect}
-              setPrompt={setPrompt}
-              promptModified={prompt !== savedPrompt}
-              showAddMorePages={showAddMorePages}
-              onShowAddMorePages={handleShowAddMorePages}
-              additionalUrls={additionalUrls}
-              onToggleAdditionalUrl={(urlToToggle) => {
-                setAdditionalUrls(prev =>
-                  prev.map(item =>
-                    item.url === urlToToggle ? { ...item, selected: !item.selected } : item
-                  )
-                );
-              }}
-              onAddAdditionalUrl={(newUrl) => {
-                if (newUrl && !additionalUrls.some(item => item.url === newUrl)) {
-                  setAdditionalUrls(prev => [...prev, { url: newUrl, selected: true }]);
-                }
-              }}
-              onScrapeAdditionalPages={handleScrapeAdditionalPages}
-              onCancelAddMorePages={() => {
-                setShowAddMorePages(false);
-                setAdditionalUrls([]);
-              }}
-              handleDeleteSelected={handleDeleteSelected}
-              handleRescrapeSelected={handleRescrapeSelected}
-              numSelected={scrapedData.filter(item => item.selected).length}
-            />
+                loading={loading}
+                retryLoading={retryLoading}
+                handleRegeneratePrompt={handleRegeneratePrompt}
+                handleImprovePrompt={handleImprovePrompt}
+                handleSavePromptToWorkflow={handleSavePromptToWorkflow}
+                setPrompt={setPrompt}
+                promptModified={prompt !== savedPrompt}
+              />
+              <KnowledgeBase domain={domain} authKey={authKey} />
             </div>
           </>
         ))}

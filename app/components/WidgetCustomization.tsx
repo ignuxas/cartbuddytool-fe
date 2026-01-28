@@ -7,6 +7,7 @@ import { Button } from "@heroui/button";
 import { Textarea } from "@heroui/input";
 import { addToast } from "@heroui/toast";
 import { config } from "@/lib/config";
+import { useMasterPrompts } from "@/app/utils/swr";
 
 interface WidgetCustomizationProps {
   domain: string;
@@ -27,9 +28,13 @@ interface WidgetSettings {
   input_placeholder: string;
   footer_text: string;
   view_product_text: string;
+  ai_model?: string;
+  master_prompt_id?: number | null;
 }
 
 export default function WidgetCustomization({ domain, authKey, onSettingsUpdated }: WidgetCustomizationProps) {
+  const [availableModels, setAvailableModels] = useState<{id: string, name: string}[]>([]);
+  const { prompts: masterPrompts } = useMasterPrompts(authKey);
   const [settings, setSettings] = useState<WidgetSettings>({
     primary_color: '#3b82f6',
     secondary_color: '#1d4ed8',
@@ -48,7 +53,9 @@ export default function WidgetCustomization({ domain, authKey, onSettingsUpdated
     bubble_button_text: 'Chat with AI assistant',
     input_placeholder: 'Send message...',
     footer_text: 'Ask me anything about this website',
-    view_product_text: 'View Product'
+    view_product_text: 'View Product',
+    ai_model: 'gemini-2.5-flash',
+    master_prompt_id: null
   });
   
   const [loading, setLoading] = useState(false);
@@ -57,7 +64,24 @@ export default function WidgetCustomization({ domain, authKey, onSettingsUpdated
 
   useEffect(() => {
     loadSettings();
+    fetchModels();
   }, [domain]);
+
+  const fetchModels = async () => {
+    try {
+      const response = await fetch(`${config.serverUrl}/api/ai-models/`, {
+        headers: { 'X-Auth-Key': authKey }
+      });
+      if (response.ok) {
+        const data = await response.json();
+        if (data.models) {
+            setAvailableModels(data.models);
+        }
+      }
+    } catch (e) {
+      console.error("Failed to fetch AI models", e);
+    }
+  };
 
   const loadSettings = async () => {
     setLoading(true);
@@ -163,6 +187,69 @@ export default function WidgetCustomization({ domain, authKey, onSettingsUpdated
         <h3 className="text-xl font-bold">Chat Widget Customization</h3>
       </CardHeader>
       <CardBody className="gap-4">
+        <div className="flex flex-col gap-2 mb-2">
+           <label className="text-sm font-medium">AI Model</label>
+           {availableModels.length > 0 ? (
+             <div className="relative">
+               <select 
+                 aria-label="Select AI Model"
+                 className="w-full h-10 px-3 pr-10 rounded-medium bg-default-100 text-small outline-none focus:ring-2 focus:ring-primary appearance-none cursor-pointer hover:bg-default-200 transition-colors"
+                 value={settings.ai_model || 'gemini-2.5-flash'}
+                 onChange={(e) => setSettings({...settings, ai_model: e.target.value})}
+               >
+                  {availableModels.map(m => (
+                      <option key={m.id} value={m.id}>{m.name}</option>
+                  ))}
+               </select>
+                <div className="absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none text-default-500">
+                 <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                   <path d="M6 9l6 6 6-6"/>
+                 </svg>
+               </div>
+             </div>
+           ) : (
+             <Input
+               type="text"
+               aria-label="AI Model ID"
+               placeholder="gemini-2.5-flash"
+               value={settings.ai_model || ''}
+               onChange={(e) => setSettings({...settings, ai_model: e.target.value})}
+             />
+           )}
+           <p className="text-tiny text-default-500">
+             {availableModels.length > 0 
+               ? "Select the Gemini model to power your assistant." 
+               : "Enter the Gemini model ID manually (e.g., gemini-2.5-flash)."}
+           </p>
+        </div>
+
+        <div className="flex flex-col gap-2">
+           <label className="text-sm font-medium">Master Prompt Template</label>
+           <div className="relative">
+             <select
+               aria-label="Master Prompt Template"
+               className="w-full bg-default-100 hover:bg-default-200 h-10 px-3 rounded-medium outline-none text-small appearance-none transition-colors border-2 border-transparent focus:border-primary"
+               value={settings.master_prompt_id || ''}
+               onChange={(e) => setSettings({...settings, master_prompt_id: e.target.value ? Number(e.target.value) : null})}
+             >
+               <option value="">Default (Hardcoded)</option>
+               {masterPrompts?.map((mp: any) => (
+                 <option key={mp.id} value={mp.id}>
+                   {mp.name}
+                 </option>
+               ))}
+             </select>
+             <div className="absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none text-default-500">
+               <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                 <path d="M6 9l6 6 6-6"/>
+               </svg>
+             </div>
+           </div>
+           <p className="text-tiny text-default-500">
+             Choose the base behavior for the assistant.
+           </p>
+        </div>
+
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
           <div className="flex flex-col gap-2">
             <label className="text-sm font-medium">Primary Color</label>

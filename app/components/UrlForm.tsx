@@ -25,9 +25,9 @@ export default function UrlForm({
       className="flex w-full max-w-lg items-center gap-2"
     >
       <Input
-        type="url"
+        type="text"
         aria-label="Website URL"
-        placeholder="Enter your website URL to get started..."
+        placeholder="Enter your website URL to get started... (e.g. example.com)"
         value={url}
         onChange={(e) => setUrl(e.target.value)}
         required

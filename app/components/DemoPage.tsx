@@ -43,8 +43,8 @@ export default function DemoPage() {
   const maxRetries = 2;
 
   useEffect(() => {
-    if (!domain || !webhookUrl) {
-      setError("Missing required parameters: domain and webhook URL");
+    if (!domain) {
+      setError("Missing required parameter: domain");
       setLoading(false);
       return;
     }
@@ -83,6 +83,24 @@ export default function DemoPage() {
       const settings = await settingsResponse.json();
       setWidgetSettings(settings);
       console.log("Widget settings loaded:", settings);
+
+      // Webhook Strategy: 
+      // 1. Prefer webhookUrl from URL param (if passed explicitly)
+      // 2. Fallback to settings.webhook_url (from backend WidgetCustomization/migration)
+      // 3. Fallback to standard backend chat endpoint construction
+      
+      let effectiveWebhookUrl = webhookUrl;
+      
+      if (!effectiveWebhookUrl) {
+          if (settings.webhook_url && settings.webhook_url.length > 0) {
+              effectiveWebhookUrl = settings.webhook_url;
+          } else {
+               // Default to this app's server chat endpoint
+               effectiveWebhookUrl = `${config.serverUrl}/api/chat/`;
+          }
+      }
+      
+      console.log("Using Webhook URL:", effectiveWebhookUrl);
 
       // Fetch the website screenshot (public endpoint, no auth required)
       console.log("Fetching screenshot from server for domain:", domain);
@@ -139,11 +157,9 @@ export default function DemoPage() {
       }
 
       // Generate the chat widget script with settings
-      // Use the webhook URL from settings (which points to the proxy) to avoid CORS issues
-      const effectiveWebhookUrl = settings.webhook_url || webhookUrl!;
-
+      // Use the calculated effective URL
       const widgetScript = getChatWidgetScript({
-        webhookUrl: effectiveWebhookUrl,
+        webhookUrl: effectiveWebhookUrl!,
         siteName: domain!,
         baseUrl: config.serverUrl, // Point to backend for static assets like lukas.png
         primaryColor: settings.primary_color,

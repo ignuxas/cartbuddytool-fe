@@ -20,6 +20,8 @@ export default function BotSettingsPage() {
                   authKey={authKey}
                   onSettingsUpdated={() => {
                     setWidgetSettingsKey(prev => prev + 1);
+                    // Trigger widget refresh
+                    window.dispatchEvent(new CustomEvent('cartbuddy:refresh-widget'));
                     addToast({
                       title: 'Success',
                       description: 'Widget settings updated.',

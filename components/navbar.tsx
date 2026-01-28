@@ -42,6 +42,13 @@ export const Navbar = () => {
                 </NextLink>
               </NavbarItem>
             )}
+            {isAuthenticated && (
+              <NavbarItem isActive={pathname === "/prompts"}>
+                <NextLink className="text-foreground data-[active=true]:text-primary data-[active=true]:font-medium" href="/prompts">
+                  Prompts
+                </NextLink>
+              </NavbarItem>
+            )}
         </div>
       </NavbarContent>
 

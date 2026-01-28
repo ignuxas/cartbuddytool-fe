@@ -14,6 +14,8 @@ import { Divider } from "@heroui/divider";
 import { Modal, ModalContent, ModalHeader, ModalBody, ModalFooter, useDisclosure } from "@heroui/modal";
 import BlacklistManager from "@/app/components/BlacklistManager";
 import { Switch } from "@heroui/switch";
+import { Checkbox } from "@heroui/checkbox";
+import { Input } from "@heroui/input";
 
 interface ScrapedDataItem {
   url: string;
@@ -88,6 +90,10 @@ export default function ScrapingPage() {
   const [blacklist, setBlacklist] = useState<string[]>([]);
   const [keepImages, setKeepImages] = useState(true);
   const [usePlaywright, setUsePlaywright] = useState(false);
+  const [showAddMorePages, setShowAddMorePages] = useState(false);
+  const [additionalUrls, setAdditionalUrls] = useState<{ url: string; selected: boolean }[]>([]);
+  const [newAdditionalUrl, setNewAdditionalUrl] = useState("");
+  const [usePlaywrightForAdditional, setUsePlaywrightForAdditional] = useState(false);
   
   // Modals state
   const blacklistModal = useDisclosure();
@@ -195,6 +201,154 @@ export default function ScrapingPage() {
           addToast({ title: "Error", description: "Error updating blacklist", color: "danger" });
           return false;
       }
+  };
+
+  const handleShowAddMorePages = async () => {
+    setRetryLoading('finding-pages');
+    clearMessages();
+
+    try {
+      console.log("[handleShowAddMorePages] Fetching additional URLs");
+      const data = await makeApiCall(
+        `${config.serverUrl}/api/scrape/get-urls/`,
+        {
+          method: "POST",
+          headers: getAuthHeaders(),
+          body: JSON.stringify({ url }),
+        },
+        "show-add-more-pages"
+      );
+
+      // Filter out URLs that are already scraped
+      const existingUrls = new Set(scrapedData.map(item => item.url));
+      const newUrls = (data.urls || []).filter((u: string) => !existingUrls.has(u));
+      
+      if (newUrls.length === 0) {
+        addToast({
+          title: "Info",
+          description: "No new pages found in the sitemap that haven't been scraped yet.",
+          color: "primary",
+        });
+        setShowAddMorePages(true); // Still show the UI to allow manual entry
+        setAdditionalUrls([]);
+        return;
+      }
+      
+      setAdditionalUrls(newUrls.map((u: string) => ({ url: u, selected: true })));
+      setShowAddMorePages(true);
+    } catch (error: any) {
+      logError("handleShowAddMorePages", error, { url });
+      const message = error.message || "Failed to fetch additional pages";
+      addToast({ title: "Error", description: message, color: "danger" });
+      setErrorMessage(message);
+    } finally {
+      setRetryLoading(null);
+    }
+  };
+
+  const handleScrapeAdditionalPages = async (usePlaywrightFn = false) => {
+    const selectedAdditionalUrls = additionalUrls.filter(item => item.selected).map(item => item.url);
+    
+    if (selectedAdditionalUrls.length === 0) {
+      const message = "Please select at least one additional URL to scrape.";
+      addToast({ title: "Error", description: message, color: "danger" });
+      setErrorMessage(message);
+      return;
+    }
+
+    setRetryLoading('additional');
+    clearMessages();
+
+    try {
+      console.log("[handleScrapeAdditionalPages] Scraping additional pages:", selectedAdditionalUrls.length, "Playwright:", usePlaywrightFn);
+      const data = await makeApiCall(
+        `${config.serverUrl}/api/scrape/additional/`,
+        {
+          method: "POST",
+          headers: getAuthHeaders(),
+          body: JSON.stringify({ 
+            url, 
+            additional_urls: selectedAdditionalUrls,
+            use_playwright: usePlaywrightFn
+          }),
+        },
+        "scrape-additional"
+      );
+
+      // Backend returns all_data, let's update scrapedData
+      if (data.all_data) {
+          setScrapedData((data.all_data || []).map((item: any) => ({ ...item, selected: false })));
+      } else {
+          // If backend doesn't return full list, we might need to reload or append
+           const checkData = await makeApiCall(
+            `${config.serverUrl}/api/scrape/check-existing/`,
+            {
+              method: "POST",
+              headers: getAuthHeaders(),
+              body: JSON.stringify({ url }),
+            },
+            "reload-project-data"
+          );
+          if (checkData.has_existing_data) {
+            setScrapedData((checkData.existing_data || []).map((item: any) => ({ ...item, selected: false })));
+          }
+      }
+
+      addToast({
+        title: "Success",
+        description: data.message || "Additional pages scraped successfully",
+        color: "success",
+      });
+      if (data.warnings) {
+        addToast({
+          title: "Warning",
+          description: data.warnings,
+          color: "warning",
+        });
+      }
+      setShowAddMorePages(false);
+      setAdditionalUrls([]);
+    } catch (error: any) {
+      logError("handleScrapeAdditionalPages", error, { url, selectedUrls: selectedAdditionalUrls });
+      const message = error.message || "Failed to scrape additional pages";
+      addToast({ title: "Error", description: message, color: "danger" });
+      setErrorMessage(message);
+    } finally {
+      setRetryLoading(null);
+    }
+  };
+
+  const handleAddAdditionalUrl = () => {
+    try {
+      if (!newAdditionalUrl.trim()) return;
+
+      // Validate URL format
+      try {
+        new URL(newAdditionalUrl);
+      } catch {
+        addToast({ title: "Error", description: "Invalid URL format.", color: "danger" });
+        return;
+      }
+      
+      if (!additionalUrls.some(item => item.url === newAdditionalUrl)) {
+          setAdditionalUrls(prev => [...prev, { url: newAdditionalUrl, selected: true }]);
+           setNewAdditionalUrl("");
+      } else {
+          addToast({ title: "Info", description: "URL already in list", color: "primary" });
+      }
+
+    } catch (error: any) {
+      logError("handleAddAdditionalUrl", error, { newAdditionalUrl });
+      addToast({ title: "Error", description: "Failed to add the URL.", color: "danger" });
+    }
+  };
+   
+  const handleToggleAdditionalUrl = (urlToToggle: string) => {
+    setAdditionalUrls(prev =>
+        prev.map(item =>
+        item.url === urlToToggle ? { ...item, selected: !item.selected } : item
+        )
+    );
   };
 
   const handleBlacklistItems = (items: string[]) => {
@@ -770,6 +924,103 @@ export default function ScrapingPage() {
           
           <div className="flex flex-col gap-4">
             <h2 className="text-xl font-semibold">Scraped Content</h2>
+
+          {showAddMorePages && (
+            <Card className="mb-4">
+              <CardBody>
+                <h4 className="text-lg font-semibold mb-2">
+                  Add Additional Pages
+                </h4>
+                <div className="flex gap-2 mb-2">
+                  <Button
+                    size="sm"
+                    onClick={() => {
+                        const newUrls = [...additionalUrls];
+                        newUrls.forEach(item => item.selected = true);
+                        setAdditionalUrls(newUrls);
+                    }}
+                  >
+                    Select All
+                  </Button>
+                  <Button
+                    size="sm"
+                    onClick={() => {
+                        const newUrls = [...additionalUrls];
+                        newUrls.forEach(item => item.selected = false);
+                        setAdditionalUrls(newUrls);
+                    }}
+                  >
+                    Deselect All
+                  </Button>
+                </div>
+                <div className="max-h-48 overflow-y-auto border rounded-md p-2 flex flex-col gap-2 mb-2">
+                  {additionalUrls.length > 0 ? (
+                    additionalUrls.map((item, index) => (
+                      <Checkbox
+                        key={`${item.url}-${index}`}
+                        isSelected={item.selected}
+                        onValueChange={() => handleToggleAdditionalUrl(item.url)}
+                        size="sm"
+                      >
+                        <span className="text-sm truncate" title={item.url}>{item.url}</span>
+                      </Checkbox>
+                    ))
+                  ) : (
+                    <p className="text-sm text-default-500">
+                      No additional pages found in sitemap
+                    </p>
+                  )}
+                </div>
+                <div className="flex gap-2 mb-2">
+                  <Input
+                    value={newAdditionalUrl}
+                    onChange={(e) => setNewAdditionalUrl(e.target.value)}
+                    placeholder="Add custom URL (include http:// or https://)"
+                    onKeyDown={(e) => e.key === "Enter" && handleAddAdditionalUrl()}
+                  />
+                  <Button 
+                    onClick={handleAddAdditionalUrl}
+                    isDisabled={!newAdditionalUrl.trim()}
+                  >
+                    Add
+                  </Button>
+                </div>
+                <div className="flex flex-col gap-2">
+                  <div className="flex items-center gap-2 px-1">
+                    <Switch
+                        isSelected={usePlaywrightForAdditional}
+                        onValueChange={setUsePlaywrightForAdditional}
+                        size="sm"
+                    >
+                        <span className="text-sm">Use Playwright</span>
+                    </Switch>
+                  </div>
+                  <div className="flex gap-2">
+                    <Button
+                      color="primary"
+                      onClick={() => handleScrapeAdditionalPages(usePlaywrightForAdditional)}
+                      isLoading={retryLoading === "additional"}
+                      isDisabled={additionalUrls.filter((u) => u.selected).length === 0}
+                    >
+                      Scrape{" "}
+                      {additionalUrls.filter((u) => u.selected).length} Selected Pages
+                    </Button>
+                    <Button
+                      variant="bordered"
+                      onClick={() => {
+                          setShowAddMorePages(false);
+                          setAdditionalUrls([]);
+                      }}
+                      isDisabled={retryLoading === "additional"}
+                    >
+                      Cancel
+                    </Button>
+                  </div>
+                </div>
+              </CardBody>
+            </Card>
+          )}
+
             <ScrapedPagesTable 
                 data={scrapedData}
                 onToggleSelect={handleToggleSelect}
@@ -798,16 +1049,15 @@ export default function ScrapingPage() {
                                 )}
                             </div>
                             <div className="flex gap-3">
-                                {handleFindMorePages && (
-                                    <Button 
-                                        color="secondary" 
-                                        variant="flat"
-                                        isLoading={retryLoading === 'finding-pages'}
-                                        onPress={handleFindMorePages}
-                                    >
-                                        Find New Pages
-                                    </Button>
-                                )}
+                                <Button 
+                                    color="secondary" 
+                                    variant="flat"
+                                    isLoading={retryLoading === 'finding-pages'}
+                                    onPress={handleShowAddMorePages}
+                                    isDisabled={showAddMorePages}
+                                >
+                                    Add Pages
+                                </Button>
                                 <Button
                                     color="danger"
                                     variant="flat"

@@ -183,16 +183,24 @@ export default function NewProjectPage() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
-    if (!url.trim()) {
+    let processedUrl = url.trim();
+
+    if (!processedUrl) {
       const message = "Please enter a valid URL";
       addToast({ title: "Error", description: message, color: "danger" });
       setErrorMessage(message);
       return;
     }
 
+    // Auto-fix URL scheme if missing
+    if (!/^https?:\/\//i.test(processedUrl)) {
+      processedUrl = `https://${processedUrl}`;
+      setUrl(processedUrl); // Update input field
+    }
+
     // Validate URL format
     try {
-      new URL(url);
+      new URL(processedUrl);
     } catch {
       const message = "Please enter a valid URL (including http:// or https://)";
       addToast({ title: "Error", description: message, color: "danger" });
@@ -209,7 +217,7 @@ export default function NewProjectPage() {
     setShowPageLimitTips(false);
 
     try {
-      console.log("[handleSubmit] Starting submission process for URL:", url);
+      console.log("[handleSubmit] Starting submission process for URL:", processedUrl);
       
       // First check if domain already has data
       const checkData = await makeApiCall(
@@ -217,7 +225,7 @@ export default function NewProjectPage() {
         {
           method: "POST",
           headers: getAuthHeaders(),
-          body: JSON.stringify({ url }),
+          body: JSON.stringify({ url: processedUrl }),
         },
         "check-existing"
       );
@@ -239,7 +247,7 @@ export default function NewProjectPage() {
           {
             method: "POST",
             headers: getAuthHeaders(),
-            body: JSON.stringify({ url }),
+            body: JSON.stringify({ url: processedUrl }),
           },
           "get-urls"
         );
@@ -346,27 +354,9 @@ export default function NewProjectPage() {
       return;
     }
 
-    // Initialize main page selection with smart defaults
+    // Initialize main page selection (default: none selected)
     setMainPageUrls(selectedUrls.map(url => {
-      const urlLower = url.toLowerCase();
-      const isMainPage = urlLower.includes('/about') || 
-                       urlLower.includes('/contact') || 
-                       urlLower.includes('/service') || 
-                       urlLower.includes('/home') || 
-                       urlLower.includes('/faq') || 
-                       urlLower.includes('/privacy') || 
-                       urlLower.includes('/terms') ||
-                       urlLower.includes('/policy') ||
-                       url === new URL(url).origin + '/' ||
-                       (!urlLower.includes('/blog/') && 
-                        !urlLower.includes('/product/') && 
-                        !urlLower.includes('/post/') && 
-                        !urlLower.includes('/item/') &&
-                        !urlLower.includes('/category/') &&
-                        !urlLower.includes('/tag/') &&
-                        !urlLower.match(/\/\d{4}\//) && // year in URL
-                        !urlLower.match(/\/page\/\d+/)); // pagination
-      return { url, main: isMainPage };
+      return { url, main: false };
     }));
     
     setStep("main_selection");
@@ -513,9 +503,14 @@ export default function NewProjectPage() {
         return;
       }
 
+      let processedUrl = newUrl.trim();
+      if (!/^https?:\/\//i.test(processedUrl)) {
+        processedUrl = `https://${processedUrl}`;
+      }
+
       // Validate URL format
       try {
-        new URL(newUrl);
+        new URL(processedUrl);
       } catch {
         const message = "Please enter a valid URL (including http:// or https://)";
         addToast({ title: "Error", description: message, color: "danger" });
@@ -524,14 +519,14 @@ export default function NewProjectPage() {
       }
 
       // Check for duplicates
-      if (sitemapUrls.some(item => item.url === newUrl)) {
+      if (sitemapUrls.some(item => item.url === processedUrl)) {
         const message = "This URL is already in the list";
         addToast({ title: "Error", description: message, color: "danger" });
         setErrorMessage(message);
         return;
       }
 
-      setSitemapUrls(prev => [...prev, { url: newUrl, selected: true }]);
+      setSitemapUrls(prev => [...prev, { url: processedUrl, selected: true }]);
       setNewUrl("");
     } catch (error: any) {
       logError("handleAddUrl", error, { newUrl });
@@ -661,6 +656,33 @@ export default function NewProjectPage() {
                   )}
                 </div>
               )}
+
+              {pageInfo && pageInfo.totalFound > 500 && (
+                <Card className="border-amber-200 dark:border-amber-800 bg-amber-50 dark:bg-amber-950/30">
+                  <CardBody className="py-3">
+                    <div className="flex items-start gap-2">
+                      <div className="text-amber-600 dark:text-amber-400 mt-0.5">
+                        <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
+                          <path fillRule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" clipRule="evenodd" />
+                        </svg>
+                      </div>
+                      <div className="text-sm">
+                        <p className="font-bold text-amber-800 dark:text-amber-200 mb-1">⚠️ Extremely Large Website Detected</p>
+                        <p className="text-amber-800 dark:text-amber-200 mb-2">
+                            This website consists of over 500 pages. Scraping the entire site is not recommended as it will be slow and may trigger anti-bot protections.
+                        </p>
+                        <p className="font-semibold text-amber-800 dark:text-amber-200 mb-1">Recommended Strategy:</p>
+                        <ul className="text-amber-900 dark:text-amber-100 space-y-1 list-disc list-inside">
+                            <li>Use <strong>Smart Select</strong> to automatically pick high-value pages</li>
+                            <li>Manually select only core pages (Home, Pricing, FAQ, Documentation)</li>
+                            <li>Do not attempt to scrape every blog post or product page</li>
+                        </ul>
+                      </div>
+                    </div>
+                  </CardBody>
+                </Card>
+              )}
+
               <Card className="border-blue-200 dark:border-blue-800 bg-blue-50 dark:bg-blue-950/30">
                 <CardBody className="py-3">
                   <div className="flex items-start gap-2">
@@ -756,14 +778,12 @@ export default function NewProjectPage() {
               <Input
                 value={newUrl}
                 onChange={(e) => setNewUrl(e.target.value)}
-                placeholder="Add another URL (include http:// or https://)"
+                placeholder="Add another URL (e.g. example.com/page)"
                 onKeyDown={(e) => e.key === 'Enter' && handleAddUrl()}
-                isInvalid={newUrl.trim() !== "" && !/^https?:\/\//.test(newUrl)}
-                errorMessage={newUrl.trim() !== "" && !/^https?:\/\//.test(newUrl) ? "Please enter a valid URL" : ""}
               />
               <Button 
                 onClick={handleAddUrl}
-                disabled={newUrl.trim() === "" || !/^https?:\/\//.test(newUrl) || sitemapUrls.some(item => item.url === newUrl)}
+                disabled={newUrl.trim() === ""}
               >
                 Add
               </Button>

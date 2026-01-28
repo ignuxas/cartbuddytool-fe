@@ -212,6 +212,47 @@ export function invalidateCache(key: any[]) {
 /**
  * Update cached data optimistically
  */
-export function updateCacheOptimistically<T>(key: any[], updater: (data: T | undefined) => T) {
-  mutate(key, updater, { revalidate: false });
+
+export function useMasterPrompts(authKey: string) {
+  const { data, error, isLoading, mutate } = useSWR(
+    authKey ? [`${config.serverUrl}/api/master-prompts/`, authKey] : null,
+    ([url, key]) => authenticatedFetcher(url, key)
+  );
+
+  return {
+    prompts: data,
+    isLoading,
+    isError: error,
+    mutate,
+  };
 }
+
+export function useMasterPrompt(id: number | null, authKey: string) {
+  const { data, error, isLoading, mutate } = useSWR(
+    authKey && id ? [`${config.serverUrl}/api/master-prompts/${id}/`, authKey] : null,
+    ([url, key]) => authenticatedFetcher(url, key)
+  );
+
+  return {
+    prompt: data,
+    isLoading,
+    isError: error,
+    mutate,
+  };
+}
+
+export function useSystemMasterPrompt(authKey: string) {
+  const { data, error, isLoading } = useSWR(
+    authKey ? [`${config.serverUrl}/api/master-prompts/default/`, authKey] : null,
+    ([url, key]) => authenticatedFetcher(url, key)
+  );
+
+  return {
+    promptText: data?.prompt_text,
+    isLoading,
+    isError: error
+  };
+}
+
+
+

@@ -1,25 +1,13 @@
 "use client";
 
 import React from "react";
-import {
-  getKeyValue,
-  SortDescriptor,
-} from "@heroui/table";
-import { Modal, ModalContent, ModalHeader, ModalBody, ModalFooter, useDisclosure } from "@heroui/modal";
-import { Dropdown, DropdownTrigger, DropdownMenu, DropdownItem } from "@heroui/dropdown";
 import { Button } from "@heroui/button";
-import { TrashIcon } from "./TrashIcon";
-import { VerticalDotsIcon } from "./VerticalDotsIcon";
 import { Textarea } from "@heroui/input";
-import { Input } from "@heroui/input";
-import { Switch } from "@heroui/switch";
-import { Checkbox } from "@heroui/checkbox";
 import { Card, CardBody } from "@heroui/card";
-import { Chip } from "@heroui/chip";
+import { Tooltip } from "@heroui/tooltip";
 import { addToast } from "@heroui/toast";
 import { config } from "@/lib/config";
 import { useRouter } from "next/navigation";
-import ScrapedPagesTable, { ScrapedDataItem as TableScrapedDataItem } from "./ScrapedPagesTable";
 
 interface ScrapedDataItem {
   url: string;
@@ -42,32 +30,15 @@ interface ResultsDisplayProps {
   prompt: string;
   workflowResult: WorkflowResult | null;
   webhookSecret?: string | null;
-  scrapedData: ScrapedDataItem[];
+  scrapedData: ScrapedDataItem[]; // Keeping this for now as it checks length
   url: string;
   loading: boolean;
   retryLoading: string | null;
   handleRegeneratePrompt: () => void;
-  handleCreateWorkflow: () => void;
-  handleForceRegenerateWorkflow?: () => void;
+  handleImprovePrompt: (currentPrompt: string, improvements: string) => Promise<void>;
   handleSavePromptToWorkflow?: () => void;
-  handleDeleteItem: (url: string, domain: string) => void;
-  handleToggleMain?: (url: string, currentMain: boolean) => void;
-  handleToggleSelect: (url: string) => void;
-  handleRescrapeItem?: (url: string, domain: string, usePlaywright?: boolean) => void;
   setPrompt: (prompt: string) => void;
-  showAddMorePages: boolean;
-  onShowAddMorePages: () => void;
-  additionalUrls: { url: string; selected: boolean }[];
-  onToggleAdditionalUrl: (url: string) => void;
-  onAddAdditionalUrl: (url: string) => void;
-  onScrapeAdditionalPages: (usePlaywright?: boolean) => void;
-  onCancelAddMorePages: () => void;
-  handleDeleteSelected: () => void;
-  handleRescrapeSelected?: (usePlaywright: boolean) => void;
-  numSelected: number;
-  handleUpdateImage?: (url: string, newImageUrl: string) => Promise<void>;
   promptModified?: boolean;
-  lastSmartUpdate?: string | null;
 }
 
 const EditIcon = (props: any) => (
@@ -108,16 +79,6 @@ const EditIcon = (props: any) => (
   </svg>
 );
 
-const columns = [
-  { key: "select", label: "Select" },
-  { key: "main", label: "Main Page" },
-  { key: "url", label: "URL" },
-  { key: "title", label: "Title" },
-  { key: "image", label: "Image" },
-  { key: "textLength", label: "Text Length" },
-  { key: "actions", label: "Actions" },
-];
-
 // Enhanced error logging for component
 const logComponentError = (context: string, error: any, additionalData?: any) => {
   console.error(`[ResultsDisplay:${context}] Error:`, {
@@ -134,33 +95,16 @@ export default function ResultsDisplay({
   workflowResult,
   webhookSecret,
   handleRegeneratePrompt,
-  handleCreateWorkflow,
-  handleForceRegenerateWorkflow,
+  handleImprovePrompt,
   handleSavePromptToWorkflow,
-  handleDeleteItem,
-  handleToggleMain,
-  handleRescrapeItem,
   retryLoading,
   setPrompt,
   url,
-  showAddMorePages,
-  onShowAddMorePages,
-  additionalUrls,
-  onToggleAdditionalUrl,
-  onAddAdditionalUrl,
-  onScrapeAdditionalPages,
-  onCancelAddMorePages,
-  handleToggleSelect,
-  handleDeleteSelected,
-  handleRescrapeSelected,
-  numSelected,
-  handleUpdateImage,
   promptModified,
-  lastSmartUpdate
 }: ResultsDisplayProps) {
 
-  const [newAdditionalUrl, setNewAdditionalUrl] = React.useState("");
-  const [usePlaywrightForAdditional, setUsePlaywrightForAdditional] = React.useState(false);
+  const [improvementInstructions, setImprovementInstructions] = React.useState("");
+  const [showRefinementTools, setShowRefinementTools] = React.useState(false);
   const [showSecret, setShowSecret] = React.useState(false);
   const [embedCodeWithSettings, setEmbedCodeWithSettings] = React.useState<string>("");
   const router = useRouter();
@@ -191,37 +135,6 @@ export default function ResultsDisplay({
 
     loadEmbedCode();
   }, [workflowResult, url]);
-
-  const handleAddAdditionalUrl = () => {
-    try {
-      if (!newAdditionalUrl.trim()) {
-        return;
-      }
-
-      // Validate URL format
-      try {
-        new URL(newAdditionalUrl);
-      } catch {
-        console.error("Invalid URL format:", newAdditionalUrl);
-        addToast({
-          title: "Error",
-          description: "Invalid URL format.",
-          color: "danger",
-        });
-        return;
-      }
-
-      onAddAdditionalUrl(newAdditionalUrl);
-      setNewAdditionalUrl("");
-    } catch (error: any) {
-      logComponentError("handleAddAdditionalUrl", error, { newAdditionalUrl });
-      addToast({
-        title: "Error",
-        description: "Failed to add the URL.",
-        color: "danger",
-      });
-    }
-  };
 
   const handleCopyEmbedCode = async () => {
     try {
@@ -341,370 +254,189 @@ export default function ResultsDisplay({
 
   return (
     <div className="w-full flex flex-col gap-4">
-      {scrapedData.length > 0 && (
-        <div>
-          <div className="flex justify-between items-center mb-2">
-            <div>
-              <h3 className="text-xl font-bold">
-                Scraped Pages ({scrapedData.length})
-              </h3>
-              {lastSmartUpdate && (
-                <p className="text-xs text-default-500">
-                  Last Smart Update: {new Date(lastSmartUpdate).toLocaleString()}
-                </p>
-              )}
-            </div>
-            <div className="flex gap-2">
-              {numSelected > 0 && (
-                <>
-                   {handleRescrapeSelected && (
-                     <Dropdown>
-                       <DropdownTrigger>
-                         <Button
-                           size="sm"
-                           color="primary"
-                           variant="flat"
-                           disabled={retryLoading !== null}
-                         >
-                           {`Rescrape Selected (${numSelected})`}
-                         </Button>
-                       </DropdownTrigger>
-                       <DropdownMenu aria-label="Rescrape options">
-                         <DropdownItem 
-                           key="rescrape-standard" 
-                           onPress={() => handleRescrapeSelected(false)}
-                         >
-                           Rescrape (Standard)
-                         </DropdownItem>
-                         <DropdownItem 
-                           key="rescrape-playwright"
-                           onPress={() => handleRescrapeSelected(true)}
-                         >
-                           Rescrape (Playwright)
-                         </DropdownItem>
-                       </DropdownMenu>
-                     </Dropdown>
-                   )}
-                    <Button
-                      size="sm"
-                      color="danger"
-                      variant="solid"
-                      onPress={handleDeleteSelected}
-                      disabled={retryLoading !== null}
-                    >
-                      {`Delete Selected (${numSelected})`}
-                    </Button>
-                </>
-              )}
-              <Button
-                size="sm"
-                variant="bordered"
-                onClick={onShowAddMorePages}
-                isLoading={retryLoading === "additional"}
-                disabled={!!retryLoading || showAddMorePages}
-              >
-                Add More Pages
-              </Button>
-            </div>
-          </div>
-
-          {showAddMorePages && (
-            <Card className="mb-4">
-              <CardBody>
-                <h4 className="text-lg font-semibold mb-2">
-                  Add Additional Pages
-                </h4>
-                <div className="flex gap-2 mb-2">
-                  <Button
-                    size="sm"
-                    onClick={() => {
-                      try {
-                        additionalUrls.forEach((item) => {
-                          if (!item.selected) onToggleAdditionalUrl(item.url);
-                        });
-                      } catch (error: any) {
-                        logComponentError("selectAll", error);
-                        addToast({ title: "Error", description: "Failed to select all.", color: "danger" });
-                      }
-                    }}
-                  >
-                    Select All
-                  </Button>
-                  <Button
-                    size="sm"
-                    onClick={() => {
-                      try {
-                        additionalUrls.forEach((item) => {
-                          if (item.selected) onToggleAdditionalUrl(item.url);
-                        });
-                      } catch (error: any) {
-                        logComponentError("deselectAll", error);
-                        addToast({ title: "Error", description: "Failed to deselect all.", color: "danger" });
-                      }
-                    }}
-                  >
-                    Deselect All
-                  </Button>
-                </div>
-                <div className="max-h-48 overflow-y-auto border rounded-md p-2 flex flex-col gap-2 mb-2">
-                  {additionalUrls.length > 0 ? (
-                    additionalUrls.map((item, index) => (
-                      <Checkbox
-                        key={`${item.url}-${index}`} // Use index as fallback for unique keys
-                        isSelected={item.selected}
-                        onValueChange={() => {
-                          try {
-                            onToggleAdditionalUrl(item.url);
-                          } catch (error: any) {
-                            logComponentError("toggleAdditionalUrl", error, { url: item.url });
-                            addToast({ title: "Error", description: "Failed to toggle selection.", color: "danger" });
-                          }
-                        }}
-                        size="sm"
-                      >
-                        <span className="text-sm truncate" title={item.url}>{item.url}</span>
-                      </Checkbox>
-                    ))
-                  ) : (
-                    <p className="text-sm text-gray-500">
-                      No additional pages found in sitemap
-                    </p>
-                  )}
-                </div>
-                <div className="flex gap-2 mb-2">
-                  <Input
-                    value={newAdditionalUrl}
-                    onChange={(e) => setNewAdditionalUrl(e.target.value)}
-                    placeholder="Add custom URL (include http:// or https://)"
-                    onKeyDown={(e) => e.key === "Enter" && handleAddAdditionalUrl()}
-                    isInvalid={newAdditionalUrl.trim() !== "" && (() => {
-                      try {
-                        new URL(newAdditionalUrl);
-                        return false;
-                      } catch {
-                        return true;
-                      }
-                    })()}
-                    errorMessage={newAdditionalUrl.trim() !== "" && (() => {
-                      try {
-                        new URL(newAdditionalUrl);
-                        return "";
-                      } catch {
-                        return "Please enter a valid URL";
-                      }
-                    })()}
-                  />
-                  <Button 
-                    onClick={handleAddAdditionalUrl}
-                    disabled={newAdditionalUrl.trim() === "" || (() => {
-                      try {
-                        new URL(newAdditionalUrl);
-                        return false;
-                      } catch {
-                        return true;
-                      }
-                    })()}
-                  >
-                    Add
-                  </Button>
-                </div>
-                <div className="flex flex-col gap-2">
-                  <div className="flex items-center gap-2 px-1">
-                    <Switch
-                        isSelected={usePlaywrightForAdditional}
-                        onValueChange={setUsePlaywrightForAdditional}
-                        size="sm"
-                    >
-                        <span className="text-sm">Use Playwright</span>
-                    </Switch>
-                  </div>
-                  <div className="flex gap-2">
-                    <Button
-                      color="primary"
-                      onClick={() => onScrapeAdditionalPages(usePlaywrightForAdditional)}
-                      isLoading={retryLoading === "additional"}
-                      disabled={additionalUrls.filter((u) => u.selected).length === 0}
-                    >
-                      Scrape{" "}
-                      {additionalUrls.filter((u) => u.selected).length} Selected Pages
-                    </Button>
-                    <Button
-                      variant="bordered"
-                      onClick={onCancelAddMorePages}
-                      disabled={retryLoading === "additional"}
-                    >
-                      Cancel
-                    </Button>
-                  </div>
-                </div>
-              </CardBody>
-            </Card>
-          )}
-
-          <ScrapedPagesTable 
-            data={scrapedData}
-            onToggleSelect={handleToggleSelect}
-            // We use a custom selection change handler to interface with parent's single-toggle method
-            onSelectionChange={(urls, isSelected) => {
-                urls.forEach(url => {
-                   // Only toggle if state differs (assuming handleToggleSelect toggles boolean)
-                   const item = scrapedData.find(i => i.url === url);
-                   if (item && item.selected !== isSelected) {
-                       handleToggleSelect(url);
-                   }
-                });
-            }}
-            onDelete={(deletedUrl) => {
-               try {
-                   // Extract hostname as done in previous implementation
-                    const domain = new URL(url).hostname;
-                    handleDeleteItem(deletedUrl, domain);
-               } catch (e: any) {
-                    console.error("Delete error", e);
-                    addToast({ title: "Error", description: "Failed to delete item", color: "danger" });
-               }
-            }}
-            onRescrape={handleRescrapeItem ? async (rescrapeUrl) => {
-                try {
-                    const domain = new URL(url).hostname;
-                    await handleRescrapeItem(rescrapeUrl, domain);
-                } catch (e: any) {
-                     console.error("Rescrape error", e);
-                     const message = "Failed to re-scrape item.";
-                     addToast({ title: "Error", description: message, color: "danger" });
-                }
-            } : undefined}
-            onUpdateImage={handleUpdateImage}
-            onToggleMain={handleToggleMain}
-          />
-
-        </div>
-      )}
-
-      {prompt && (
-        <div>
-          {/* Prompt display removed as per request. Prompt is still maintained in state for workflow operations. */}
-        </div>
-      )}
-
-      {/* Show workflow creation section when no workflow exists but data is available */}
-      {!workflowResult && scrapedData.length > 0 && (
-        <Card className="mb-4 border-warning/50 bg-warning/10">
+      <div className="mt-8">
+        <h3 className="text-xl font-bold mb-4">AI Assistant Settings</h3>
+        <Card className="mb-4">
           <CardBody>
-            <div className="space-y-4">
-              <div className="flex items-center gap-2">
-                <span className="text-2xl">⚠️</span>
-                <h3 className="text-xl font-bold">No AI Workflow Found</h3>
-              </div>
-              <p className="text-default-600">
-                Your website data has been scraped, but no n8n AI workflow has been created yet. 
-                Click the button below to generate a workflow that powers your AI chatbot.
-              </p>
-              <div className="flex gap-2">
-                <Button
-                  color="primary"
-                  variant="solid"
-                  size="lg"
-                  onClick={() => {
-                    try {
-                      handleCreateWorkflow();
-                    } catch (error: any) {
-                      logComponentError("createWorkflow", error);
-                      addToast({ title: "Error", description: "Failed to create workflow.", color: "danger" });
-                    }
-                  }}
-                  isLoading={retryLoading === "workflow"}
-                  disabled={!!retryLoading}
-                  startContent={
-                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" className="w-5 h-5">
-                      <path strokeLinecap="round" strokeLinejoin="round" d="M12 4.5v15m7.5-7.5h-15" />
-                    </svg>
-                  }
-                >
-                  🚀 Create AI Workflow
-                </Button>
-                {handleForceRegenerateWorkflow && (
-                  <Button
-                    color="warning"
-                    variant="bordered"
-                    size="lg"
-                    onClick={() => {
-                      try {
-                        handleForceRegenerateWorkflow();
-                      } catch (error: any) {
-                        logComponentError("forceRegenerateWorkflow", error);
-                        addToast({ title: "Error", description: "Failed to regenerate workflow.", color: "danger" });
-                      }
-                    }}
-                    isLoading={retryLoading === "workflow"}
-                    disabled={!!retryLoading}
-                  >
-                    🔄 Force Regenerate Workflow
-                  </Button>
-                )}
-              </div>
-            </div>
+             <div className="space-y-4">
+                <div>
+                   <label className="block text-sm font-medium mb-2">Custom Instructions (Prompt)</label>
+                   <p className="text-xs text-default-500 mb-2">
+                     The system prompt defines how the AI assistant behaves. You can edit this directly or use AI tools below to refine it.
+                   </p>
+                   <Textarea
+                      minRows={5}
+                      maxRows={15}
+                      value={prompt}
+                      onChange={(e) => setPrompt(e.target.value)}
+                      placeholder="e.g. You are a helpful assistant for a hiking gear shop..."
+                      className="mb-2"
+                   />
+                   
+                   <div className="flex flex-col md:flex-row justify-between items-center gap-4 mb-6">
+                        <div className="text-xs text-default-500 font-mono">
+                            {promptModified ? (
+                                <span className="text-warning-600 flex items-center gap-1">
+                                    <span className="w-2 h-2 rounded-full bg-warning-500"></span>
+                                    Unsaved changes
+                                </span>
+                            ) : (
+                                <span className="text-success-600 flex items-center gap-1">
+                                    <span className="w-2 h-2 rounded-full bg-success-500"></span>
+                                    System prompt saved
+                                </span>
+                            )}
+                        </div>
+                        <div className="flex gap-2">
+                             <Tooltip content={!prompt ? "Generate a system prompt based on the scraped content." : "Revert to the original prompt generated from website content. This will discard all manual changes."} placement="top">
+                                 <Button
+                                    size="sm"
+                                    variant={!prompt ? "solid" : "light"}
+                                    color={!prompt ? "primary" : "default"}
+                                    onClick={() => {
+                                        if (!prompt || confirm("Are you sure? This will discard your current prompt and regenerate it from scraped content.")) {
+                                            handleRegeneratePrompt();
+                                        }
+                                    }}
+                                    isLoading={retryLoading === "prompt"}
+                                    className={!prompt ? "" : "text-default-500 hover:text-default-900"}
+                                 >
+                                   {!prompt ? "Generate instructions" : "Reset to Default"}
+                                 </Button>
+                             </Tooltip>
+                             <Button
+                                size="sm"
+                                variant={showRefinementTools ? "flat" : "ghost"}
+                                color="primary"
+                                onClick={() => setShowRefinementTools(!showRefinementTools)}
+                                startContent={<span>✨</span>}
+                             >
+                               {showRefinementTools ? "Close AI Tools" : "Refine with AI"}
+                             </Button>
+                        </div>
+                   </div>
+
+                   {showRefinementTools && (
+                       <div className="p-4 rounded-xl border border-default-200 bg-content2/50 animate-appearance-in mb-6">
+                          <label className="block text-sm font-semibold mb-3 text-default-700">
+                            How should the AI improve this prompt?
+                          </label>
+                          <div className="flex flex-col gap-3">
+                              <Textarea
+                                  placeholder="e.g. 'Make the tone more professional', 'Focus on selling hiking boots', 'Be shorter'..."
+                                  minRows={2}
+                                  value={improvementInstructions}
+                                  onValueChange={setImprovementInstructions}
+                                  variant="bordered"
+                                  className="bg-transparent"
+                                  classNames={{
+                                    inputWrapper: "bg-background shadow-none"
+                                  }}
+                              />
+                              <div className="flex justify-between items-center gap-2 pt-1">
+                                 <p className="text-xs text-default-400">
+                                   Consumes 1 AI quota per request.
+                                 </p>
+                                 <Button
+                                    size="sm"
+                                    color="primary"
+                                    variant="solid"
+                                    isDisabled={!improvementInstructions.trim()}
+                                    isLoading={retryLoading === "improve-prompt"}
+                                    onClick={async () => {
+                                        await handleImprovePrompt(prompt, improvementInstructions);
+                                        setImprovementInstructions(""); // Clear after success
+                                    }}
+                                 >
+                                   Generate Improvements
+                                 </Button>
+                              </div>
+                          </div>
+                       </div>
+                   )}
+                </div>
+                
+                <div className="flex justify-end pt-2 border-t border-divider">
+                   {handleSavePromptToWorkflow && (
+                       <Button
+                          color="primary"
+                          size="lg"
+                          onClick={handleSavePromptToWorkflow}
+                          isLoading={retryLoading === "save-prompt"}
+                          isDisabled={!promptModified}
+                          className="font-bold px-8"
+                       >
+                         Save Settings
+                       </Button>
+                   )}
+                </div>
+             </div>
           </CardBody>
         </Card>
-      )}
-
-      {workflowResult && (
-        <div>
-          <h3 className="text-xl font-bold mb-4">
-            🎉 AI Workflow Created Successfully!
-          </h3>
-
-          <Card className="mb-4">
+        
+        <h3 className="text-xl font-bold mb-4">Integration & Demo</h3>
+        <Card className="mb-4">
             <CardBody>
               <div className="space-y-4">
-                <div>
-                  <h4 className="text-lg font-semibold mb-2">Workflow Details</h4>
-                    <div className="flex gap-2">
-                      <p className="text-lg text-gray-600 mb-2">Workflow ID:</p>
-                      <Chip 
-                        color="primary" 
-                        variant="flat" 
-                        className="font-mono"
+                  <div>
+                    <h4 className="text-lg font-semibold mb-2">💬 Live Chat Widget</h4>
+                    <div className="bg-green-800 rounded-lg p-4 mb-4">
+                      <div className="flex items-center gap-2 mb-2">
+                        <div className="w-3 h-3 bg-green-500 rounded-full animate-pulse"></div>
+                        <span className="text-green-400 font-medium">Chat widget is ready!</span>
+                      </div>
+                      <p className="text-sm text-green-400">
+                        Use the buttons below to test the assistant in a live environment.
+                      </p>
+                    </div>
+
+                    <div className="mb-4">
+                      <Button
+                        color="success"
+                        variant="shadow"
                         size="lg"
+                        onClick={() => {
+                            try {
+                                const domain = new URL(url).hostname;
+                                router.push(`/demo?domain=${encodeURIComponent(domain)}`);
+                            } catch {
+                                addToast({title: "Error", description: "Invalid URL", color: "danger"});
+                            }
+                        }}
+                        className="w-full font-semibold mb-2"
+                        startContent={<span>🚀</span>}
                       >
-                        {workflowResult.workflow_id}
-                      </Chip>
-                    <Button
-                      size="sm"
-                      color="primary"
-                      variant="ghost"
-                      onClick={handleViewWorkflow}
-                      className="h-8"
-                    >
-                      View & Manage Workflow →
-                    </Button>
-                    {handleForceRegenerateWorkflow && (
+                        View Live Demo on Your Website
+                      </Button>
+                    </div>
+
+                    <h4 className="text-lg font-semibold mb-2">📋 Embed Code</h4>
+                    <div className="bg-gray-900 text-gray-100 p-4 rounded-lg text-sm font-mono overflow-x-auto">
+                      <pre>{`<script src="${config.serverUrl}/api/widget.js" data-domain="${(() => { try { return new URL(url).hostname; } catch { return 'website'; } })()}" defer></script>`}</pre>
+                    </div>
+                    <div className="flex gap-2 mt-2">
                       <Button
                         size="sm"
-                        color="warning"
                         variant="bordered"
                         onClick={() => {
-                          try {
-                            handleForceRegenerateWorkflow();
-                          } catch (error: any) {
-                            logComponentError("forceRegenerateWorkflow", error);
-                            addToast({ title: "Error", description: "Failed to regenerate workflow.", color: "danger" });
-                          }
+                            try {
+                                const siteName = new URL(url).hostname;
+                                const code = `<script src="${config.serverUrl}/api/widget.js" data-domain="${siteName}" defer></script>`;
+                                navigator.clipboard.writeText(code);
+                                addToast({title: "Copied!", color: "success"});
+                            } catch {
+                                addToast({title: "Error", description: "Failed to generate code", color: "danger"});
+                            }
                         }}
-                        isLoading={retryLoading === "workflow"}
-                        disabled={!!retryLoading}
                       >
-                        🔄 Force Regenerate Workflow
+                        📋 Copy Embed Code
                       </Button>
-                    )}
+                    </div>
                   </div>
-
+                  
                   {webhookSecret && (
                   <div className="mt-4 p-4 border border-yellow-200 bg-yellow-50 rounded-lg">
-                      <h4 className="text-sm font-semibold text-yellow-800 mb-2">🔒 Webhook Security (Verification Secret)</h4>
-                      <p className="text-xs text-yellow-700 mb-2">
-                          Your workflow now automatically verifies this secret to prevent unauthorized usage. The "Code" node in the generated workflow checks that the <code>X-Webhook-Secret</code> header matches this value. If you modify the workflow, ensure you keep this check.
-                      </p>
+                      <h4 className="text-sm font-semibold text-yellow-800 mb-2">🔒 Webhook Security</h4>
                       <div className="flex items-center gap-2">
                           <code className="bg-white px-2 py-1 rounded border text-xs flex-1 break-all font-mono select-all text-black">
                               {showSecret ? webhookSecret : "•".repeat(webhookSecret ? webhookSecret.length : 12)}
@@ -716,106 +448,13 @@ export default function ResultsDisplay({
                           >
                               {showSecret ? "Hide" : "Show"}
                           </Button>
-                          <Button 
-                              size="sm" 
-                              variant="flat" 
-                              onClick={() => {navigator.clipboard.writeText(webhookSecret || ""); addToast({title: "Copied!", color: "success"})}}
-                          >
-                              Copy
-                          </Button>
                       </div>
                   </div>
                   )}
-
-                </div>
-
-                {workflowResult.webhook_url && (
-                  <div>
-                    <h4 className="text-lg font-semibold mb-2">💬 Live Chat Widget</h4>
-                    <div className="bg-green-800 rounded-lg p-4 mb-4">
-                      <div className="flex items-center gap-2 mb-2">
-                        <div className="w-3 h-3 bg-green-500 rounded-full animate-pulse"></div>
-                        <span className="text-green-400 font-medium">Chat widget is now live on this page!</span>
-                      </div>
-                      <p className="text-sm text-green-400">
-                        Look for the chat icon in the bottom-right corner to test your AI assistant. 
-                        This is exactly how it will appear on your website.
-                      </p>
-                    </div>
-
-                    {/* Demo Button */}
-                    <div className="mb-4">
-                      <Button
-                        color="success"
-                        variant="shadow"
-                        size="lg"
-                        onClick={handleOpenDemo}
-                        className="w-full font-semibold mb-2"
-                        startContent={
-                          <svg
-                            xmlns="http://www.w3.org/2000/svg"
-                            fill="none"
-                            viewBox="0 0 24 24"
-                            strokeWidth={2}
-                            stroke="currentColor"
-                            className="w-6 h-6"
-                          >
-                            <path strokeLinecap="round" strokeLinejoin="round" d="M9.75 3.104v5.714a2.25 2.25 0 01-.659 1.591L5 14.5M9.75 3.104c-.251.023-.501.05-.75.082m.75-.082a24.301 24.301 0 014.5 0m0 0v5.714c0 .597.237 1.17.659 1.591L19.8 15.3M14.25 3.104c.251.023.501.05.75.082M19.8 15.3l-1.57.393A9.065 9.065 0 0112 15a9.065 9.065 0 00-6.23-.693L5 14.5m14.8.8l1.402 1.402c1.232 1.232.65 3.318-1.067 3.611A48.309 48.309 0 0112 21c-2.773 0-5.491-.235-8.135-.687-1.718-.293-2.3-2.379-1.067-3.61L5 14.5" />
-                          </svg>
-                        }
-                      >
-                        🚀 View Live Demo on Your Website
-                      </Button>
-                      <Button
-                        color="primary"
-                        variant="bordered"
-                        size="md"
-                        onClick={handleCopyDemoLink}
-                        className="w-full font-medium"
-                        startContent={
-                          <svg
-                            xmlns="http://www.w3.org/2000/svg"
-                            fill="none"
-                            viewBox="0 0 24 24"
-                            strokeWidth={2}
-                            stroke="currentColor"
-                            className="w-5 h-5"
-                          >
-                            <path strokeLinecap="round" strokeLinejoin="round" d="M13.19 8.688a4.5 4.5 0 011.242 7.244l-4.5 4.5a4.5 4.5 0 01-6.364-6.364l1.757-1.757m13.35-.622l1.757-1.757a4.5 4.5 0 00-6.364-6.364l-4.5 4.5a4.5 4.5 0 001.242 7.244" />
-                          </svg>
-                        }
-                      >
-                        📋 Copy Demo Link (Share with Clients)
-                      </Button>
-                      <p className="text-xs text-gray-500 text-center mt-2">
-                        The demo link works without login - perfect for client presentations!
-                      </p>
-                    </div>
-
-                    <h4 className="text-lg font-semibold mb-2">📋 Embed Code</h4>
-                    <p className="text-sm text-gray-600 mb-2">
-                      Copy and paste this code into your website to add the AI chat interface:
-                    </p>
-                    <div className="bg-gray-900 text-gray-100 p-4 rounded-lg text-sm font-mono overflow-x-auto">
-                      <pre>{embedCodeWithSettings || 'Loading embed code...'}</pre>
-                    </div>
-                    <div className="flex gap-2 mt-2">
-                      <Button
-                        size="sm"
-                        variant="bordered"
-                        onClick={handleCopyEmbedCode}
-                        disabled={!workflowResult.webhook_url}
-                      >
-                        📋 Copy Full Embed Code
-                      </Button>
-                    </div>
-                  </div>
-                )}
               </div>
             </CardBody>
-          </Card>
-        </div>
-      )}
+        </Card>
+      </div>
 
     </div>
   );

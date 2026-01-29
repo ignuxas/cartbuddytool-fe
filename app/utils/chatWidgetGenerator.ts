@@ -14,6 +14,7 @@ interface ChatWidgetConfig {
   inputPlaceholder?: string;
   footerText?: string;
   viewProductText?: string;
+  botIcon?: string;
 }
 
 export function getChatWidgetScript(config: ChatWidgetConfig): string {
@@ -39,7 +40,8 @@ export function getChatWidgetScript(config: ChatWidgetConfig): string {
         viewProductText = 'View Product',
         webhookUrl,
         siteName,
-        baseUrl = ''
+        baseUrl = '',
+        botIcon
     } = config;
 
     // We map to the structure expected by widget.js logic
@@ -57,7 +59,8 @@ export function getChatWidgetScript(config: ChatWidgetConfig): string {
         footer_text: footerText,
         view_product_text: viewProductText,
         webhook_url: webhookUrl,
-        max_message_length: 1000
+        max_message_length: 1000,
+        bot_icon: botIcon
     };
 
     const settingsJson = JSON.stringify(settings);
@@ -83,8 +86,11 @@ export function getChatWidgetScript(config: ChatWidgetConfig): string {
         footer_text: footerText,
         view_product_text: viewProductText,
         webhook_url: webhookUrl,
-        max_message_length: maxMessageLength = 1000
+        max_message_length: maxMessageLength = 1000,
+        bot_icon: botIcon
     } = settings;
+    
+    const botIconUrl = botIcon || \`\${baseUrl}/api/static/lukas.png\`;
 
     if (!webhookUrl) {
         console.warn('CartBuddy Widget: Webhook URL not found for this domain. Chat may not function correctly.');
@@ -190,7 +196,7 @@ export function getChatWidgetScript(config: ChatWidgetConfig): string {
                 <button class="consultant-button">\${bubbleButtonText}</button>
             </div>
             <div class="avatar">
-                <img src="\${baseUrl}/api/static/lukas.png" alt="AI Assistant" onerror="this.style.display='none'; this.parentElement.innerHTML='🛒';">
+                <img src="\${botIconUrl}" alt="AI Assistant" onerror="this.style.display='none'; this.parentElement.innerHTML='🛒';">
             </div>
         \`;
         return bubble;
@@ -250,7 +256,7 @@ export function getChatWidgetScript(config: ChatWidgetConfig): string {
         windowDiv.innerHTML = \`
             <div class="chat-mini-header">
                 <div class="mini-avatar">
-                    <img src="\${baseUrl}/api/static/lukas.png" alt="AI Assistant" onerror="this.style.display='none'; this.parentElement.innerHTML='🛒';">
+                    <img src="\${botIconUrl}" alt="AI Assistant" onerror="this.style.display='none'; this.parentElement.innerHTML='🛒';">
                 </div>
                 <span>\${title}</span>
                 <div style="margin-left:auto; display:flex; gap:4px; align-items:center;">

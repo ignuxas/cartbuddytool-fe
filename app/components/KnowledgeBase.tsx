@@ -20,7 +20,7 @@ interface KnowledgeFile {
 
 interface KnowledgeBaseProps {
   domain: string;
-  authKey: string;
+  authKey: string | null;
 }
 
 // Icons
@@ -58,6 +58,7 @@ export const KnowledgeBase: React.FC<KnowledgeBaseProps> = ({ domain, authKey })
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const fetchFiles = async () => {
+    if (!authKey) return;
     setLoading(true);
     try {
       const res = await fetch(`${config.serverUrl}/api/knowledge/list/?domain=${domain}`, {
@@ -104,6 +105,7 @@ export const KnowledgeBase: React.FC<KnowledgeBaseProps> = ({ domain, authKey })
   };
 
   const handleUploadFile = async (file: File) => {
+    if (!authKey) return;
     setActionLoading('upload_new');
     const formData = new FormData();
     formData.append('file', file);
@@ -130,6 +132,7 @@ export const KnowledgeBase: React.FC<KnowledgeBaseProps> = ({ domain, authKey })
   };
 
   const handleUpdateFile = async (fileId: string, file: File) => {
+      if (!authKey) return;
       setActionLoading(fileId); // Show loading spinner on the button
       const formData = new FormData();
       formData.append('file', file);
@@ -157,6 +160,7 @@ export const KnowledgeBase: React.FC<KnowledgeBaseProps> = ({ domain, authKey })
   }
 
   const handleDownload = async (fileId: string) => {
+      if (!authKey) return;
       setActionLoading(fileId);
       try {
           const res = await fetch(`${config.serverUrl}/api/knowledge/download/?domain=${domain}&file_id=${fileId}`, {
@@ -176,6 +180,7 @@ export const KnowledgeBase: React.FC<KnowledgeBaseProps> = ({ domain, authKey })
   };
 
   const handleDelete = async (fileId: string) => {
+    if (!authKey) return;
     if (!confirm("Are you sure you want to delete this file?")) return;
     setActionLoading(fileId);
     try {
@@ -222,6 +227,7 @@ export const KnowledgeBase: React.FC<KnowledgeBaseProps> = ({ domain, authKey })
                 className="hidden" 
                 onChange={handleFileChange} 
                 accept=".pdf,.txt,.md"
+                aria-label="Upload knowledge base file"
             />
             <Button 
                 color="primary" 

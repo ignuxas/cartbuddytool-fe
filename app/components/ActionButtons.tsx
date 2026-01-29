@@ -20,6 +20,8 @@ interface ActionButtonsProps {
   setRetryCount: (value: number) => void;
   retryDelay: number;
   setRetryDelay: (value: number) => void;
+  concurrency?: number;
+  setConcurrency?: (value: number) => void;
 }
 
 export default function ActionButtons({
@@ -38,6 +40,8 @@ export default function ActionButtons({
   setRetryCount,
   retryDelay,
   setRetryDelay,
+  concurrency,
+  setConcurrency,
 }: ActionButtonsProps) {
   if (!((scrapedDataLength > 0 || errorMessage) && url)) {
     return null;
@@ -91,6 +95,20 @@ export default function ActionButtons({
                 min={0}
                 isDisabled={loading || retryLoading !== null}
               />
+              {setConcurrency && concurrency !== undefined && (
+                  <Input
+                    type="number"
+                    label="Workers"
+                    size="sm"
+                    value={concurrency.toString()}
+                    onValueChange={(v) => setConcurrency(parseInt(v) || 1)}
+                    className="max-w-[80px]"
+                    min={1}
+                    max={20}
+                    isDisabled={loading || retryLoading !== null}
+                    title="Threads/Concurrency"
+                  />
+              )}
             </div>
           </div>
 

@@ -108,11 +108,11 @@ export function useWidgetSettings(domain: string | null, authKey: string | null 
         }
         return res.json();
       } else {
-        // Authenticated POST request
+        // Authenticated GET request
         return authenticatedFetcher(
-          `${config.serverUrl}/api/widget/settings/`,
+          `${config.serverUrl}/api/widget/settings/?domain=${encodeURIComponent(domain)}`,
           authKey!,
-          { method: 'POST', body: { domain } }
+          { method: 'GET' }
         );
       }
     },

@@ -1,8 +1,9 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import UrlForm from "../components/UrlForm";
 import AuthModal from "../components/AuthModal";
+import PlaywrightSwitch from "../components/PlaywrightSwitch";
 import { Button } from "@heroui/button";
 import { Input } from "@heroui/input";
 import { Switch } from "@heroui/switch";
@@ -168,8 +169,79 @@ export default function NewProjectPage() {
     limitedTo: number;
     methodUsed: string;
   } | null>(null);
-  const [showPageLimitTips, setShowPageLimitTips] = useState(false);
   const [usePlaywright, setUsePlaywright] = useState(false);
+  const [sitemapJobId, setSitemapJobId] = useState<string | null>(null);
+  const [sitemapProgress, setSitemapProgress] = useState<{
+    status: string;
+    current_url: string;
+    scraped_pages: number;
+    total_pages: number;
+  } | null>(null);
+
+  useEffect(() => {
+    if (!sitemapJobId) return;
+
+    let pollInterval: NodeJS.Timeout;
+    
+    const pollStatus = async () => {
+      try {
+        const data = await makeApiCall(
+          `${config.serverUrl}/api/scrape/status/${sitemapJobId}/`,
+          {
+            method: "GET",
+            headers: getAuthHeaders(),
+          },
+          "poll-sitemap"
+        );
+        
+        setSitemapProgress({
+          status: data.status,
+          current_url: data.current_url,
+          scraped_pages: data.scraped_pages,
+          total_pages: data.total_pages
+        });
+
+        if (data.status === 'completed' || data.status === 'failed') {
+          clearInterval(pollInterval);
+          setSitemapJobId(null);
+          setSitemapProgress(null);
+          
+          if (data.status === 'failed') {
+             setErrorMessage(data.error_message || "Sitemap discovery failed.");
+             setLoading(false);
+          } else {
+             // Handle success
+             const resultStatus = data.page_statuses && data.page_statuses.find((s: any) => s.status === 'sitemap_result');
+             if (resultStatus && resultStatus.data) {
+                 const result = resultStatus.data;
+                 
+                 if (!result.urls || result.urls.length === 0) {
+                    throw new Error("No URLs found.");
+                 }
+
+                 setSitemapUrls(result.urls.map((u: string) => ({ url: u, selected: true })));
+                 setPageInfo({
+                  totalFound: result.total_found || result.urls.length,
+                  limitedTo: result.limited_to || result.urls.length,
+                  methodUsed: result.method_used || 'sitemap'
+                 });
+                 setStep("selection");
+             } else {
+                 setErrorMessage("Job completed but no result found.");
+             }
+             setLoading(false);
+          }
+        }
+      } catch (e: any) {
+        logError("pollStatus", e);
+      }
+    };
+
+    pollInterval = setInterval(pollStatus, 1000);
+    pollStatus();
+
+    return () => clearInterval(pollInterval);
+  }, [sitemapJobId]);
 
   const clearMessages = () => {
     setErrorMessage("");
@@ -214,7 +286,6 @@ export default function NewProjectPage() {
     setMainPageUrls([]);
     setExistingDataInfo(null);
     setPageInfo(null);
-    setShowPageLimitTips(false);
 
     try {
       console.log("[handleSubmit] Starting submission process for URL:", processedUrl);
@@ -239,18 +310,24 @@ export default function NewProjectPage() {
           existing_workflow: checkData.existing_workflow
         });
         setStep("existing");
+        setLoading(false);
       } else {
         console.log("[handleSubmit] No existing data, fetching sitemap URLs");
-        // No existing data, proceed with normal flow
+        // No existing data, proceed with normal flow WITH background job
         const data = await makeApiCall(
           `${config.serverUrl}/api/scrape/get-urls/`,
           {
             method: "POST",
             headers: getAuthHeaders(),
-            body: JSON.stringify({ url: processedUrl }),
+            body: JSON.stringify({ url: processedUrl, background: true }),
           },
           "get-urls"
         );
+
+        if (data.job_id) {
+           setSitemapJobId(data.job_id);
+           return;
+        }
 
         if (!data.urls || data.urls.length === 0) {
           throw new Error("No URLs found in sitemap. The website might not have a sitemap or it might be empty.");
@@ -263,22 +340,17 @@ export default function NewProjectPage() {
           methodUsed: data.method_used || 'sitemap'
         });
         
-        // Set warning if pages were limited
-        if (data.page_limit_warning) {
-          addToast({ title: "Warning", description: data.page_limit_warning, color: "warning" });
-          setShowPageLimitTips(true);
-        }
-        
         setStep("selection");
+        setLoading(false);
       }
     } catch (error: any) {
       logError("handleSubmit", error, { url });
       const message = error.message || "An unexpected error occurred while processing your request";
       addToast({ title: "Error", description: message, color: "danger" });
       setErrorMessage(message);
-    } finally {
       setLoading(false);
     }
+
   };
 
   const handleUseExistingData = () => {
@@ -302,7 +374,6 @@ export default function NewProjectPage() {
     setMainPageUrls([]);
     setExistingDataInfo(null);
     setPageInfo(null);
-    setShowPageLimitTips(false);
 
     try {
       console.log("[handleRescanWebsite] Rescanning website");
@@ -326,12 +397,6 @@ export default function NewProjectPage() {
         limitedTo: data.limited_to || data.urls.length,
         methodUsed: data.method_used || 'sitemap'
       });
-      
-      // Set warning if pages were limited
-      if (data.page_limit_warning) {
-        addToast({ title: "Warning", description: data.page_limit_warning, color: "warning" });
-        setShowPageLimitTips(true);
-      }
       
       setStep("selection");
     } catch (error: any) {
@@ -617,6 +682,25 @@ export default function NewProjectPage() {
               loading={loading}
               retryLoading={null}
             />
+            
+            {sitemapProgress && (
+              <div className="w-full max-w-lg mt-4 p-4 bg-gray-50 dark:bg-zinc-800 rounded-lg border border-gray-200 dark:border-zinc-700">
+                 <div className="flex justify-between items-center mb-2">
+                   <div className="flex items-center gap-2">
+                      <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-primary"></div>
+                      <span className="text-sm font-medium">Scanning Sitemap...</span>
+                   </div>
+                   {sitemapProgress.scraped_pages > 0 && (
+                      <span className="text-xs text-gray-500">
+                         Found {sitemapProgress.scraped_pages} URLs
+                      </span>
+                   )}
+                 </div>
+                 <div className="text-xs text-gray-500 truncate w-full" title={sitemapProgress.current_url}>
+                   {sitemapProgress.current_url || "Initializing..."}
+                 </div>
+              </div>
+            )}
           </div>
         )}
 
@@ -651,36 +735,7 @@ export default function NewProjectPage() {
               {pageInfo && (
                 <div className="text-sm text-muted-foreground">
                   Found {pageInfo.totalFound} pages using {pageInfo.methodUsed === 'fallback_crawling' ? 'fallback crawling' : 'sitemap'}
-                  {pageInfo.totalFound !== pageInfo.limitedTo && (
-                    <span>, limited to {pageInfo.limitedTo} pages</span>
-                  )}
                 </div>
-              )}
-
-              {pageInfo && pageInfo.totalFound > 500 && (
-                <Card className="border-amber-200 dark:border-amber-800 bg-amber-50 dark:bg-amber-950/30">
-                  <CardBody className="py-3">
-                    <div className="flex items-start gap-2">
-                      <div className="text-amber-600 dark:text-amber-400 mt-0.5">
-                        <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
-                          <path fillRule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" clipRule="evenodd" />
-                        </svg>
-                      </div>
-                      <div className="text-sm">
-                        <p className="font-bold text-amber-800 dark:text-amber-200 mb-1">⚠️ Extremely Large Website Detected</p>
-                        <p className="text-amber-800 dark:text-amber-200 mb-2">
-                            This website consists of over 500 pages. Scraping the entire site is not recommended as it will be slow and may trigger anti-bot protections.
-                        </p>
-                        <p className="font-semibold text-amber-800 dark:text-amber-200 mb-1">Recommended Strategy:</p>
-                        <ul className="text-amber-900 dark:text-amber-100 space-y-1 list-disc list-inside">
-                            <li>Use <strong>Smart Select</strong> to automatically pick high-value pages</li>
-                            <li>Manually select only core pages (Home, Pricing, FAQ, Documentation)</li>
-                            <li>Do not attempt to scrape every blog post or product page</li>
-                        </ul>
-                      </div>
-                    </div>
-                  </CardBody>
-                </Card>
               )}
 
               <Card className="border-blue-200 dark:border-blue-800 bg-blue-50 dark:bg-blue-950/30">
@@ -697,7 +752,6 @@ export default function NewProjectPage() {
                         <li><strong>Select main pages</strong>: Home, About, Services, Contact, FAQ</li>
                         <li><strong>Skip individual posts/products</strong>: The AI can access these via your website's API or search</li>
                         <li><strong>Focus on static content</strong>: Policy pages, company info, service descriptions</li>
-                        <li><strong>Limit: 200 pages maximum</strong> for optimal performance</li>
                       </ul>
                     </div>
                   </div>
@@ -920,12 +974,10 @@ export default function NewProjectPage() {
               </table>
             </div>
             <div className="flex justify-between items-center gap-4">
-              <Switch
+              <PlaywrightSwitch
                   isSelected={usePlaywright}
                   onValueChange={setUsePlaywright}
-              >
-                  Use Playwright
-              </Switch>
+              />
               <div className="flex gap-2">
                 <Button
                   variant="bordered"
@@ -972,22 +1024,7 @@ export default function NewProjectPage() {
               </Card>
             )}
             
-            {/* Show page limit guidance */}
-            {showPageLimitTips && (
-              <Card className="mt-4">
-                <CardBody className="flex flex-col gap-3">
-                  <h4 className="text-lg font-semibold text-blue-600 dark:text-blue-400">
-                    📄 Page Limit Reached
-                  </h4>
-                  <div className="text-sm space-y-2">
-                    <p>• <strong>200 page limit</strong> helps ensure fast performance and quality results</p>
-                    <p>• <strong>Use "Smart Select"</strong> to automatically choose main pages</p>
-                    <p>• <strong>Deselect blog posts/products</strong> - the AI can access these dynamically via your API</p>
-                    <p>• <strong>Focus on core content</strong> that defines your business and services</p>
-                  </div>
-                </CardBody>
-              </Card>
-            )}
+            {/* Show page limit guidance - REMOVED */}
           </div>
         )}
       </section>

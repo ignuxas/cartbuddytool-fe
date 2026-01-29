@@ -6,7 +6,6 @@ import { config } from "@/lib/config";
 import { addToast } from "@heroui/toast";
 import { Button } from "@heroui/button";
 import { Tooltip } from "@heroui/tooltip";
-import { getChatWidgetScript } from "@/app/utils/chatWidgetGenerator";
 import { useAuth } from "@/app/contexts/AuthContext";
 import DemoPreview from "./DemoPreview";
 
@@ -24,6 +23,7 @@ interface WidgetSettings {
   footer_text: string;
   view_product_text: string;
   webhook_url?: string;
+  bot_icon?: string;
 }
 
 export default function DemoPage() {
@@ -156,25 +156,14 @@ export default function DemoPage() {
           html = screenshotUrl;
       }
 
-      // Generate the chat widget script with settings
-      // Use the calculated effective URL
-      const widgetScript = getChatWidgetScript({
-        webhookUrl: effectiveWebhookUrl!,
-        siteName: domain!,
-        baseUrl: config.serverUrl, // Point to backend for static assets like lukas.png
-        primaryColor: settings.primary_color,
-        secondaryColor: settings.secondary_color,
-        backgroundColor: settings.background_color,
-        textColor: settings.text_color,
-        title: settings.title,
-        welcomeMessage: settings.welcome_message,
-        suggestions: settings.suggestions,
-        bubbleGreetingText: settings.bubble_greeting_text,
-        bubbleButtonText: settings.bubble_button_text,
-        inputPlaceholder: settings.input_placeholder,
-        footerText: settings.footer_text,
-        viewProductText: settings.view_product_text,
-      });
+      // Use the hosted widget script directly
+      // This ensures the demo matches exactly what the user gets
+      // We pass the effective webhook URL via data attribute which we added support for in widget.js
+      let scriptAttributes = `src="${config.serverUrl}/api/widget.js" data-domain="${domain}" defer`;
+      if (effectiveWebhookUrl) {
+          scriptAttributes += ` data-webhook-url="${effectiveWebhookUrl}"`;
+      }
+      const widgetScript = `<script ${scriptAttributes}></script>`;
 
       // Inject the widget script into the HTML
       const modifiedHtml = injectWidgetIntoHtml(html, widgetScript);

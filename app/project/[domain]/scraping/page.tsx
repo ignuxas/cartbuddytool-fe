@@ -13,6 +13,7 @@ import { Card, CardBody } from "@heroui/card";
 import { Divider } from "@heroui/divider";
 import { Modal, ModalContent, ModalHeader, ModalBody, ModalFooter, useDisclosure } from "@heroui/modal";
 import BlacklistManager from "@/app/components/BlacklistManager";
+import PlaywrightSwitch from "@/app/components/PlaywrightSwitch";
 import { Switch } from "@heroui/switch";
 import { Checkbox } from "@heroui/checkbox";
 import { Input } from "@heroui/input";
@@ -85,6 +86,7 @@ export default function ScrapingPage() {
   const [useAI, setUseAI] = useState(false);
   const [retryCount, setRetryCount] = useState(3);
   const [retryDelay, setRetryDelay] = useState(1.0);
+  const [concurrency, setConcurrency] = useState(5);
   const [scrapedData, setScrapedData] = useState<ScrapedDataItem[]>([]);
   const [activeJobId, setActiveJobId] = useState<string | null>(null);
   const [blacklist, setBlacklist] = useState<string[]>([]);
@@ -629,7 +631,8 @@ export default function ScrapingPage() {
             force_rescrape: forceRescrape, 
             use_ai: useAI,
             retry_count: retryCount,
-            retry_delay: retryDelay
+            retry_delay: retryDelay,
+            concurrency: concurrency
           }),
         },
         "retry-scraping"
@@ -862,6 +865,8 @@ export default function ScrapingPage() {
                 setRetryCount={setRetryCount}
                 retryDelay={retryDelay}
                 setRetryDelay={setRetryDelay}
+                concurrency={concurrency}
+                setConcurrency={setConcurrency}
             />
             
             <BlacklistManager 
@@ -987,13 +992,11 @@ export default function ScrapingPage() {
                 </div>
                 <div className="flex flex-col gap-2">
                   <div className="flex items-center gap-2 px-1">
-                    <Switch
+                    <PlaywrightSwitch
                         isSelected={usePlaywrightForAdditional}
                         onValueChange={setUsePlaywrightForAdditional}
                         size="sm"
-                    >
-                        <span className="text-sm">Use Playwright</span>
-                    </Switch>
+                    />
                   </div>
                   <div className="flex gap-2">
                     <Button
@@ -1036,9 +1039,12 @@ export default function ScrapingPage() {
                     <div className="flex flex-col md:flex-row justify-end gap-3 items-end mb-2">
                          <div className="flex flex-col gap-2 items-end w-full md:w-auto">
                             <div className="flex gap-4 items-center flex-wrap justify-end">
-                                <Switch isSelected={usePlaywright} onValueChange={setUsePlaywright} size="sm" color="warning">
-                                    Use Playwright
-                                </Switch>
+                                <PlaywrightSwitch 
+                                    isSelected={usePlaywright} 
+                                    onValueChange={setUsePlaywright} 
+                                    size="sm" 
+                                    color="warning" 
+                                />
                                 <Switch isSelected={keepImages} onValueChange={setKeepImages} size="sm">
                                     Keep old images
                                 </Switch>

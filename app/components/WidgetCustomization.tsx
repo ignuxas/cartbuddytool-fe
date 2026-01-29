@@ -5,6 +5,7 @@ import { Card, CardBody, CardHeader } from "@heroui/card";
 import { Input } from "@heroui/input";
 import { Button } from "@heroui/button";
 import { Textarea } from "@heroui/input";
+import { Switch } from "@heroui/switch";
 import { addToast } from "@heroui/toast";
 import { config } from "@/lib/config";
 import { useMasterPrompts } from "@/app/utils/swr";
@@ -30,6 +31,8 @@ interface WidgetSettings {
   view_product_text: string;
   ai_model?: string;
   master_prompt_id?: number | null;
+  bot_icon?: string | null;
+  show_greeting_bubble?: boolean;
 }
 
 export default function WidgetCustomization({ domain, authKey, onSettingsUpdated }: WidgetCustomizationProps) {
@@ -55,7 +58,9 @@ export default function WidgetCustomization({ domain, authKey, onSettingsUpdated
     footer_text: 'Ask me anything about this website',
     view_product_text: 'View Product',
     ai_model: 'gemini-2.5-flash',
-    master_prompt_id: null
+    master_prompt_id: null,
+    bot_icon: null,
+    show_greeting_bubble: true
   });
   
   const [loading, setLoading] = useState(false);
@@ -171,6 +176,102 @@ export default function WidgetCustomization({ domain, authKey, onSettingsUpdated
     });
   };
 
+  const resizeImage = (file: File, maxWidth: number, maxHeight: number): Promise<Blob> => {
+    return new Promise((resolve, reject) => {
+        const reader = new FileReader();
+        reader.readAsDataURL(file);
+        reader.onload = (event) => {
+            const img = new Image();
+            img.src = event.target?.result as string;
+            img.onload = () => {
+                const canvas = document.createElement('canvas');
+                let width = img.width;
+                let height = img.height;
+
+                if (width > height) {
+                    if (width > maxWidth) {
+                        height = Math.round((height * maxWidth) / width);
+                        width = maxWidth;
+                    }
+                } else {
+                    if (height > maxHeight) {
+                        width = Math.round((width * maxHeight) / height);
+                        height = maxHeight;
+                    }
+                }
+
+                canvas.width = width;
+                canvas.height = height;
+                const ctx = canvas.getContext('2d');
+                ctx?.drawImage(img, 0, 0, width, height);
+                
+                canvas.toBlob((blob) => {
+                    if (blob) resolve(blob);
+                    else reject(new Error('Canvas to Blob failed'));
+                }, file.type, 0.9);
+            };
+        };
+        reader.onerror = error => reject(error);
+    });
+  };
+
+  const deleteIcon = async (url: string) => {
+      try {
+          await fetch(`${config.serverUrl}/api/widget/delete-icon/`, {
+              method: 'POST',
+              headers: { 
+                  'Content-Type': 'application/json',
+                  'X-Auth-Key': authKey 
+              },
+              body: JSON.stringify({ domain, url })
+          });
+      } catch (e) {
+          console.error("Failed to delete icon", e);
+      }
+  };
+
+  const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+      const file = e.target.files?.[0];
+      if (!file) return;
+
+      const previousIcon = settings.bot_icon;
+
+      try {
+        const resizedBlob = await resizeImage(file, 200, 200);
+        const formData = new FormData();
+        formData.append('file', resizedBlob, file.name);
+        formData.append('domain', domain);
+
+        const response = await fetch(`${config.serverUrl}/api/widget/upload-icon/`, {
+            method: 'POST',
+            headers: { 'X-Auth-Key': authKey },
+            body: formData
+        });
+
+        if (!response.ok) throw new Error('Upload failed');
+        
+        const data = await response.json();
+        setSettings({...settings, bot_icon: data.url});
+        addToast({ title: 'Success', description: 'Icon uploaded successfully', color: 'success' });
+        
+        // Clean up old icon if it exists
+        if (previousIcon) {
+            deleteIcon(previousIcon);
+        }
+
+      } catch (error) {
+        console.error("Upload error:", error);
+        addToast({ title: 'Error', description: 'Failed to upload icon', color: 'danger' });
+      }
+  };
+
+  const handleRemoveIcon = () => {
+      if (settings.bot_icon) {
+          deleteIcon(settings.bot_icon);
+          setSettings({...settings, bot_icon: null});
+      }
+  };
+
   if (loading) {
     return (
       <Card className="w-full">
@@ -248,6 +349,69 @@ export default function WidgetCustomization({ domain, authKey, onSettingsUpdated
            <p className="text-tiny text-default-500">
              Choose the base behavior for the assistant.
            </p>
+        </div>
+
+        <div className="flex border-b border-default-200 pb-2 mb-2">
+           <h3 className="text-large font-bold">Bot Appearance</h3>
+        </div>
+
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <div className="flex flex-col gap-2">
+                <label className="text-sm font-medium">Bot Icon</label>
+                <div className="flex items-center gap-4">
+                     <div className="w-16 h-16 rounded-full overflow-hidden border border-default-200 bg-white shrink-0 flex items-center justify-center">
+                             <img 
+                                src={settings.bot_icon || `${config.serverUrl}/api/static/lukas.png`} 
+                                alt="Bot Icon" 
+                                className="w-full h-full object-cover"
+                                onError={(e) => {
+                                    // Fallback if image fails to load
+                                    e.currentTarget.style.display = 'none';
+                                    e.currentTarget.parentElement!.innerHTML = '<span class="text-2xl">🤖</span>';
+                                }}
+                             />
+                     </div>
+                     <div className="flex flex-col gap-2">
+                        <div className="flex gap-2">
+                            <label className="cursor-pointer">
+                                <span className="bg-primary text-white px-4 py-2 rounded-medium text-small font-medium hover:bg-primary/90 transition-colors">
+                                    Upload Icon
+                                </span>
+                                <input 
+                                    type="file" 
+                                    accept="image/*"
+                                    onChange={handleImageUpload}
+                                    className="hidden"
+                                />
+                            </label>
+                            {settings.bot_icon && (
+                                <button
+                                    onClick={handleRemoveIcon}
+                                    className="px-4 py-2 rounded-medium text-small font-medium bg-default-100 text-default-700 hover:bg-default-200 transition-colors"
+                                    title="Reset to default icon"
+                                >
+                                    Reset
+                                </button>
+                            )}
+                        </div>
+                        <p className="text-tiny text-default-500">Max size 200x200px</p>
+                     </div>
+                </div>
+            </div>
+
+             <div className="flex flex-col justify-center gap-2">
+                 <div className="flex justify-between items-center bg-default-50 p-3 rounded-medium border border-default-100">
+                    <div className="flex flex-col">
+                        <span className="text-sm font-medium">Show Greeting Bubble</span>
+                        <span className="text-tiny text-default-500">Enable initial greeting popup</span>
+                    </div>
+                    <Switch 
+                        size="sm"
+                        isSelected={settings.show_greeting_bubble ?? true}
+                        onValueChange={(val) => setSettings({...settings, show_greeting_bubble: val})}
+                    />
+                 </div>
+             </div>
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
@@ -350,25 +514,27 @@ export default function WidgetCustomization({ domain, authKey, onSettingsUpdated
 
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           <div className="flex flex-col gap-2">
-            <label className="text-sm font-medium">Chat Bubble Greeting</label>
+            <label className={`text-sm font-medium ${!settings.show_greeting_bubble ? 'text-default-400' : ''}`}>Chat Bubble Greeting</label>
             <Input
               value={settings.bubble_greeting_text}
               onChange={(e) => setSettings({ ...settings, bubble_greeting_text: e.target.value })}
               placeholder="Welcome! How can I assist you today?"
               maxLength={200}
+              isDisabled={!settings.show_greeting_bubble}
             />
-            <p className="text-xs text-gray-500">First line of text shown in the chat bubble (fully customizable)</p>
+            <p className="text-xs text-default-500">First line of text shown in the chat bubble (fully customizable)</p>
           </div>
 
           <div className="flex flex-col gap-2">
-            <label className="text-sm font-medium">Chat Bubble Button Text</label>
+            <label className={`text-sm font-medium ${!settings.show_greeting_bubble ? 'text-default-400' : ''}`}>Chat Bubble Button Text</label>
             <Input
               value={settings.bubble_button_text}
               onChange={(e) => setSettings({ ...settings, bubble_button_text: e.target.value })}
               placeholder="Chat with AI assistant"
               maxLength={100}
+              isDisabled={!settings.show_greeting_bubble}
             />
-            <p className="text-xs text-gray-500">Button text in the chat bubble</p>
+            <p className="text-xs text-default-500">Button text in the chat bubble</p>
           </div>
         </div>
 

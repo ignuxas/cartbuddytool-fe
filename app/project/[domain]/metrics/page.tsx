@@ -45,6 +45,7 @@ interface MetricsData {
   daily_stats: Array<{ date: string; count: number; errors: number }>;
   hourly_stats: Array<{ hour: string; count: number }>;
   top_queries: Array<{ query: string; count: number }>;
+  top_pages: Array<{ url: string; title: string; count: number }>;
   interactions_by_mode: Array<{ mode: string; count: number }>;
   recent_metrics: Array<{
     id: string;
@@ -53,6 +54,8 @@ interface MetricsData {
     sessionId: string;
     ip: string;
     created_at: string;
+    page_title?: string;
+    page_url?: string;
   }>;
 }
 
@@ -174,6 +177,7 @@ export default function MetricsPage() {
           hourly_stats: data.hourly_stats || [],
           top_queries: data.top_queries || [],
           interactions_by_mode: data.interactions_by_mode || [],
+          top_pages: data.top_pages || [],
           recent_metrics: data.recent_metrics || [],
           error_types: data.error_types || [],
           recent_errors: data.recent_errors || [],
@@ -395,9 +399,9 @@ export default function MetricsPage() {
           </Card>
         </div>
 
-        {/* Top Queries and Error Analysis */}
-        <div className={`grid grid-cols-1 ${metrics.total_errors > 0 ? 'lg:grid-cols-2' : ''} gap-6 mb-6`}>
-          {/* Top Queries - Replaces Interactions by Mode */}
+        {/* Top Queries, Top Pages and Error Analysis */}
+        <div className={`grid grid-cols-1 md:grid-cols-2 ${metrics.total_errors > 0 ? 'lg:grid-cols-3' : ''} gap-6 mb-6`}>
+          {/* Top Queries */}
           <Card>
             <CardHeader>
               <h3 className="text-xl font-semibold">Top User Queries</h3>
@@ -424,6 +428,43 @@ export default function MetricsPage() {
               ) : (
                 <div className="text-center text-default-500 py-12">
                   No query data available
+                </div>
+              )}
+            </CardBody>
+          </Card>
+
+          {/* Top Pages */}
+          <Card>
+            <CardHeader>
+              <h3 className="text-xl font-semibold">Top Pages</h3>
+            </CardHeader>
+            <CardBody>
+              {metrics.top_pages && metrics.top_pages.length > 0 ? (
+                <div className="space-y-2 max-h-60 overflow-y-auto pr-2">
+                  {metrics.top_pages.map((item, idx) => (
+                    <div
+                      key={idx}
+                      className="flex items-center justify-between p-3 bg-default-100 rounded-lg"
+                    >
+                      <div className="flex-1 mr-4">
+                         <div className="text-sm font-medium text-foreground truncate" title={item.title}>
+                          {item.title || item.url}
+                        </div>
+                        {item.title && (
+                             <div className="text-xs text-default-500 truncate" title={item.url}>
+                              {item.url}
+                            </div>
+                        )}
+                      </div>
+                      <Chip size="sm" color="secondary" variant="flat">
+                        {item.count}
+                      </Chip>
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <div className="text-center text-default-500 py-12">
+                  No page data available
                 </div>
               )}
             </CardBody>
@@ -589,6 +630,13 @@ export default function MetricsPage() {
                           {formatDateTime(metric.created_at)}
                         </div>
                         <div className="flex gap-2">
+                           {(metric.page_title || metric.page_url) && (
+                            <Chip size="sm" variant="flat" color="warning" className="max-w-[200px]" title={metric.page_url}>
+                               <span className="truncate block">
+                                  {metric.page_title || metric.page_url}
+                               </span>
+                            </Chip>
+                          )}
                           {metric.sessionId !== "-" && (
                             <Chip size="sm" variant="flat" color="secondary">
                               {metric.sessionId.slice(0, 8)}...

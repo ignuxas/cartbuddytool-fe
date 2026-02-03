@@ -14,6 +14,7 @@ interface ChatWidgetConfig {
   inputPlaceholder?: string;
   footerText?: string;
   viewProductText?: string;
+  visitPageText?: string;
   botIcon?: string;
 }
 
@@ -38,6 +39,7 @@ export function getChatWidgetScript(config: ChatWidgetConfig): string {
         inputPlaceholder = 'Send message...',
         footerText = 'Ask me anything about this website',
         viewProductText = 'View Product',
+        visitPageText = 'Visit Page',
         webhookUrl,
         siteName,
         baseUrl = '',
@@ -58,6 +60,7 @@ export function getChatWidgetScript(config: ChatWidgetConfig): string {
         input_placeholder: inputPlaceholder,
         footer_text: footerText,
         view_product_text: viewProductText,
+        visit_page_text: visitPageText,
         webhook_url: webhookUrl,
         max_message_length: 1000,
         bot_icon: botIcon
@@ -85,6 +88,7 @@ export function getChatWidgetScript(config: ChatWidgetConfig): string {
         input_placeholder: inputPlaceholder,
         footer_text: footerText,
         view_product_text: viewProductText,
+        visit_page_text: visitPageText,
         webhook_url: webhookUrl,
         max_message_length: maxMessageLength = 1000,
         bot_icon: botIcon
@@ -488,7 +492,7 @@ export function getChatWidgetScript(config: ChatWidgetConfig): string {
             isExternal = linkUrl.hostname !== window.location.hostname;
         } catch (e) {}
         
-        const buttonText = isExternal ? 'Visit Page ↗' : 'Visit Page';
+        const buttonText = isExternal ? (visitPageText + ' ↗') : visitPageText;
         
         // Truncate description
         const truncatedDescription = description && description.length > 80 

@@ -29,6 +29,7 @@ interface WidgetSettings {
   input_placeholder: string;
   footer_text: string;
   view_product_text: string;
+  visit_page_text: string;
   ai_model?: string;
   master_prompt_id?: number | null;
   bot_icon?: string | null;
@@ -57,6 +58,7 @@ export default function WidgetCustomization({ domain, authKey, onSettingsUpdated
     input_placeholder: 'Send message...',
     footer_text: 'Ask me anything about this website',
     view_product_text: 'View Product',
+    visit_page_text: 'Visit Page',
     ai_model: 'gemini-2.5-flash',
     master_prompt_id: null,
     bot_icon: null,
@@ -559,6 +561,17 @@ export default function WidgetCustomization({ domain, authKey, onSettingsUpdated
               maxLength={50}
             />
             <p className="text-xs text-gray-500">Button text on product cards</p>
+          </div>
+
+          <div className="flex flex-col gap-2">
+            <label className="text-sm font-medium">Visit Page Button Text</label>
+            <Input
+              value={settings.visit_page_text}
+              onChange={(e) => setSettings({ ...settings, visit_page_text: e.target.value })}
+              placeholder="Visit Page"
+              maxLength={50}
+            />
+            <p className="text-xs text-gray-500">Button text for page links</p>
           </div>
         </div>
 

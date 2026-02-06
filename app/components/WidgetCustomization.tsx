@@ -34,6 +34,7 @@ interface WidgetSettings {
   master_prompt_id?: number | null;
   bot_icon?: string | null;
   show_greeting_bubble?: boolean;
+  language?: string;
 }
 
 export default function WidgetCustomization({ domain, authKey, onSettingsUpdated }: WidgetCustomizationProps) {
@@ -62,7 +63,8 @@ export default function WidgetCustomization({ domain, authKey, onSettingsUpdated
     ai_model: 'gemini-2.5-flash',
     master_prompt_id: null,
     bot_icon: null,
-    show_greeting_bubble: true
+    show_greeting_bubble: true,
+    language: 'en'
   });
   
   const [loading, setLoading] = useState(false);
@@ -323,6 +325,29 @@ export default function WidgetCustomization({ domain, authKey, onSettingsUpdated
              {availableModels.length > 0 
                ? "Select the Gemini model to power your assistant." 
                : "Enter the Gemini model ID manually (e.g., gemini-2.5-flash)."}
+           </p>
+        </div>
+
+        <div className="flex flex-col gap-2 mb-2">
+           <label className="text-sm font-medium">Language</label>
+           <div className="relative">
+             <select 
+               aria-label="Select Language"
+               className="w-full h-10 px-3 pr-10 rounded-medium bg-default-100 text-small outline-none focus:ring-2 focus:ring-primary appearance-none cursor-pointer hover:bg-default-200 transition-colors"
+               value={settings.language || 'en'}
+               onChange={(e) => setSettings({...settings, language: e.target.value})}
+             >
+                <option value="en">English (EN)</option>
+                <option value="lt">Lithuanian (LT)</option>
+             </select>
+              <div className="absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none text-default-500">
+               <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                 <path d="M6 9l6 6 6-6"/>
+               </svg>
+             </div>
+           </div>
+           <p className="text-tiny text-default-500">
+             Choose the language for built-in widget text (e.g., Terms of Service).
            </p>
         </div>
 

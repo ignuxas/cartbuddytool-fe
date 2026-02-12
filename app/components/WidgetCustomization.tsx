@@ -38,7 +38,7 @@ interface WidgetSettings {
 }
 
 export default function WidgetCustomization({ domain, authKey, onSettingsUpdated }: WidgetCustomizationProps) {
-  const [availableModels, setAvailableModels] = useState<{id: string, name: string}[]>([]);
+  const [availableModels, setAvailableModels] = useState<{id: string, name: string, provider?: string}[]>([]);
   const { prompts: masterPrompts } = useMasterPrompts(authKey);
   const [settings, setSettings] = useState<WidgetSettings>({
     primary_color: '#3b82f6',
@@ -302,9 +302,28 @@ export default function WidgetCustomization({ domain, authKey, onSettingsUpdated
                  value={settings.ai_model || 'gemini-2.5-flash'}
                  onChange={(e) => setSettings({...settings, ai_model: e.target.value})}
                >
-                  {availableModels.map(m => (
-                      <option key={m.id} value={m.id}>{m.name}</option>
-                  ))}
+                  {(() => {
+                    const geminiModels = availableModels.filter(m => m.provider === 'gemini' || !m.provider);
+                    const openaiModels = availableModels.filter(m => m.provider === 'openai');
+                    return (
+                      <>
+                        {geminiModels.length > 0 && (
+                          <optgroup label="Google Gemini">
+                            {geminiModels.map(m => (
+                              <option key={m.id} value={m.id}>{m.name}</option>
+                            ))}
+                          </optgroup>
+                        )}
+                        {openaiModels.length > 0 && (
+                          <optgroup label="OpenAI">
+                            {openaiModels.map(m => (
+                              <option key={m.id} value={m.id}>{m.name}</option>
+                            ))}
+                          </optgroup>
+                        )}
+                      </>
+                    );
+                  })()}
                </select>
                 <div className="absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none text-default-500">
                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -323,8 +342,8 @@ export default function WidgetCustomization({ domain, authKey, onSettingsUpdated
            )}
            <p className="text-tiny text-default-500">
              {availableModels.length > 0 
-               ? "Select the Gemini model to power your assistant." 
-               : "Enter the Gemini model ID manually (e.g., gemini-2.5-flash)."}
+               ? "Select the AI model to power your assistant." 
+               : "Enter the model ID manually (e.g., gemini-2.5-flash, gpt-4o)."}
            </p>
         </div>
 

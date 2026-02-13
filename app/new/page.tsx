@@ -2,7 +2,6 @@
 
 import { useState, useEffect } from "react";
 import UrlForm from "../components/UrlForm";
-import AuthModal from "../components/AuthModal";
 import PlaywrightSwitch from "../components/PlaywrightSwitch";
 import { Button } from "@heroui/button";
 import { Input } from "@heroui/input";
@@ -11,7 +10,7 @@ import { Card, CardBody } from "@heroui/card";
 import { config } from "@/lib/config";
 import { useRouter } from "next/navigation";
 import { addToast } from "@heroui/toast";
-import { useAuthContext } from "../contexts/AuthContext";
+import { useAuth } from "../contexts/AuthContext";
 
 interface ScrapedDataItem {
   url: string;
@@ -149,8 +148,16 @@ const makeApiCall = async (url: string, options: RequestInit, context: string) =
 };
 
 export default function NewProjectPage() {
-  const { isAuthenticated, authKey, isLoading, login, logout } = useAuthContext();
+  const { isAuthenticated, accessToken: authKey, isLoading, isSuperAdmin } = useAuth();
   const router = useRouter();
+
+  // Redirect non-admins
+  useEffect(() => {
+    if (!isLoading && isAuthenticated && !isSuperAdmin) {
+      router.replace("/");
+    }
+  }, [isLoading, isAuthenticated, isSuperAdmin, router]);
+
   const [url, setUrl] = useState("");
   const [loading, setLoading] = useState(false);
   const [errorMessage, setErrorMessage] = useState("");
@@ -249,7 +256,7 @@ export default function NewProjectPage() {
 
   const getAuthHeaders = () => ({
     "Content-Type": "application/json",
-    "X-Auth-Key": authKey!,
+    "Authorization": `Bearer ${authKey!}`,
   });
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -654,11 +661,6 @@ export default function NewProjectPage() {
 
   return (
     <>
-      <AuthModal 
-        isOpen={!isAuthenticated} 
-        onAuthenticate={login}
-      />
-      
       <section className="flex flex-col items-center justify-center gap-4 py-8 md:py-10">
         <div className="inline-block text-center justify-center">
           <h1 className="text-3xl md:text-4xl font-bold mb-2">New Project</h1>

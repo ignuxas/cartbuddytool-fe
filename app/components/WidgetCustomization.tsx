@@ -14,6 +14,7 @@ interface WidgetCustomizationProps {
   domain: string;
   authKey: string;
   onSettingsUpdated?: () => void;
+  isSuperAdmin?: boolean;
 }
 
 interface WidgetSettings {
@@ -37,7 +38,7 @@ interface WidgetSettings {
   language?: string;
 }
 
-export default function WidgetCustomization({ domain, authKey, onSettingsUpdated }: WidgetCustomizationProps) {
+export default function WidgetCustomization({ domain, authKey, onSettingsUpdated, isSuperAdmin }: WidgetCustomizationProps) {
   const { models: availableModels } = useAvailableModels(authKey);
   const { prompts: masterPrompts } = useMasterPrompts(authKey);
   const { settings: cachedSettings, isLoading: settingsLoading, revalidate: revalidateSettings } = useWidgetSettings(domain, authKey);
@@ -90,7 +91,7 @@ export default function WidgetCustomization({ domain, authKey, onSettingsUpdated
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          'X-Auth-Key': authKey,
+          'Authorization': `Bearer ${authKey}`,
         },
         body: JSON.stringify({
           domain,
@@ -190,7 +191,7 @@ export default function WidgetCustomization({ domain, authKey, onSettingsUpdated
               method: 'POST',
               headers: { 
                   'Content-Type': 'application/json',
-                  'X-Auth-Key': authKey 
+                  'Authorization': `Bearer ${authKey}` 
               },
               body: JSON.stringify({ domain, url })
           });
@@ -213,7 +214,7 @@ export default function WidgetCustomization({ domain, authKey, onSettingsUpdated
 
         const response = await fetch(`${config.serverUrl}/api/widget/upload-icon/`, {
             method: 'POST',
-            headers: { 'X-Auth-Key': authKey },
+            headers: { 'Authorization': `Bearer ${authKey}` },
             body: formData
         });
 
@@ -268,20 +269,20 @@ export default function WidgetCustomization({ domain, authKey, onSettingsUpdated
                  onChange={(e) => setSettings({...settings, ai_model: e.target.value})}
                >
                   {(() => {
-                    const geminiModels = availableModels.filter(m => m.provider === 'gemini' || !m.provider);
-                    const openaiModels = availableModels.filter(m => m.provider === 'openai');
+                    const geminiModels = availableModels.filter((m: any) => m.provider === 'gemini' || !m.provider);
+                    const openaiModels = availableModels.filter((m: any) => m.provider === 'openai');
                     return (
                       <>
                         {geminiModels.length > 0 && (
                           <optgroup label="Google Gemini">
-                            {geminiModels.map(m => (
+                            {geminiModels.map((m: any) => (
                               <option key={m.id} value={m.id}>{m.name}</option>
                             ))}
                           </optgroup>
                         )}
                         {openaiModels.length > 0 && (
                           <optgroup label="OpenAI">
-                            {openaiModels.map(m => (
+                            {openaiModels.map((m: any) => (
                               <option key={m.id} value={m.id}>{m.name}</option>
                             ))}
                           </optgroup>
@@ -335,6 +336,7 @@ export default function WidgetCustomization({ domain, authKey, onSettingsUpdated
            </p>
         </div>
 
+        {isSuperAdmin && (
         <div className="flex flex-col gap-2">
            <label className="text-sm font-medium">Master Prompt Template</label>
            <div className="relative">
@@ -361,6 +363,7 @@ export default function WidgetCustomization({ domain, authKey, onSettingsUpdated
              Choose the base behavior for the assistant.
            </p>
         </div>
+        )}
 
         <div className="flex border-b border-default-200 pb-2 mb-2">
            <h3 className="text-large font-bold">Bot Appearance</h3>

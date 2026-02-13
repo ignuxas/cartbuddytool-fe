@@ -21,7 +21,7 @@ export const authenticatedFetcher = async (
     method: options?.method || 'GET',
     headers: {
       'Content-Type': 'application/json',
-      'X-Auth-Key': authKey,
+      'Authorization': `Bearer ${authKey}`,
     },
     body: options?.body ? JSON.stringify(options.body) : undefined,
   });
@@ -280,7 +280,7 @@ export function useMetricsDashboard(domain: string | null, authKey: string | nul
       if (!authKey || !domain) return null;
       const res = await fetch(
         `${config.serverUrl}/api/metrics/?domain=${encodeURIComponent(domain)}`,
-        { headers: { 'X-Auth-Key': authKey } }
+        { headers: { 'Authorization': `Bearer ${authKey}` } }
       );
       if (!res.ok) throw new Error(`Failed to fetch metrics: ${res.statusText}`);
       return res.json();

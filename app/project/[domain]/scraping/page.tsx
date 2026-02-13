@@ -6,7 +6,7 @@ import ActionButtons from "@/app/components/ActionButtons";
 import ScrapedPagesTable from "@/app/components/ScrapedPagesTable";
 import { useRouter, useParams } from "next/navigation";
 import { addToast } from "@heroui/toast";
-import { useAuthContext } from "@/app/contexts/AuthContext";
+import { useAuth } from "@/app/contexts/AuthContext";
 import { Button } from "@heroui/button";
 import { Link } from "@heroui/link";
 import { Card, CardBody } from "@heroui/card";
@@ -36,7 +36,7 @@ interface ScrapedDataItem {
 export default function ScrapingPage() {
   const params = useParams();
   const domain = params.domain as string;
-  const { isAuthenticated, authKey, isLoading: authIsLoading } = useAuthContext();
+  const { isAuthenticated, accessToken: authKey, isLoading: authIsLoading, isSuperAdmin } = useAuth();
   const router = useRouter();
   const [retryLoading, setRetryLoading] = useState<string | null>(null);
   const [errorMessage, setErrorMessage] = useState("");
@@ -58,6 +58,7 @@ export default function ScrapingPage() {
   const blacklistModal = useDisclosure();
   const rescrapeModal = useDisclosure();
   const [itemsToBlacklist, setItemsToBlacklist] = useState<string[]>([]);
+  const [actionLoading, setActionLoading] = useState(false);
 
   const [scrapingProgress, setScrapingProgress] = useState<{ 
     current: number; 
@@ -78,7 +79,7 @@ export default function ScrapingPage() {
 
   const getAuthHeaders = () => ({
     "Content-Type": "application/json",
-    "X-Auth-Key": authKey!,
+    "Authorization": `Bearer ${authKey!}`,
   });
 
   // --- SWR: single request for scraped data + blacklist + active job ---
@@ -120,7 +121,7 @@ export default function ScrapingPage() {
               method: "POST",
               headers: {
                   "Content-Type": "application/json",
-                  "X-Auth-Key": authKey!,
+                  "Authorization": `Bearer ${authKey!}`,
               },
               body: JSON.stringify({ domain, blacklist: newList }),
           });
@@ -285,7 +286,7 @@ export default function ScrapingPage() {
       const items = itemsToBlacklist;
       blacklistModal.onClose();
       
-      setLoading(true);
+      setActionLoading(true);
       
       // 1. Update Blacklist
       const uniqueItems = items.filter(item => !blacklist.includes(item));
@@ -312,7 +313,7 @@ export default function ScrapingPage() {
               addToast({ title: "Warning", description: "Items blacklisted but failed to delete from current data", color: "warning" });
           }
       }
-      setLoading(false);
+      setActionLoading(false);
       setItemsToBlacklist([]);
   };
 
@@ -800,25 +801,35 @@ export default function ScrapingPage() {
 
           <div className="flex flex-col gap-4">
             <h2 className="text-xl font-semibold">Controls</h2>
-            <ActionButtons
-                scrapedDataLength={scrapedData.length}
-                errorMessage={errorMessage}
-                url={url}
-                handleRetryScraping={handleRetryScraping}
-                handleOpenRetryModal={handleOpenRetryModal}
-                handleSmartRescrapeImages={handleSmartRescrapeImages}
-                handleStopScraping={handleStopScraping}
-                loading={loading}
-                retryLoading={retryLoading}
-                useAI={useAI}
-                setUseAI={setUseAI}
-                retryCount={retryCount}
-                setRetryCount={setRetryCount}
-                retryDelay={retryDelay}
-                setRetryDelay={setRetryDelay}
-                concurrency={concurrency}
-                setConcurrency={setConcurrency}
-            />
+            {isSuperAdmin ? (
+              <ActionButtons
+                  scrapedDataLength={scrapedData.length}
+                  errorMessage={errorMessage}
+                  url={url}
+                  handleRetryScraping={handleRetryScraping}
+                  handleOpenRetryModal={handleOpenRetryModal}
+                  handleSmartRescrapeImages={handleSmartRescrapeImages}
+                  handleStopScraping={handleStopScraping}
+                  loading={loading}
+                  retryLoading={retryLoading}
+                  useAI={useAI}
+                  setUseAI={setUseAI}
+                  retryCount={retryCount}
+                  setRetryCount={setRetryCount}
+                  retryDelay={retryDelay}
+                  setRetryDelay={setRetryDelay}
+                  concurrency={concurrency}
+                  setConcurrency={setConcurrency}
+              />
+            ) : (
+              <Card className="bg-content2">
+                <CardBody className="py-4">
+                  <p className="text-sm text-default-500">
+                    Scraping actions are managed by administrators. Contact your admin to re-scrape or update data.
+                  </p>
+                </CardBody>
+              </Card>
+            )}
             
             <BlacklistManager 
                 blacklist={blacklist}
@@ -984,9 +995,9 @@ export default function ScrapingPage() {
                         urls.includes(item.url) ? { ...item, selected: isSelected } : item
                      ));
                 }}
-                onDelete={(url) => handleBlacklistItems([url])}
-                onRescrape={async (url) => handleRescrapePages([url], { keepImages, useAI, usePlaywright })}
-                onUpdateImage={handleUpdateImage}
+                onDelete={isSuperAdmin ? (url) => handleBlacklistItems([url]) : undefined}
+                onRescrape={isSuperAdmin ? async (url) => handleRescrapePages([url], { keepImages, useAI, usePlaywright }) : undefined}
+                onUpdateImage={isSuperAdmin ? handleUpdateImage : undefined}
                 headerContent={(
                     <div className="flex flex-col md:flex-row justify-end gap-3 items-end mb-2">
                          <div className="flex flex-col gap-2 items-end w-full md:w-auto">
@@ -1007,6 +1018,7 @@ export default function ScrapingPage() {
                                 )}
                             </div>
                             <div className="flex gap-3">
+                                {isSuperAdmin && (
                                 <Button 
                                     color="secondary" 
                                     variant="flat"
@@ -1016,6 +1028,8 @@ export default function ScrapingPage() {
                                 >
                                     Add Pages
                                 </Button>
+                                )}
+                                {isSuperAdmin && (
                                 <Button
                                     color="danger"
                                     variant="flat"
@@ -1025,6 +1039,8 @@ export default function ScrapingPage() {
                                 >
                                     Blacklist Selected
                                 </Button>
+                                )}
+                                {isSuperAdmin && (
                                 <Button 
                                     color="primary" 
                                     isDisabled={!scrapedData.some(i => i.selected)}
@@ -1033,6 +1049,7 @@ export default function ScrapingPage() {
                                 >
                                     Re-scrape Selected
                                 </Button>
+                                )}
                             </div>
                         </div>
                     </div>

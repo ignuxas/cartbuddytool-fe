@@ -9,7 +9,8 @@ import {
 import { Link } from "@heroui/link";
 import NextLink from "next/link";
 import { Button } from "@heroui/button";
-import { useAuthContext } from "@/app/contexts/AuthContext";
+import { Chip } from "@heroui/chip";
+import { useAuth } from "@/app/contexts/AuthContext";
 import { usePathname } from "next/navigation";
 
 import {
@@ -17,7 +18,7 @@ import {
 } from "@/components/icons";
 
 export const Navbar = () => {
-  const { isAuthenticated, logout } = useAuthContext();
+  const { isAuthenticated, isSuperAdmin, user, logout } = useAuth();
   const pathname = usePathname();
 
   return (
@@ -35,17 +36,24 @@ export const Navbar = () => {
                 Dashboard
               </NextLink>
             </NavbarItem>
-            {isAuthenticated && (
+            {isAuthenticated && isSuperAdmin && (
               <NavbarItem isActive={pathname === "/new"}>
                 <NextLink className="text-foreground data-[active=true]:text-primary data-[active=true]:font-medium" href="/new">
                   New Project
                 </NextLink>
               </NavbarItem>
             )}
-            {isAuthenticated && (
+            {isAuthenticated && isSuperAdmin && (
               <NavbarItem isActive={pathname === "/prompts"}>
                 <NextLink className="text-foreground data-[active=true]:text-primary data-[active=true]:font-medium" href="/prompts">
                   Prompts
+                </NextLink>
+              </NavbarItem>
+            )}
+            {isAuthenticated && isSuperAdmin && (
+              <NavbarItem isActive={pathname === "/users"}>
+                <NextLink className="text-foreground data-[active=true]:text-primary data-[active=true]:font-medium" href="/users">
+                  Users
                 </NextLink>
               </NavbarItem>
             )}
@@ -54,6 +62,13 @@ export const Navbar = () => {
 
       <NavbarContent justify="end">
         {isAuthenticated && (
+          <>
+            <NavbarItem className="hidden sm:flex items-center gap-2">
+              <span className="text-sm text-default-500">{user?.email}</span>
+              {isSuperAdmin && (
+                <Chip size="sm" color="warning" variant="flat">Admin</Chip>
+              )}
+            </NavbarItem>
             <NavbarItem>
               <Button 
                 color="danger" 
@@ -64,6 +79,7 @@ export const Navbar = () => {
                 Logout
               </Button>
             </NavbarItem>
+          </>
         )}
       </NavbarContent>
     </HeroUINavbar>

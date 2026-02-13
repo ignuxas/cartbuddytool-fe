@@ -25,6 +25,11 @@ interface WorkflowResult {
   webhook_url?: string;
 }
 
+interface RefineAiQuota {
+  remaining: number;
+  limit: number;
+}
+
 interface ResultsDisplayProps {
   sheetId: string | null;
   prompt: string;
@@ -39,6 +44,8 @@ interface ResultsDisplayProps {
   handleSavePromptToWorkflow?: () => void;
   setPrompt: (prompt: string) => void;
   promptModified?: boolean;
+  isSuperAdmin?: boolean;
+  refineAiQuota?: RefineAiQuota | null;
 }
 
 const EditIcon = (props: any) => (
@@ -101,6 +108,8 @@ export default function ResultsDisplay({
   setPrompt,
   url,
   promptModified,
+  isSuperAdmin = true,
+  refineAiQuota,
 }: ResultsDisplayProps) {
 
   const [improvementInstructions, setImprovementInstructions] = React.useState("");
@@ -268,9 +277,15 @@ export default function ResultsDisplay({
                       minRows={5}
                       maxRows={15}
                       value={prompt}
-                      onChange={(e) => setPrompt(e.target.value)}
+                      onChange={(e) => {
+                        if (e.target.value.length <= 8000) {
+                          setPrompt(e.target.value);
+                        }
+                      }}
+                      maxLength={8000}
                       placeholder="e.g. You are a helpful assistant for a hiking gear shop..."
                       className="mb-2"
+                      description={`${(prompt || '').length} / 8000 characters`}
                    />
                    
                    <div className="flex flex-col md:flex-row justify-between items-center gap-4 mb-6">
@@ -304,15 +319,21 @@ export default function ResultsDisplay({
                                    {!prompt ? "Generate instructions" : "Reset to Default"}
                                  </Button>
                              </Tooltip>
-                             <Button
-                                size="sm"
-                                variant={showRefinementTools ? "flat" : "ghost"}
-                                color="primary"
-                                onClick={() => setShowRefinementTools(!showRefinementTools)}
-                                startContent={<span>✨</span>}
+                             <Tooltip 
+                                content={!isSuperAdmin && refineAiQuota && refineAiQuota.remaining <= 0 ? "Daily AI refinement quota exhausted" : "Use AI to improve this prompt"}
+                                placement="top"
                              >
-                               {showRefinementTools ? "Close AI Tools" : "Refine with AI"}
-                             </Button>
+                               <Button
+                                  size="sm"
+                                  variant={showRefinementTools ? "flat" : "ghost"}
+                                  color="primary"
+                                  onClick={() => setShowRefinementTools(!showRefinementTools)}
+                                  startContent={<span>✨</span>}
+                                  isDisabled={!isSuperAdmin && refineAiQuota !== undefined && refineAiQuota !== null && refineAiQuota.remaining <= 0}
+                               >
+                                 {showRefinementTools ? "Close AI Tools" : "Refine with AI"}
+                               </Button>
+                             </Tooltip>
                         </div>
                    </div>
 
@@ -335,13 +356,21 @@ export default function ResultsDisplay({
                               />
                               <div className="flex justify-between items-center gap-2 pt-1">
                                  <p className="text-xs text-default-400">
-                                   Consumes 1 AI quota per request.
+                                   {isSuperAdmin ? (
+                                     "Consumes 1 AI quota per request."
+                                   ) : refineAiQuota ? (
+                                     <span className={refineAiQuota.remaining <= 0 ? "text-danger" : refineAiQuota.remaining <= 3 ? "text-warning" : ""}>
+                                       {refineAiQuota.remaining} / {refineAiQuota.limit} AI refinements remaining today
+                                     </span>
+                                   ) : (
+                                     "Consumes 1 AI quota per request."
+                                   )}
                                  </p>
                                  <Button
                                     size="sm"
                                     color="primary"
                                     variant="solid"
-                                    isDisabled={!improvementInstructions.trim()}
+                                    isDisabled={!improvementInstructions.trim() || (!isSuperAdmin && refineAiQuota !== undefined && refineAiQuota !== null && refineAiQuota.remaining <= 0)}
                                     isLoading={retryLoading === "improve-prompt"}
                                     onClick={async () => {
                                         await handleImprovePrompt(prompt, improvementInstructions);

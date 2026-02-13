@@ -21,6 +21,7 @@ interface Project {
 interface ExistingProjectsProps {
   authKey: string | null;
   onSelectProject?: (url: string) => void;
+  isSuperAdmin?: boolean;
 }
 
 const SkeletonCard = () => (
@@ -43,7 +44,7 @@ const EmptyStateIcon = () => (
 );
 
 
-const ExistingProjects: React.FC<ExistingProjectsProps> = ({ authKey, onSelectProject }) => {
+const ExistingProjects: React.FC<ExistingProjectsProps> = ({ authKey, onSelectProject, isSuperAdmin = false }) => {
   const [projects, setProjects] = useState<Project[]>([]);
   const [loading, setLoading] = useState(true);
 
@@ -70,7 +71,7 @@ const ExistingProjects: React.FC<ExistingProjectsProps> = ({ authKey, onSelectPr
         method: "GET",
         headers: {
           "Content-Type": "application/json",
-          "X-Auth-Key": authKey,
+          "Authorization": `Bearer ${authKey}`,
         },
       });
 
@@ -110,7 +111,7 @@ const ExistingProjects: React.FC<ExistingProjectsProps> = ({ authKey, onSelectPr
         method: "DELETE",
         headers: {
           "Content-Type": "application/json",
-          "X-Auth-Key": authKey,
+          "Authorization": `Bearer ${authKey}`,
         },
         body: JSON.stringify({ domain }),
       });
@@ -168,7 +169,7 @@ const ExistingProjects: React.FC<ExistingProjectsProps> = ({ authKey, onSelectPr
               key={project.domain}
               project={project}
               onSelect={handleSelectProject}
-              onDelete={handleDeleteProject}
+              onDelete={isSuperAdmin ? handleDeleteProject : undefined}
             />
           ))}
         </div>

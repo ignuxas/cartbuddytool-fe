@@ -21,6 +21,7 @@ interface KnowledgeFile {
 interface KnowledgeBaseProps {
   domain: string;
   authKey: string | null;
+  isSuperAdmin?: boolean;
 }
 
 // Icons
@@ -48,7 +49,7 @@ const TrashIcon = () => (
     </svg>
 )
 
-export const KnowledgeBase: React.FC<KnowledgeBaseProps> = ({ domain, authKey }) => {
+export const KnowledgeBase: React.FC<KnowledgeBaseProps> = ({ domain, authKey, isSuperAdmin }) => {
   const [files, setFiles] = useState<KnowledgeFile[]>([]);
   const [loading, setLoading] = useState(false);
   const [actionLoading, setActionLoading] = useState<string | null>(null); // 'upload' or fileId for specific actions
@@ -62,7 +63,7 @@ export const KnowledgeBase: React.FC<KnowledgeBaseProps> = ({ domain, authKey })
     setLoading(true);
     try {
       const res = await fetch(`${config.serverUrl}/api/knowledge/list/?domain=${domain}`, {
-        headers: { 'X-Auth-Key': authKey }
+        headers: { 'Authorization': `Bearer ${authKey}` }
       });
       if (res.ok) {
         const data = await res.json();
@@ -114,7 +115,7 @@ export const KnowledgeBase: React.FC<KnowledgeBaseProps> = ({ domain, authKey })
     try {
       const res = await fetch(`${config.serverUrl}/api/knowledge/upload/`, {
         method: 'POST',
-        headers: { 'X-Auth-Key': authKey },
+        headers: { 'Authorization': `Bearer ${authKey}` },
         body: formData
       });
       const data = await res.json();
@@ -142,7 +143,7 @@ export const KnowledgeBase: React.FC<KnowledgeBaseProps> = ({ domain, authKey })
       try {
           const res = await fetch(`${config.serverUrl}/api/knowledge/update/`, {
               method: 'POST',
-              headers: { 'X-Auth-Key': authKey },
+              headers: { 'Authorization': `Bearer ${authKey}` },
               body: formData
           });
           if (res.ok) {
@@ -164,7 +165,7 @@ export const KnowledgeBase: React.FC<KnowledgeBaseProps> = ({ domain, authKey })
       setActionLoading(fileId);
       try {
           const res = await fetch(`${config.serverUrl}/api/knowledge/download/?domain=${domain}&file_id=${fileId}`, {
-              headers: { 'X-Auth-Key': authKey }
+              headers: { 'Authorization': `Bearer ${authKey}` }
           });
           const data = await res.json();
           if (res.ok && data.download_url) {
@@ -187,7 +188,7 @@ export const KnowledgeBase: React.FC<KnowledgeBaseProps> = ({ domain, authKey })
       const res = await fetch(`${config.serverUrl}/api/knowledge/delete/`, {
         method: 'POST',
         headers: { 
-            'X-Auth-Key': authKey,
+            'Authorization': `Bearer ${authKey}`,
             'Content-Type': 'application/json'
         },
         body: JSON.stringify({ file_id: fileId, domain })

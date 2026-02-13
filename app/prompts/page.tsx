@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { useAuthContext } from "../contexts/AuthContext";
+import { useAuth } from "../contexts/AuthContext";
 import { useMasterPrompts, useSystemMasterPrompt, authenticatedFetcher } from "../utils/swr";
 import { config } from "@/lib/config";
 import { Button } from "@heroui/button";
@@ -14,7 +14,7 @@ import { Accordion, AccordionItem } from "@heroui/accordion";
 import { Chip } from "@heroui/chip";
 
 export default function MasterPromptsPage() {
-  const { authKey, isAuthenticated, isLoading: authLoading } = useAuthContext();
+  const { accessToken: authKey, isAuthenticated, isLoading: authLoading, isSuperAdmin } = useAuth();
   const { prompts, isLoading, mutate } = useMasterPrompts(authKey || "");
   const { promptText: systemDefaults, isLoading: systemLoading } = useSystemMasterPrompt(authKey || "");
   const { isOpen, onOpen, onOpenChange, onClose } = useDisclosure();
@@ -24,8 +24,9 @@ export default function MasterPromptsPage() {
   const router = useRouter();
 
   if (authLoading) return <div className="w-full h-screen flex items-center justify-center"><Spinner /></div>;
-  if (!isAuthenticated) {
-     return <div className="p-8 text-center">Please login to access this page.</div>;
+  if (!isAuthenticated || !isSuperAdmin) {
+     router.replace("/");
+     return null;
   }
 
   const handleEdit = (prompt: any) => {

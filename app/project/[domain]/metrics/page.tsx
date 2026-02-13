@@ -9,7 +9,7 @@ import { Pagination } from "@heroui/pagination";
 import { config } from "@/lib/config";
 import FormattedMessage from "@/app/components/FormattedMessage";
 import { useWidgetSettings, useMetricsDashboard } from "@/app/utils/swr";
-import { useAuthContext } from "@/app/contexts/AuthContext";
+import { useAuth } from "@/app/contexts/AuthContext";
 import {
   LineChart,
   Line,
@@ -76,7 +76,7 @@ export default function MetricsPage() {
   const params = useParams();
   const router = useRouter();
   const domain = params.domain as string;
-  const { authKey } = useAuthContext();
+  const { accessToken: authKey } = useAuth();
 
   // SWR: dashboard metrics (stats, charts, initial recent items)
   const { metrics: dashboardData, isLoading: loading, error: metricsError } = useMetricsDashboard(domain, authKey);
@@ -153,7 +153,7 @@ export default function MetricsPage() {
       setIsLoadingInteractions(true);
       const res = await fetch(
         `${config.serverUrl}/api/metrics/?domain=${encodeURIComponent(domain)}&view=interactions&page=${page}&limit=${ITEMS_PER_PAGE}`,
-        { headers: { "X-Auth-Key": authKey } }
+        { headers: { "Authorization": `Bearer ${authKey}` } }
       );
       if (res.ok) {
         const data = await res.json();
@@ -174,7 +174,7 @@ export default function MetricsPage() {
       setIsLoadingErrors(true);
       const res = await fetch(
         `${config.serverUrl}/api/metrics/?domain=${encodeURIComponent(domain)}&view=errors&page=${page}&limit=${ITEMS_PER_PAGE}`,
-        { headers: { "X-Auth-Key": authKey } }
+        { headers: { "Authorization": `Bearer ${authKey}` } }
       );
       if (res.ok) {
         const data = await res.json();

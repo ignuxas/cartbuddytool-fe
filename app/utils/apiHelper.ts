@@ -1,3 +1,17 @@
+/**
+ * Build the authorization headers for API requests.
+ * Uses Bearer token (Supabase JWT).
+ */
+export const getAuthHeaders = (accessToken: string | null): Record<string, string> => {
+  const headers: Record<string, string> = {
+    'Content-Type': 'application/json',
+  };
+  if (accessToken) {
+    headers['Authorization'] = `Bearer ${accessToken}`;
+  }
+  return headers;
+};
+
 export const logError = (context: string, error: any, additionalData?: any) => {
   console.error(`[${context}] Error Object:`, error);
   console.error(`[${context}] Error Details:`, {

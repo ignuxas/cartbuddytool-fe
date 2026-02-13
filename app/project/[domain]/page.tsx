@@ -3,10 +3,9 @@
 import { useEffect, useState, useRef } from "react";
 import { config } from "@/lib/config";
 import ResultsDisplay from "@/app/components/ResultsDisplay";
-import AuthModal from "@/app/components/AuthModal";
 import { useRouter, useParams } from "next/navigation";
 import { addToast } from "@heroui/toast";
-import { useAuthContext } from "@/app/contexts/AuthContext";
+import { useAuth } from "@/app/contexts/AuthContext";
 import { Button } from "@heroui/button";
 import { Card, CardBody } from "@heroui/card";
 import { useProjectData, useWebhookSecret, invalidateProjectCache } from "@/app/utils/swr";
@@ -35,7 +34,7 @@ interface WorkflowResult {
 export default function ProjectPage() {
   const params = useParams();
   const domain = params.domain as string;
-  const { isAuthenticated, authKey, isLoading: authIsLoading, login } = useAuthContext();
+  const { isAuthenticated, accessToken: authKey, isLoading: authIsLoading, isSuperAdmin, user } = useAuth();
   const router = useRouter();
   
   // SWR Hooks
@@ -55,6 +54,7 @@ export default function ProjectPage() {
   const [workflowResult, setWorkflowResult] = useState<WorkflowResult | null>(null);
   const [sheetId, setSheetId] = useState<string | null>(null);
   const [webhookSecret, setWebhookSecret] = useState<string | null>(null);
+  const [refineAiQuota, setRefineAiQuota] = useState<{ remaining: number; limit: number } | null>(null);
   const [scrapingProgress, setScrapingProgress] = useState<{ 
     current: number; 
     total: number; 
@@ -69,13 +69,23 @@ export default function ProjectPage() {
 
   const url = `http://${domain}`;
 
+  // Initialize AI refine quota from user profile
+  useEffect(() => {
+    if (user && !isSuperAdmin) {
+      setRefineAiQuota({
+        remaining: user.refine_ai_remaining ?? user.refine_ai_daily_limit ?? 3,
+        limit: user.refine_ai_daily_limit ?? 3,
+      });
+    }
+  }, [user, isSuperAdmin]);
+
   const clearMessages = () => {
     setErrorMessage("");
   };
 
   const getAuthHeaders = () => ({
     "Content-Type": "application/json",
-    "X-Auth-Key": authKey!,
+    "Authorization": `Bearer ${authKey!}`,
   });
 
   // Effect to sync SWR data with local state
@@ -224,9 +234,14 @@ export default function ProjectPage() {
 
       setPrompt(data.improved_prompt);
       
+      // Update quota tracking from API response
+      if (data.remaining_quota !== undefined && data.daily_limit !== undefined) {
+        setRefineAiQuota({ remaining: data.remaining_quota, limit: data.daily_limit });
+      }
+      
       addToast({
         title: "Success",
-        description: `Prompt improved! ${data.remaining_quota} requests remaining.`,
+        description: `Prompt improved!${!isSuperAdmin && data.remaining_quota !== undefined ? ` ${data.remaining_quota} requests remaining.` : ''}`,
         color: "success",
       });
     } catch (error: any) {
@@ -334,13 +349,8 @@ export default function ProjectPage() {
 
   return (
     <>
-      <AuthModal 
-        isOpen={!isAuthenticated} 
-        onAuthenticate={login}
-      />
-      
       <div className="flex flex-col gap-6 w-full py-6">
-        {isAuthenticated && (loading ? (
+        {loading ? (
             <div className="flex justify-center items-center py-12">
                <div>Loading project data...</div>
             </div>
@@ -413,11 +423,13 @@ export default function ProjectPage() {
                 handleSavePromptToWorkflow={handleSavePromptToWorkflow}
                 setPrompt={setPrompt}
                 promptModified={prompt !== savedPrompt}
+                isSuperAdmin={isSuperAdmin}
+                refineAiQuota={refineAiQuota}
               />
-              <KnowledgeBase domain={domain} authKey={authKey} />
+              <KnowledgeBase domain={domain} authKey={authKey} isSuperAdmin={isSuperAdmin} />
             </div>
           </>
-        ))}
+        )}
       </div>
     </>
   );

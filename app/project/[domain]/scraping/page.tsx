@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef, useCallback } from "react";
 import { config } from "@/lib/config";
 import ActionButtons from "@/app/components/ActionButtons";
 import ScrapedPagesTable from "@/app/components/ScrapedPagesTable";
@@ -17,6 +17,11 @@ import PlaywrightSwitch from "@/app/components/PlaywrightSwitch";
 import { Switch } from "@heroui/switch";
 import { Checkbox } from "@heroui/checkbox";
 import { Input } from "@heroui/input";
+import { useScrapingPageData } from "@/app/utils/swr";
+import { makeApiCall, logError } from "@/app/utils/apiHelper";
+
+// Configuration for Main Pages
+const MAX_MAIN_PAGES = 5;
 
 interface ScrapedDataItem {
   url: string;
@@ -28,59 +33,11 @@ interface ScrapedDataItem {
   selected: boolean;
 }
 
-// Enhanced error logging
-const logError = (context: string, error: any, additionalData?: any) => {
-  console.error(`[${context}] Error:`, {
-    message: error.message,
-    stack: error.stack,
-    timestamp: new Date().toISOString(),
-    additionalData
-  });
-};
-
-// Enhanced API call wrapper with better error handling
-const makeApiCall = async (url: string, options: RequestInit, context: string) => {
-  try {
-    console.log(`[${context}] Making API call to:`, url);
-    const response = await fetch(url, options);
-    
-    if (!response.ok) {
-      const errorText = await response.text();
-      let errorData;
-      try {
-        errorData = JSON.parse(errorText);
-      } catch {
-        errorData = { error: errorText || `HTTP ${response.status}` };
-      }
-      
-      logError(context, new Error(`API call failed: ${response.status}`), {
-        url,
-        status: response.status,
-        statusText: response.statusText,
-        errorData
-      });
-      
-      throw new Error(errorData.error || `Request failed with status ${response.status}`);
-    }
-    
-    const data = await response.json();
-    console.log(`[${context}] API call successful`);
-    return data;
-  } catch (error: any) {
-    if (error.name === 'TypeError' && error.message.includes('fetch')) {
-      logError(context, error, { url, note: 'Network/CORS error' });
-      throw new Error('Network error. Please check your connection and try again.');
-    }
-    throw error;
-  }
-};
-
 export default function ScrapingPage() {
   const params = useParams();
   const domain = params.domain as string;
   const { isAuthenticated, authKey, isLoading: authIsLoading } = useAuthContext();
   const router = useRouter();
-  const [loading, setLoading] = useState(true);
   const [retryLoading, setRetryLoading] = useState<string | null>(null);
   const [errorMessage, setErrorMessage] = useState("");
   const [useAI, setUseAI] = useState(false);
@@ -110,6 +67,9 @@ export default function ScrapingPage() {
     pageStatuses?: { url: string; status: string; error?: string; status_code?: number }[];
   } | null>(null);
 
+  // Polling cleanup ref
+  const pollingTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
   const url = `http://${domain}`;
 
   const clearMessages = () => {
@@ -121,65 +81,38 @@ export default function ScrapingPage() {
     "X-Auth-Key": authKey!,
   });
 
+  // --- SWR: single request for scraped data + blacklist + active job ---
+  const { data: pageData, isLoading: loading, revalidate } = useScrapingPageData(
+    isAuthenticated ? domain : null,
+    authKey
+  );
+
+  // Sync SWR data into local state when it arrives/updates
   useEffect(() => {
-    const loadProjectData = async () => {
-      if (!authKey || !domain) return;
+    if (!pageData) return;
 
-      setLoading(true);
-      clearMessages();
+    if (pageData.has_existing_data) {
+      setScrapedData((pageData.existing_data || []).map((item: any) => ({ ...item, selected: false })));
+    }
+    setBlacklist(pageData.blacklist || []);
 
-      try {
-        console.log("[ScrapingPage] Loading project data for:", domain);
-        
-        const checkData = await makeApiCall(
-          `${config.serverUrl}/api/scrape/check-existing/`,
-          {
-            method: "POST",
-            headers: getAuthHeaders(),
-            body: JSON.stringify({ url: `http://${domain}` }),
-          },
-          "project-load"
-        );
+    if (pageData.active_job) {
+      console.log("Found active scraping job:", pageData.active_job);
+      setRetryLoading('scraping');
+      setActiveJobId(pageData.active_job.id);
+      pollScrapingStatus(pageData.active_job.id);
+    }
+  }, [pageData]);
 
-        if (checkData.active_job) {
-            console.log("Found active scraping job:", checkData.active_job);
-            setRetryLoading('scraping');
-            setActiveJobId(checkData.active_job.id);
-            pollScrapingStatus(checkData.active_job.id);
-        }
-
-        if (checkData.has_existing_data) {
-          setScrapedData((checkData.existing_data || []).map((item: any) => ({ ...item, selected: false })));
-        }
-      } catch (error: any) {
-        logError("loadProjectData", error, { domain });
-        const message = error.message || "Failed to load project data";
-        addToast({ title: "Error", description: message, color: "danger" });
-        setErrorMessage(message);
-      } finally {
-        setLoading(false);
+  // Cleanup polling on unmount
+  useEffect(() => {
+    return () => {
+      if (pollingTimerRef.current) {
+        clearTimeout(pollingTimerRef.current);
+        pollingTimerRef.current = null;
       }
     };
-
-    if (isAuthenticated) {
-      loadProjectData();
-      fetchBlacklist();
-    }
-  }, [isAuthenticated, domain, authKey]);
-
-  const fetchBlacklist = async () => {
-      try {
-        const res = await fetch(`${config.serverUrl}/api/scrape/blacklist/?domain=${domain}`, {
-            headers: { "X-Auth-Key": authKey! },
-        });
-        const data = await res.json();
-        if (res.ok) {
-            setBlacklist(data.blacklist || []);
-        }
-      } catch (e) {
-          console.error("Error fetching blacklist", e);
-      }
-  };
+  }, []);
 
   const updateBlacklist = async (newList: string[]) => {
       try {
@@ -281,19 +214,8 @@ export default function ScrapingPage() {
       if (data.all_data) {
           setScrapedData((data.all_data || []).map((item: any) => ({ ...item, selected: false })));
       } else {
-          // If backend doesn't return full list, we might need to reload or append
-           const checkData = await makeApiCall(
-            `${config.serverUrl}/api/scrape/check-existing/`,
-            {
-              method: "POST",
-              headers: getAuthHeaders(),
-              body: JSON.stringify({ url }),
-            },
-            "reload-project-data"
-          );
-          if (checkData.has_existing_data) {
-            setScrapedData((checkData.existing_data || []).map((item: any) => ({ ...item, selected: false })));
-          }
+          // Revalidate SWR cache to reload data
+          revalidate();
       }
 
       addToast({
@@ -394,7 +316,7 @@ export default function ScrapingPage() {
       setItemsToBlacklist([]);
   };
 
-  const pollScrapingStatus = async (jobId: string) => {
+  const pollScrapingStatus = useCallback(async (jobId: string) => {
     const poll = async () => {
       try {
         const statusData = await makeApiCall(
@@ -432,15 +354,15 @@ export default function ScrapingPage() {
             setActiveJobId(null);
             addToast({ title: "Cancelled", description: "Scraping job was cancelled", color: "warning" });
         } else {
-            setTimeout(poll, 6000);
+            pollingTimerRef.current = setTimeout(poll, 6000);
         }
       } catch (e) {
           console.error("Polling failed", e);
-          setTimeout(poll, 10000);
+          pollingTimerRef.current = setTimeout(poll, 10000);
       }
     };
     poll();
-  };
+  }, [authKey, domain]);
 
   const handleOpenRetryModal = () => {
       rescrapeModal.onOpen();
@@ -494,20 +416,8 @@ export default function ScrapingPage() {
             color: "success",
           });
           
-          // Reload project data to show updated content
-          const checkData = await makeApiCall(
-            `${config.serverUrl}/api/scrape/check-existing/`,
-            {
-              method: "POST",
-              headers: getAuthHeaders(),
-              body: JSON.stringify({ url }),
-            },
-            "reload-project-data"
-          );
-
-          if (checkData.has_existing_data) {
-            setScrapedData((checkData.existing_data || []).map((item: any) => ({ ...item, selected: false })));
-          }
+          // Revalidate SWR cache to reload data
+          revalidate();
           setRetryLoading(null);
           setScrapingProgress(null);
       }
@@ -781,6 +691,47 @@ export default function ScrapingPage() {
     }
   };
 
+  const handleToggleMain = async (urlToToggle: string, isMain: boolean) => {
+    // Check limit if turning on
+    if (isMain) {
+        const currentMainCount = scrapedData.filter(i => i.main).length;
+        if (currentMainCount >= MAX_MAIN_PAGES) {
+            addToast({
+                title: "Limit Reached",
+                description: `You can only have up to ${MAX_MAIN_PAGES} main pages. Unselect another page first.`,
+                color: "warning"
+            });
+            return;
+        }
+    }
+
+    // Optimistic update
+    setScrapedData(prev => prev.map(item => 
+        item.url === urlToToggle ? { ...item, main: isMain } : item
+    ));
+
+    try {
+        await makeApiCall(
+            `${config.serverUrl}/api/scrape/toggle-main/`,
+            {
+                method: "POST",
+                headers: getAuthHeaders(),
+                body: JSON.stringify({ domain, url: urlToToggle, main: isMain }),
+            },
+            "toggle-main"
+        );
+        // Success - state already updated
+    } catch (error: any) {
+        // Revert on failure
+        setScrapedData(prev => prev.map(item => 
+            item.url === urlToToggle ? { ...item, main: !isMain } : item
+        ));
+        
+        logError("handleToggleMain", error, { url: urlToToggle, isMain });
+        addToast({ title: "Error", description: "Failed to update main status", color: "danger" });
+    }
+  };
+
   const handleToggleSelect = (urlToToggle: string) => {
     setScrapedData(prevData =>
       prevData.map(item =>
@@ -1027,6 +978,7 @@ export default function ScrapingPage() {
             <ScrapedPagesTable 
                 data={scrapedData}
                 onToggleSelect={handleToggleSelect}
+                onToggleMain={handleToggleMain}
                 onSelectionChange={(urls, isSelected) => {
                      setScrapedData(prev => prev.map(item => 
                         urls.includes(item.url) ? { ...item, selected: isSelected } : item

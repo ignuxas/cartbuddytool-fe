@@ -197,6 +197,7 @@ export function useAdditionalUrls(
  */
 export function invalidateProjectCache(domain: string) {
   mutate(['project-data', domain]);
+  mutate(['scraping-page-data', domain]);
   mutate(['widget-settings', domain]);
   mutate(['webhook-secret', domain]);
   mutate(['additional-urls', domain]);
@@ -210,8 +211,93 @@ export function invalidateCache(key: any[]) {
 }
 
 /**
+ * Hook for the Scraping & Data page.
+ * Fetches scraped pages, active job, and blacklist in a single request.
+ */
+export function useScrapingPageData(domain: string | null, authKey: string | null) {
+  const { data, error, isLoading, mutate: revalidate } = useSWR(
+    domain && authKey ? ['scraping-page-data', domain] : null,
+    async () => {
+      if (!authKey || !domain) return null;
+      return authenticatedFetcher(
+        `${config.serverUrl}/api/scrape/project-data/`,
+        authKey,
+        { method: 'POST', body: { url: `http://${domain}` } }
+      );
+    },
+    {
+      ...swrConfig,
+      revalidateOnMount: true,
+    }
+  );
+
+  return {
+    data,
+    isLoading,
+    error,
+    revalidate,
+  };
+}
+
+/**
  * Update cached data optimistically
  */
+
+/**
+ * Hook for fetching available AI models with caching.
+ * Models rarely change, so we use a long dedup interval.
+ */
+export function useAvailableModels(authKey: string | null) {
+  const { data, error, isLoading } = useSWR(
+    authKey ? ['ai-models', authKey] : null,
+    async () => {
+      if (!authKey) return null;
+      return authenticatedFetcher(
+        `${config.serverUrl}/api/ai-models/`,
+        authKey
+      );
+    },
+    {
+      ...swrConfig,
+      dedupingInterval: 60000, // Models almost never change
+    }
+  );
+
+  return {
+    models: data?.models || [],
+    isLoading,
+    error,
+  };
+}
+
+/**
+ * Hook for fetching metrics dashboard data with caching.
+ */
+export function useMetricsDashboard(domain: string | null, authKey: string | null) {
+  const { data, error, isLoading, mutate: revalidate } = useSWR(
+    domain && authKey ? ['metrics-dashboard', domain] : null,
+    async () => {
+      if (!authKey || !domain) return null;
+      const res = await fetch(
+        `${config.serverUrl}/api/metrics/?domain=${encodeURIComponent(domain)}`,
+        { headers: { 'X-Auth-Key': authKey } }
+      );
+      if (!res.ok) throw new Error(`Failed to fetch metrics: ${res.statusText}`);
+      return res.json();
+    },
+    {
+      ...swrConfig,
+      dedupingInterval: 15000, // Metrics can update frequently
+    }
+  );
+
+  return {
+    metrics: data,
+    isLoading,
+    error,
+    revalidate,
+  };
+}
 
 export function useMasterPrompts(authKey: string) {
   const { data, error, isLoading, mutate } = useSWR(

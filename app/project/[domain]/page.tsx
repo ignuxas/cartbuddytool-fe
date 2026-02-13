@@ -8,11 +8,10 @@ import { useRouter, useParams } from "next/navigation";
 import { addToast } from "@heroui/toast";
 import { useAuthContext } from "@/app/contexts/AuthContext";
 import { Button } from "@heroui/button";
-
-import { Link } from "@heroui/link";
 import { Card, CardBody } from "@heroui/card";
-import { useProjectData, useWebhookSecret, invalidateProjectCache, useAdditionalUrls } from "@/app/utils/swr";
+import { useProjectData, useWebhookSecret, invalidateProjectCache } from "@/app/utils/swr";
 import { KnowledgeBase } from "@/app/components/KnowledgeBase";
+import { makeApiCall, logError } from "@/app/utils/apiHelper";
 
 interface ScrapedDataItem {
   url: string;
@@ -32,55 +31,6 @@ interface WorkflowResult {
   workflow_url: string;
   webhook_url?: string;
 }
-
-// Enhanced error logging
-const logError = (context: string, error: any, additionalData?: any) => {
-  console.error(`[${context}] Error Object:`, error);
-  console.error(`[${context}] Error Details:`, {
-    message: error?.message,
-    stack: error?.stack,
-    timestamp: new Date().toISOString(),
-    additionalData
-  });
-};
-
-// Enhanced API call wrapper with better error handling
-const makeApiCall = async (url: string, options: RequestInit, context: string) => {
-  try {
-    console.log(`[${context}] Making API call to:`, url);
-    const response = await fetch(url, options);
-    
-    if (!response.ok) {
-      const errorText = await response.text();
-      console.error(`[${context}] API Error Response Body:`, errorText);
-      let errorData;
-      try {
-        errorData = JSON.parse(errorText);
-      } catch {
-        errorData = { error: errorText || `HTTP ${response.status}` };
-      }
-      
-      logError(context, new Error(errorData.error || `API call failed: ${response.status}`), {
-        url,
-        status: response.status,
-        statusText: response.statusText,
-        errorData
-      });
-      
-      throw new Error(errorData.error || `Request failed with status ${response.status}`);
-    }
-    
-    const data = await response.json();
-    console.log(`[${context}] API call successful`);
-    return data;
-  } catch (error: any) {
-    if (error.name === 'TypeError' && error.message.includes('fetch')) {
-      logError(context, error, { url, note: 'Network/CORS error' });
-      throw new Error('Network error. Please check your connection and try again.');
-    }
-    throw error;
-  }
-};
 
 export default function ProjectPage() {
   const params = useParams();
@@ -115,6 +65,7 @@ export default function ProjectPage() {
   
   // Ref to track the active polling job to prevent duplicate loops
   const pollingJobRef = useRef<string | null>(null);
+  const pollingTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const url = `http://${domain}`;
 
@@ -184,6 +135,17 @@ export default function ProjectPage() {
     if (cachedSecret) setWebhookSecret(cachedSecret);
   }, [cachedSecret]);
 
+  // Cleanup polling on unmount
+  useEffect(() => {
+    return () => {
+      pollingJobRef.current = null;
+      if (pollingTimerRef.current) {
+        clearTimeout(pollingTimerRef.current);
+        pollingTimerRef.current = null;
+      }
+    };
+  }, []);
+
   const pollScrapingStatus = async (jobId: string) => {
     // Determine if this is a new poll or continuing an existing one
     if (pollingJobRef.current !== jobId) {
@@ -232,11 +194,11 @@ export default function ProjectPage() {
             setErrorMessage(statusData.error_message || "Scraping failed");
             addToast({ title: "Error", description: statusData.error_message || "Scraping failed", color: "danger" });
         } else {
-            setTimeout(poll, 2000);
+            pollingTimerRef.current = setTimeout(poll, 2000);
         }
       } catch (e) {
           console.error("Polling failed", e);
-          setTimeout(poll, 5000);
+          pollingTimerRef.current = setTimeout(poll, 5000);
       }
     };
     poll();

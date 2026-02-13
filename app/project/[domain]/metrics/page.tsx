@@ -8,7 +8,8 @@ import { Chip } from "@heroui/chip";
 import { Pagination } from "@heroui/pagination";
 import { config } from "@/lib/config";
 import FormattedMessage from "@/app/components/FormattedMessage";
-import { useWidgetSettings } from "@/app/utils/swr";
+import { useWidgetSettings, useMetricsDashboard } from "@/app/utils/swr";
+import { useAuthContext } from "@/app/contexts/AuthContext";
 import {
   LineChart,
   Line,
@@ -42,8 +43,8 @@ interface MetricsData {
     mode: string;
     retryOf: string;
   }>;
-  daily_stats: Array<{ date: string; count: number; errors: number }>;
-  hourly_stats: Array<{ hour: string; count: number }>;
+  daily_stats: Array<{ date: string; count: number; errors: number; widget_opens: number }>;
+  hourly_stats: Array<{ hour: string; count: number; widget_opens: number }>;
   top_queries: Array<{ query: string; count: number }>;
   top_pages: Array<{ url: string; title: string; count: number }>;
   interactions_by_mode: Array<{ mode: string; count: number }>;
@@ -57,16 +58,33 @@ interface MetricsData {
     page_title?: string;
     page_url?: string;
   }>;
+  // New engagement metrics
+  widget_opens: number;
+  link_clicks: number;
+  suggestion_clicks: number;
+  clicked_links: Array<{ url: string; title: string; type: string; count: number }>;
+  total_products_recommended: number;
+  total_links_recommended: number;
+  interactions_with_products: number;
+  interactions_with_links: number;
+  top_recommended: Array<{ url: string; title: string; type: string; count: number }>;
+  product_click_rate: number;
+  chat_conversion_rate: number;
 }
 
 export default function MetricsPage() {
   const params = useParams();
   const router = useRouter();
   const domain = params.domain as string;
+  const { authKey } = useAuthContext();
+
+  // SWR: dashboard metrics (stats, charts, initial recent items)
+  const { metrics: dashboardData, isLoading: loading, error: metricsError } = useMetricsDashboard(domain, authKey);
+  const { settings: widgetSettings } = useWidgetSettings(domain, authKey);
+
+  // Normalized metrics derived from SWR data
   const [metrics, setMetrics] = useState<MetricsData | null>(null);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
-  const [authKey, setAuthKey] = useState<string | null>(null);
+  const error = metricsError?.message || null;
 
   // Pagination states
   const [interactionsPage, setInteractionsPage] = useState(1);
@@ -78,8 +96,55 @@ export default function MetricsPage() {
   const [isLoadingInteractions, setIsLoadingInteractions] = useState(false);
   const [isLoadingErrors, setIsLoadingErrors] = useState(false);
 
+  // Chart configuration state
+  const [fullscreenChart, setFullscreenChart] = useState<string | null>(null);
+  const [chartFilters, setChartFilters] = useState({
+    daily: { interactions: true, errors: true, opens: true },
+    hourly: { interactions: true, opens: true },
+  });
+
+  const toggleChartFilter = (chart: 'daily' | 'hourly', key: string) => {
+    setChartFilters(prev => ({
+      ...prev,
+      [chart]: {
+        ...prev[chart],
+        [key as keyof typeof prev[typeof chart]]: !prev[chart][key as keyof typeof prev[typeof chart]]
+      }
+    }));
+  };
+
   const ITEMS_PER_PAGE = 10;
-  const { settings: widgetSettings } = useWidgetSettings(domain, authKey); 
+
+  // Sync SWR dashboard data into local state & seed pagination from dashboard
+  useEffect(() => {
+    if (!dashboardData) return;
+    
+    const normalizedData = {
+      ...dashboardData,
+      daily_stats: dashboardData.daily_stats || [],
+      hourly_stats: dashboardData.hourly_stats || [],
+      top_queries: dashboardData.top_queries || [],
+      interactions_by_mode: dashboardData.interactions_by_mode || [],
+      top_pages: dashboardData.top_pages || [],
+      recent_metrics: dashboardData.recent_metrics || [],
+      error_types: dashboardData.error_types || [],
+      recent_errors: dashboardData.recent_errors || [],
+      total_errors: dashboardData.total_errors || 0,
+      error_percentage: dashboardData.error_percentage || 0,
+    };
+    
+    setMetrics(normalizedData);
+    
+    // Seed page 1 of paginated lists from dashboard data (avoids 2 extra requests)
+    if (interactionsPage === 1) {
+      setPaginatedInteractions(normalizedData.recent_metrics.slice(0, ITEMS_PER_PAGE));
+      setInteractionsTotal(normalizedData.total_interactions);
+    }
+    if (errorsPage === 1) {
+      setPaginatedErrors(normalizedData.recent_errors.slice(0, ITEMS_PER_PAGE));
+      setErrorsTotal(normalizedData.total_errors);
+    }
+  }, [dashboardData]);
 
   // Function to fetch specific page of interactions
   const fetchInteractionsPage = async (page: number) => {
@@ -122,81 +187,6 @@ export default function MetricsPage() {
       setIsLoadingErrors(false);
     }
   };
-
-  useEffect(() => {
-    if (authKey) {
-      // Initial fetch for first page
-      fetchInteractionsPage(1);
-      fetchErrorsPage(1);
-    }
-  }, [authKey]);
-
-  useEffect(() => {
-    const fetchMetrics = async () => {
-      try {
-        setLoading(true);
-        setError(null);
-
-        // Get auth key from cookie
-        const getCookie = (name: string): string | null => {
-          if (typeof document === 'undefined') return null;
-          const value = `; ${document.cookie}`;
-          const parts = value.split(`; ${name}=`);
-          if (parts.length === 2) return parts.pop()?.split(';').shift() || null;
-          return null;
-        };
-        
-        const key = getCookie('cartbuddy_auth_key');
-        setAuthKey(key);
-
-        if (!key) {
-          setError("Not authenticated. Please log in.");
-          setLoading(false);
-          return;
-        }
-
-        const response = await fetch(
-          `${config.serverUrl}/api/metrics/?domain=${encodeURIComponent(domain)}`,
-          {
-            headers: {
-              "X-Auth-Key": key,
-            },
-          }
-        );
-
-        if (!response.ok) {
-          throw new Error(`Failed to fetch metrics: ${response.statusText}`);
-        }
-
-        const data = await response.json();
-        
-        // Ensure all arrays are initialized to prevent null/undefined errors
-        const normalizedData = {
-          ...data,
-          daily_stats: data.daily_stats || [],
-          hourly_stats: data.hourly_stats || [],
-          top_queries: data.top_queries || [],
-          interactions_by_mode: data.interactions_by_mode || [],
-          top_pages: data.top_pages || [],
-          recent_metrics: data.recent_metrics || [],
-          error_types: data.error_types || [],
-          recent_errors: data.recent_errors || [],
-          total_errors: data.total_errors || 0,
-          error_percentage: data.error_percentage || 0,
-        };
-        
-        setMetrics(normalizedData);
-      } catch (err) {
-        setError(err instanceof Error ? err.message : "Failed to load metrics");
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    if (domain) {
-      fetchMetrics();
-    }
-  }, [domain]);
 
   const formatDate = (dateString: string) => {
     try {
@@ -283,6 +273,86 @@ export default function MetricsPage() {
           </Card>
         </div>
 
+        {/* Engagement Metrics Cards */}
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+          <Card>
+            <CardBody className="text-center">
+              <div className="text-3xl font-bold text-cyan-500">
+                {metrics.widget_opens || 0}
+              </div>
+              <div className="text-default-500 mt-1">Widget Opens</div>
+            </CardBody>
+          </Card>
+          <Card>
+            <CardBody className="text-center">
+              <div className="text-3xl font-bold text-amber-500">
+                {metrics.link_clicks || 0}
+              </div>
+              <div className="text-default-500 mt-1">Link / Product Clicks</div>
+            </CardBody>
+          </Card>
+          <Card>
+            <CardBody className="text-center">
+              <div className="text-3xl font-bold text-indigo-500">
+                {metrics.total_products_recommended || 0}
+              </div>
+              <div className="text-default-500 mt-1">Products Recommended</div>
+            </CardBody>
+          </Card>
+          <Card>
+            <CardBody className="text-center">
+              <div className="text-3xl font-bold text-teal-500">
+                {metrics.total_links_recommended || 0}
+              </div>
+              <div className="text-default-500 mt-1">Links Recommended</div>
+            </CardBody>
+          </Card>
+        </div>
+
+        {/* Conversion Rates */}
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+          <Card>
+            <CardBody className="text-center">
+              <div className="text-3xl font-bold text-emerald-500">
+                {metrics.chat_conversion_rate || 0}%
+              </div>
+              <div className="text-default-500 mt-1">Chat Conversion Rate</div>
+              <div className="text-xs text-default-400 mt-0.5">Opens → Messages</div>
+            </CardBody>
+          </Card>
+          <Card>
+            <CardBody className="text-center">
+              <div className="text-3xl font-bold text-rose-500">
+                {metrics.product_click_rate || 0}%
+              </div>
+              <div className="text-default-500 mt-1">Click-Through Rate</div>
+              <div className="text-xs text-default-400 mt-0.5">Recommended → Clicked</div>
+            </CardBody>
+          </Card>
+          <Card>
+            <CardBody className="text-center">
+              <div className="text-3xl font-bold text-sky-500">
+                {metrics.suggestion_clicks || 0}
+              </div>
+              <div className="text-default-500 mt-1">Suggestion Clicks</div>
+            </CardBody>
+          </Card>
+          <Card>
+            <CardBody className="text-center">
+              <div className="text-3xl font-bold text-violet-500">
+                {metrics.interactions_with_products || 0}
+              </div>
+              <div className="text-default-500 mt-1">Chats with Products</div>
+              <div className="text-xs text-default-400 mt-0.5">
+                {metrics.total_interactions > 0 
+                  ? `${((metrics.interactions_with_products || 0) / metrics.total_interactions * 100).toFixed(1)}% of all chats`
+                  : '—'
+                }
+              </div>
+            </CardBody>
+          </Card>
+        </div>
+
         {/* Error Summary Cards */}
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
           <Card>
@@ -312,15 +382,62 @@ export default function MetricsPage() {
         </div>
 
         {/* Charts Row 1 */}
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
+        <div className={`grid grid-cols-1 ${fullscreenChart ? '' : 'lg:grid-cols-2'} gap-6 mb-6`}>
           {/* Daily Activity Chart */}
-          <Card>
-            <CardHeader>
-              <h3 className="text-xl font-semibold">Daily Activity</h3>
+          <Card className={fullscreenChart === 'daily' ? "fixed inset-0 z-50 m-0 h-screen w-screen" : (fullscreenChart ? "hidden" : "")}>
+            <CardHeader className="flex flex-col sm:flex-row justify-between items-start sm:items-center px-6 py-4 gap-4">
+              <div className="flex flex-col sm:flex-row items-start sm:items-center gap-4 w-full sm:w-auto">
+                <h3 className="text-xl font-semibold whitespace-nowrap">Daily Activity</h3>
+                <div className="flex flex-wrap gap-2">
+                  <Button
+                    size="sm"
+                    radius="full"
+                    variant={chartFilters.daily.interactions ? "solid" : "bordered"}
+                    color="primary"
+                    onPress={() => toggleChartFilter('daily', 'interactions')}
+                    className="min-h-7 h-7 text-xs font-medium"
+                  >
+                    Interactions
+                  </Button>
+                  <Button 
+                    size="sm" 
+                    radius="full"
+                    variant={chartFilters.daily.opens ? "solid" : "bordered"} 
+                    color="secondary"
+                    onPress={() => toggleChartFilter('daily', 'opens')}
+                    className="min-h-7 h-7 text-xs font-medium"
+                  >
+                    Widget Opens
+                  </Button>
+                  <Button 
+                    size="sm" 
+                    radius="full"
+                    variant={chartFilters.daily.errors ? "solid" : "bordered"} 
+                    color="danger"
+                    onPress={() => toggleChartFilter('daily', 'errors')}
+                    className="min-h-7 h-7 text-xs font-medium"
+                  >
+                    Errors
+                  </Button>
+                </div>
+              </div>
+              <Button 
+                isIconOnly 
+                variant="light" 
+                size="sm"
+                className="absolute top-4 right-4 sm:static"
+                onPress={() => setFullscreenChart(fullscreenChart === 'daily' ? null : 'daily')}
+              >
+                {fullscreenChart === 'daily' ? (
+                  <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M8 3v3a2 2 0 0 1-2 2H3m18 0h-3a2 2 0 0 1-2-2V3m0 18v-3a2 2 0 0 1 2-2h3M3 16h3a2 2 0 0 1 2 2v3"/></svg>
+                ) : (
+                  <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M15 3h6v6M9 21H3v-6M21 3l-7 7M3 21l7-7"/></svg>
+                )}
+              </Button>
             </CardHeader>
-            <CardBody>
+            <CardBody className={fullscreenChart === 'daily' ? "h-[calc(100vh-100px)]" : ""}>
               {metrics.daily_stats.length > 0 ? (
-                <ResponsiveContainer width="100%" height={300}>
+                <ResponsiveContainer width="100%" height={fullscreenChart === 'daily' ? "100%" : 300}>
                   <LineChart data={metrics.daily_stats}>
                     <CartesianGrid strokeDasharray="3 3" stroke="#374151" />
                     <XAxis
@@ -342,20 +459,34 @@ export default function MetricsPage() {
                       }}
                     />
                     <Legend />
-                    <Line
-                      type="monotone"
-                      dataKey="count"
-                      stroke="#3B82F6"
-                      strokeWidth={2}
-                      name="Total Interactions"
-                    />
-                    <Line
-                      type="monotone"
-                      dataKey="errors"
-                      stroke="#EF4444"
-                      strokeWidth={2}
-                      name="Errors"
-                    />
+                    {chartFilters.daily.interactions && (
+                      <Line
+                        type="monotone"
+                        dataKey="count"
+                        stroke="#3B82F6"
+                        strokeWidth={2}
+                        name="Total Interactions"
+                      />
+                    )}
+                    {chartFilters.daily.opens && (
+                      <Line
+                        type="monotone"
+                        dataKey="widget_opens"
+                        stroke="#06B6D4"
+                        strokeWidth={2}
+                        name="Widget Opens"
+                        strokeDasharray="5 5"
+                      />
+                    )}
+                    {chartFilters.daily.errors && (
+                      <Line
+                        type="monotone"
+                        dataKey="errors"
+                        stroke="#EF4444"
+                        strokeWidth={2}
+                        name="Errors"
+                      />
+                    )}
                   </LineChart>
                 </ResponsiveContainer>
               ) : (
@@ -367,13 +498,50 @@ export default function MetricsPage() {
           </Card>
 
           {/* Hourly Distribution Chart */}
-          <Card>
-            <CardHeader>
-              <h3 className="text-xl font-semibold">Hourly Distribution</h3>
+          <Card className={fullscreenChart === 'hourly' ? "fixed inset-0 z-50 m-0 h-screen w-screen" : (fullscreenChart ? "hidden" : "")}>
+            <CardHeader className="flex flex-col sm:flex-row justify-between items-start sm:items-center px-6 py-4 gap-4">
+              <div className="flex flex-col sm:flex-row items-start sm:items-center gap-4 w-full sm:w-auto">
+                <h3 className="text-xl font-semibold whitespace-nowrap">Hourly Distribution</h3>
+                <div className="flex flex-wrap gap-2">
+                  <Button 
+                    size="sm" 
+                    radius="full"
+                    variant={chartFilters.hourly.interactions ? "solid" : "bordered"} 
+                    color="success"
+                    onPress={() => toggleChartFilter('hourly', 'interactions')}
+                    className="min-h-7 h-7 text-xs font-medium"
+                  >
+                    Interactions
+                  </Button>
+                  <Button 
+                    size="sm" 
+                    radius="full"
+                    variant={chartFilters.hourly.opens ? "solid" : "bordered"} 
+                    color="secondary"
+                    onPress={() => toggleChartFilter('hourly', 'opens')}
+                    className="min-h-7 h-7 text-xs font-medium"
+                  >
+                    Widget Opens
+                  </Button>
+                </div>
+              </div>
+              <Button 
+                isIconOnly 
+                variant="light" 
+                size="sm"
+                className="absolute top-4 right-4 sm:static"
+                onPress={() => setFullscreenChart(fullscreenChart === 'hourly' ? null : 'hourly')}
+              >
+                 {fullscreenChart === 'hourly' ? (
+                  <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M8 3v3a2 2 0 0 1-2 2H3m18 0h-3a2 2 0 0 1-2-2V3m0 18v-3a2 2 0 0 1 2-2h3M3 16h3a2 2 0 0 1 2 2v3"/></svg>
+                ) : (
+                  <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M15 3h6v6M9 21H3v-6M21 3l-7 7M3 21l7-7"/></svg>
+                )}
+              </Button>
             </CardHeader>
-            <CardBody>
+            <CardBody className={fullscreenChart === 'hourly' ? "h-[calc(100vh-100px)]" : ""}>
               {metrics.hourly_stats.length > 0 ? (
-                <ResponsiveContainer width="100%" height={300}>
+                <ResponsiveContainer width="100%" height={fullscreenChart === 'hourly' ? "100%" : 300}>
                   <BarChart data={metrics.hourly_stats}>
                     <CartesianGrid strokeDasharray="3 3" stroke="#374151" />
                     <XAxis dataKey="hour" stroke="#9CA3AF" />
@@ -387,7 +555,12 @@ export default function MetricsPage() {
                       }}
                     />
                     <Legend />
-                    <Bar dataKey="count" fill="#10B981" name="Interactions" />
+                    {chartFilters.hourly.interactions && (
+                      <Bar dataKey="count" fill="#10B981" name="Interactions" />
+                    )}
+                    {chartFilters.hourly.opens && (
+                      <Bar dataKey="widget_opens" fill="#06B6D4" name="Widget Opens" />
+                    )}
                   </BarChart>
                 </ResponsiveContainer>
               ) : (
@@ -504,6 +677,107 @@ export default function MetricsPage() {
             </Card>
           )}
         </div>
+
+        {/* Engagement: Clicked Links & Top Recommended */}
+        {((metrics.clicked_links && metrics.clicked_links.length > 0) || (metrics.top_recommended && metrics.top_recommended.length > 0)) && (
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
+          {/* Most Clicked Links */}
+          {metrics.clicked_links && metrics.clicked_links.length > 0 && (
+          <Card>
+            <CardHeader>
+              <h3 className="text-xl font-semibold">Most Clicked Links</h3>
+            </CardHeader>
+            <CardBody>
+              <div className="space-y-2 max-h-72 overflow-y-auto pr-2">
+                {metrics.clicked_links.map((item, idx) => (
+                  <div
+                    key={idx}
+                    className="flex items-center justify-between p-3 bg-default-100 rounded-lg"
+                  >
+                    <div className="flex-1 mr-4 min-w-0">
+                      <div className="flex items-center gap-2 mb-0.5">
+                        <Chip size="sm" variant="flat" color={item.type === 'product_card' ? 'success' : item.type === 'link_card' ? 'warning' : 'default'}>
+                          {item.type === 'product_card' ? 'Product' : item.type === 'link_card' ? 'Link Card' : 'Link'}
+                        </Chip>
+                      </div>
+                      <div className="text-sm font-medium text-foreground truncate" title={item.title || item.url}>
+                        {item.title || 'Untitled'}
+                      </div>
+                      <a
+                        href={item.url}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="text-xs text-blue-500 hover:text-blue-600 truncate block"
+                        title={item.url}
+                      >
+                        {item.url}
+                      </a>
+                    </div>
+                    <Chip size="sm" color="warning" variant="flat" className="flex-shrink-0">
+                      {item.count} clicks
+                    </Chip>
+                  </div>
+                ))}
+              </div>
+            </CardBody>
+          </Card>
+          )}
+
+          {/* Top Recommended (by AI) */}
+          {metrics.top_recommended && metrics.top_recommended.length > 0 && (
+          <Card>
+            <CardHeader>
+              <h3 className="text-xl font-semibold">Top Recommended by AI</h3>
+            </CardHeader>
+            <CardBody>
+              <div className="space-y-2 max-h-72 overflow-y-auto pr-2">
+                {metrics.top_recommended.map((item, idx) => {
+                  // Find matching click data
+                  const clickData = metrics.clicked_links?.find(c => c.url === item.url);
+                  const clickCount = clickData?.count || 0;
+                  return (
+                    <div
+                      key={idx}
+                      className="flex items-center justify-between p-3 bg-default-100 rounded-lg"
+                    >
+                      <div className="flex-1 mr-4 min-w-0">
+                        <div className="flex items-center gap-2 mb-0.5">
+                          <Chip size="sm" variant="flat" color={item.type === 'product' ? 'success' : 'secondary'}>
+                            {item.type === 'product' ? 'Product' : 'Link'}
+                          </Chip>
+                        </div>
+                        <div className="text-sm font-medium text-foreground truncate" title={item.title || item.url}>
+                          {item.title || 'Untitled'}
+                        </div>
+                        <a
+                          href={item.url}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="text-xs text-blue-500 hover:text-blue-600 truncate block"
+                          title={item.url}
+                        >
+                          {item.url}
+                        </a>
+                      </div>
+                      <div className="flex flex-col items-end gap-1 flex-shrink-0">
+                        <Chip size="sm" color="primary" variant="flat">
+                          {item.count}x shown
+                        </Chip>
+                        {clickCount > 0 && (
+                          <Chip size="sm" color="warning" variant="flat">
+                            {clickCount} clicks
+                          </Chip>
+                        )}
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            </CardBody>
+          </Card>
+          )}
+        </div>
+        )}
 
         {/* Recent Items Grid */}
         <div className={`grid grid-cols-1 ${paginatedErrors && paginatedErrors.length > 0 ? 'lg:grid-cols-2' : ''} gap-6`}>

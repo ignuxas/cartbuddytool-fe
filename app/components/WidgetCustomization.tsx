@@ -8,7 +8,7 @@ import { Textarea } from "@heroui/input";
 import { Switch } from "@heroui/switch";
 import { addToast } from "@heroui/toast";
 import { config } from "@/lib/config";
-import { useMasterPrompts } from "@/app/utils/swr";
+import { useMasterPrompts, useWidgetSettings, useAvailableModels, invalidateProjectCache } from "@/app/utils/swr";
 
 interface WidgetCustomizationProps {
   domain: string;
@@ -38,8 +38,9 @@ interface WidgetSettings {
 }
 
 export default function WidgetCustomization({ domain, authKey, onSettingsUpdated }: WidgetCustomizationProps) {
-  const [availableModels, setAvailableModels] = useState<{id: string, name: string, provider?: string}[]>([]);
+  const { models: availableModels } = useAvailableModels(authKey);
   const { prompts: masterPrompts } = useMasterPrompts(authKey);
+  const { settings: cachedSettings, isLoading: settingsLoading, revalidate: revalidateSettings } = useWidgetSettings(domain, authKey);
   const [settings, setSettings] = useState<WidgetSettings>({
     primary_color: '#3b82f6',
     secondary_color: '#1d4ed8',
@@ -71,56 +72,16 @@ export default function WidgetCustomization({ domain, authKey, onSettingsUpdated
   const [saving, setSaving] = useState(false);
   const [newSuggestion, setNewSuggestion] = useState('');
 
+  // Sync SWR cached settings into local state
   useEffect(() => {
-    loadSettings();
-    fetchModels();
-  }, [domain]);
-
-  const fetchModels = async () => {
-    try {
-      const response = await fetch(`${config.serverUrl}/api/ai-models/`, {
-        headers: { 'X-Auth-Key': authKey }
-      });
-      if (response.ok) {
-        const data = await response.json();
-        if (data.models) {
-            setAvailableModels(data.models);
-        }
-      }
-    } catch (e) {
-      console.error("Failed to fetch AI models", e);
+    if (cachedSettings) {
+      setSettings(cachedSettings);
     }
-  };
+  }, [cachedSettings]);
 
-  const loadSettings = async () => {
-    setLoading(true);
-    try {
-      const response = await fetch(
-        `${config.serverUrl}/api/widget/settings/?domain=${encodeURIComponent(domain)}`,
-        {
-          headers: {
-            'X-Auth-Key': authKey,
-          },
-        }
-      );
-
-      if (!response.ok) {
-        throw new Error('Failed to load widget settings');
-      }
-
-      const data = await response.json();
-      setSettings(data);
-    } catch (error: any) {
-      console.error('Error loading widget settings:', error);
-      addToast({
-        title: 'Error',
-        description: 'Failed to load widget settings',
-        color: 'danger',
-      });
-    } finally {
-      setLoading(false);
-    }
-  };
+  useEffect(() => {
+    setLoading(settingsLoading);
+  }, [settingsLoading]);
 
   const saveSettings = async () => {
     setSaving(true);
@@ -151,6 +112,10 @@ export default function WidgetCustomization({ domain, authKey, onSettingsUpdated
       if (onSettingsUpdated) {
         onSettingsUpdated();
       }
+      
+      // Revalidate SWR cache
+      revalidateSettings();
+      invalidateProjectCache(domain);
     } catch (error: any) {
       console.error('Error saving widget settings:', error);
       addToast({
@@ -678,7 +643,17 @@ export default function WidgetCustomization({ domain, authKey, onSettingsUpdated
             Save Widget Settings
           </Button>
           <Button
-            onClick={loadSettings}
+            onClick={() => {
+              if (cachedSettings) {
+                setSettings(cachedSettings);
+                addToast({
+                  title: 'Reset',
+                  description: 'Settings reset to last saved state',
+                  color: 'default',
+                });
+              }
+              revalidateSettings();
+            }}
             variant="bordered"
             isDisabled={saving}
           >

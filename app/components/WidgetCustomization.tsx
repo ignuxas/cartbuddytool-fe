@@ -9,6 +9,7 @@ import { Switch } from "@heroui/switch";
 import { addToast } from "@heroui/toast";
 import { config } from "@/lib/config";
 import { useMasterPrompts, useWidgetSettings, useAvailableModels, invalidateProjectCache } from "@/app/utils/swr";
+import { useLanguage } from "@/app/contexts/LanguageContext";
 
 interface WidgetCustomizationProps {
   domain: string;
@@ -42,6 +43,7 @@ export default function WidgetCustomization({ domain, authKey, onSettingsUpdated
   const { models: availableModels } = useAvailableModels(authKey);
   const { prompts: masterPrompts } = useMasterPrompts(authKey);
   const { settings: cachedSettings, isLoading: settingsLoading, revalidate: revalidateSettings } = useWidgetSettings(domain, authKey);
+  const { t } = useLanguage();
   const [settings, setSettings] = useState<WidgetSettings>({
     primary_color: '#3b82f6',
     secondary_color: '#1d4ed8',
@@ -105,8 +107,8 @@ export default function WidgetCustomization({ domain, authKey, onSettingsUpdated
 
       const data = await response.json();
       addToast({
-        title: 'Success',
-        description: data.message || 'Widget settings saved successfully',
+        title: t('common.success'),
+        description: data.message || t('widget.savedSuccess'),
         color: 'success',
       });
       
@@ -120,14 +122,15 @@ export default function WidgetCustomization({ domain, authKey, onSettingsUpdated
     } catch (error: any) {
       console.error('Error saving widget settings:', error);
       addToast({
-        title: 'Error',
-        description: 'Failed to save widget settings',
+        title: t('common.error'),
+        description: t('widget.saveFailed'),
         color: 'danger',
       });
     } finally {
       setSaving(false);
     }
   };
+
 
   const addSuggestion = () => {
     if (newSuggestion.trim() && !settings.suggestions.includes(newSuggestion.trim())) {
@@ -222,7 +225,7 @@ export default function WidgetCustomization({ domain, authKey, onSettingsUpdated
         
         const data = await response.json();
         setSettings({...settings, bot_icon: data.url});
-        addToast({ title: 'Success', description: 'Icon uploaded successfully', color: 'success' });
+        addToast({ title: t('common.success'), description: t('widget.iconUploaded'), color: 'success' });
         
         // Clean up old icon if it exists
         if (previousIcon) {
@@ -231,7 +234,7 @@ export default function WidgetCustomization({ domain, authKey, onSettingsUpdated
 
       } catch (error) {
         console.error("Upload error:", error);
-        addToast({ title: 'Error', description: 'Failed to upload icon', color: 'danger' });
+        addToast({ title: t('common.error'), description: t('widget.iconUploadFailed'), color: 'danger' });
       }
   };
 
@@ -246,7 +249,7 @@ export default function WidgetCustomization({ domain, authKey, onSettingsUpdated
     return (
       <Card className="w-full">
         <CardBody>
-          <p>Loading widget customization settings...</p>
+          <p>{t('widget.loading')}</p>
         </CardBody>
       </Card>
     );
@@ -255,15 +258,15 @@ export default function WidgetCustomization({ domain, authKey, onSettingsUpdated
   return (
     <Card className="w-full">
       <CardHeader>
-        <h3 className="text-xl font-bold">Chat Widget Customization</h3>
+        <h3 className="text-xl font-bold">{t('widget.title')}</h3>
       </CardHeader>
       <CardBody className="gap-4">
         <div className="flex flex-col gap-2 mb-2">
-           <label className="text-sm font-medium">AI Model</label>
+           <label className="text-sm font-medium">{t('widget.aiModel')}</label>
            {availableModels.length > 0 ? (
              <div className="relative">
                <select 
-                 aria-label="Select AI Model"
+                 aria-label={t('widget.selectAiModel')}
                  className="w-full h-10 px-3 pr-10 rounded-medium bg-default-100 text-small outline-none focus:ring-2 focus:ring-primary appearance-none cursor-pointer hover:bg-default-200 transition-colors"
                  value={settings.ai_model || 'gemini-2.5-flash'}
                  onChange={(e) => setSettings({...settings, ai_model: e.target.value})}
@@ -274,14 +277,14 @@ export default function WidgetCustomization({ domain, authKey, onSettingsUpdated
                     return (
                       <>
                         {geminiModels.length > 0 && (
-                          <optgroup label="Google Gemini">
+                          <optgroup label={t('widget.googleGemini')}>
                             {geminiModels.map((m: any) => (
                               <option key={m.id} value={m.id}>{m.name}</option>
                             ))}
                           </optgroup>
                         )}
                         {openaiModels.length > 0 && (
-                          <optgroup label="OpenAI">
+                          <optgroup label={t('widget.openai')}>
                             {openaiModels.map((m: any) => (
                               <option key={m.id} value={m.id}>{m.name}</option>
                             ))}
@@ -308,16 +311,16 @@ export default function WidgetCustomization({ domain, authKey, onSettingsUpdated
            )}
            <p className="text-tiny text-default-500">
              {availableModels.length > 0 
-               ? "Select the AI model to power your assistant." 
-               : "Enter the model ID manually (e.g., gemini-2.5-flash, gpt-4o)."}
+               ? t('widget.aiModelDesc')
+               : t('widget.aiModelManualDesc')}
            </p>
         </div>
 
         <div className="flex flex-col gap-2 mb-2">
-           <label className="text-sm font-medium">Language</label>
+           <label className="text-sm font-medium">{t('widget.language')}</label>
            <div className="relative">
              <select 
-               aria-label="Select Language"
+               aria-label={t('widget.selectLanguage')}
                className="w-full h-10 px-3 pr-10 rounded-medium bg-default-100 text-small outline-none focus:ring-2 focus:ring-primary appearance-none cursor-pointer hover:bg-default-200 transition-colors"
                value={settings.language || 'en'}
                onChange={(e) => setSettings({...settings, language: e.target.value})}
@@ -332,21 +335,21 @@ export default function WidgetCustomization({ domain, authKey, onSettingsUpdated
              </div>
            </div>
            <p className="text-tiny text-default-500">
-             Choose the language for built-in widget text (e.g., Terms of Service).
+             {t('widget.languageDesc')}
            </p>
         </div>
 
         {isSuperAdmin && (
         <div className="flex flex-col gap-2">
-           <label className="text-sm font-medium">Master Prompt Template</label>
+           <label className="text-sm font-medium">{t('widget.masterPrompt')}</label>
            <div className="relative">
              <select
-               aria-label="Master Prompt Template"
+               aria-label={t('widget.masterPrompt')}
                className="w-full bg-default-100 hover:bg-default-200 h-10 px-3 rounded-medium outline-none text-small appearance-none transition-colors border-2 border-transparent focus:border-primary"
                value={settings.master_prompt_id || ''}
                onChange={(e) => setSettings({...settings, master_prompt_id: e.target.value ? Number(e.target.value) : null})}
              >
-               <option value="">Default (Hardcoded)</option>
+               <option value="">{t('widget.defaultHardcoded')}</option>
                {masterPrompts?.map((mp: any) => (
                  <option key={mp.id} value={mp.id}>
                    {mp.name}
@@ -360,23 +363,23 @@ export default function WidgetCustomization({ domain, authKey, onSettingsUpdated
              </div>
            </div>
            <p className="text-tiny text-default-500">
-             Choose the base behavior for the assistant.
+             {t('widget.masterPromptDesc')}
            </p>
         </div>
         )}
 
         <div className="flex border-b border-default-200 pb-2 mb-2">
-           <h3 className="text-large font-bold">Bot Appearance</h3>
+           <h3 className="text-large font-bold">{t('widget.botAppearance')}</h3>
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             <div className="flex flex-col gap-2">
-                <label className="text-sm font-medium">Bot Icon</label>
+                <label className="text-sm font-medium">{t('widget.botIcon')}</label>
                 <div className="flex items-center gap-4">
                      <div className="w-16 h-16 rounded-full overflow-hidden border border-default-200 bg-white shrink-0 flex items-center justify-center">
                              <img 
                                 src={settings.bot_icon || `${config.serverUrl}/api/static/lukas.png`} 
-                                alt="Bot Icon" 
+                                alt={t('widget.botIcon')} 
                                 className="w-full h-full object-cover"
                                 onError={(e) => {
                                     // Fallback if image fails to load
@@ -389,7 +392,7 @@ export default function WidgetCustomization({ domain, authKey, onSettingsUpdated
                         <div className="flex gap-2">
                             <label className="cursor-pointer">
                                 <span className="bg-primary text-white px-4 py-2 rounded-medium text-small font-medium hover:bg-primary/90 transition-colors">
-                                    Upload Icon
+                                    {t('widget.uploadIcon')}
                                 </span>
                                 <input 
                                     type="file" 
@@ -402,13 +405,13 @@ export default function WidgetCustomization({ domain, authKey, onSettingsUpdated
                                 <button
                                     onClick={handleRemoveIcon}
                                     className="px-4 py-2 rounded-medium text-small font-medium bg-default-100 text-default-700 hover:bg-default-200 transition-colors"
-                                    title="Reset to default icon"
+                                    title={t('widget.resetToDefaultIcon')}
                                 >
-                                    Reset
+                                    {t('widget.reset')}
                                 </button>
                             )}
                         </div>
-                        <p className="text-tiny text-default-500">Max size 200x200px</p>
+                        <p className="text-tiny text-default-500">{t('widget.maxSize')}</p>
                      </div>
                 </div>
             </div>
@@ -416,8 +419,8 @@ export default function WidgetCustomization({ domain, authKey, onSettingsUpdated
              <div className="flex flex-col justify-center gap-2">
                  <div className="flex justify-between items-center bg-default-50 p-3 rounded-medium border border-default-100">
                     <div className="flex flex-col">
-                        <span className="text-sm font-medium">Show Greeting Bubble</span>
-                        <span className="text-tiny text-default-500">Enable initial greeting popup</span>
+                        <span className="text-sm font-medium">{t('widget.showGreetingBubble')}</span>
+                        <span className="text-tiny text-default-500">{t('widget.showGreetingBubbleDesc')}</span>
                     </div>
                     <Switch 
                         size="sm"
@@ -430,7 +433,7 @@ export default function WidgetCustomization({ domain, authKey, onSettingsUpdated
 
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
           <div className="flex flex-col gap-2">
-            <label className="text-sm font-medium">Primary Color</label>
+            <label className="text-sm font-medium">{t('widget.primaryColor')}</label>
             <div className="flex gap-2 items-center">
               <Input
                 type="color"
@@ -449,7 +452,7 @@ export default function WidgetCustomization({ domain, authKey, onSettingsUpdated
           </div>
 
           <div className="flex flex-col gap-2">
-            <label className="text-sm font-medium">Secondary Color</label>
+            <label className="text-sm font-medium">{t('widget.secondaryColor')}</label>
             <div className="flex gap-2 items-center">
               <Input
                 type="color"
@@ -468,7 +471,7 @@ export default function WidgetCustomization({ domain, authKey, onSettingsUpdated
           </div>
 
           <div className="flex flex-col gap-2">
-            <label className="text-sm font-medium">Background Color</label>
+            <label className="text-sm font-medium">{t('widget.backgroundColor')}</label>
             <div className="flex gap-2 items-center">
               <Input
                 type="color"
@@ -487,7 +490,7 @@ export default function WidgetCustomization({ domain, authKey, onSettingsUpdated
           </div>
 
           <div className="flex flex-col gap-2">
-            <label className="text-sm font-medium">Text Color</label>
+            <label className="text-sm font-medium">{t('widget.textColor')}</label>
             <div className="flex gap-2 items-center">
               <Input
                 type="color"
@@ -507,7 +510,7 @@ export default function WidgetCustomization({ domain, authKey, onSettingsUpdated
         </div>
 
         <div className="flex flex-col gap-2">
-          <label className="text-sm font-medium">Widget Title</label>
+          <label className="text-sm font-medium">{t('widget.widgetTitle')}</label>
           <Input
             value={settings.title}
             onChange={(e) => setSettings({ ...settings, title: e.target.value })}
@@ -517,7 +520,7 @@ export default function WidgetCustomization({ domain, authKey, onSettingsUpdated
         </div>
 
         <div className="flex flex-col gap-2">
-          <label className="text-sm font-medium">Welcome Message</label>
+          <label className="text-sm font-medium">{t('widget.welcomeMessage')}</label>
           <Textarea
             value={settings.welcome_message}
             onChange={(e) => setSettings({ ...settings, welcome_message: e.target.value })}
@@ -528,7 +531,7 @@ export default function WidgetCustomization({ domain, authKey, onSettingsUpdated
 
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           <div className="flex flex-col gap-2">
-            <label className={`text-sm font-medium ${!settings.show_greeting_bubble ? 'text-default-400' : ''}`}>Chat Bubble Greeting</label>
+            <label className={`text-sm font-medium ${!settings.show_greeting_bubble ? 'text-default-400' : ''}`}>{t('widget.chatBubbleGreeting')}</label>
             <Input
               value={settings.bubble_greeting_text}
               onChange={(e) => setSettings({ ...settings, bubble_greeting_text: e.target.value })}
@@ -536,11 +539,11 @@ export default function WidgetCustomization({ domain, authKey, onSettingsUpdated
               maxLength={200}
               isDisabled={!settings.show_greeting_bubble}
             />
-            <p className="text-xs text-default-500">First line of text shown in the chat bubble (fully customizable)</p>
+            <p className="text-xs text-default-500">{t('widget.chatBubbleGreetingDesc')}</p>
           </div>
 
           <div className="flex flex-col gap-2">
-            <label className={`text-sm font-medium ${!settings.show_greeting_bubble ? 'text-default-400' : ''}`}>Chat Bubble Button Text</label>
+            <label className={`text-sm font-medium ${!settings.show_greeting_bubble ? 'text-default-400' : ''}`}>{t('widget.chatBubbleButtonText')}</label>
             <Input
               value={settings.bubble_button_text}
               onChange={(e) => setSettings({ ...settings, bubble_button_text: e.target.value })}
@@ -548,58 +551,58 @@ export default function WidgetCustomization({ domain, authKey, onSettingsUpdated
               maxLength={100}
               isDisabled={!settings.show_greeting_bubble}
             />
-            <p className="text-xs text-default-500">Button text in the chat bubble</p>
+            <p className="text-xs text-default-500">{t('widget.chatBubbleButtonTextDesc')}</p>
           </div>
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           <div className="flex flex-col gap-2">
-            <label className="text-sm font-medium">Input Placeholder</label>
+            <label className="text-sm font-medium">{t('widget.inputPlaceholder')}</label>
             <Input
               value={settings.input_placeholder}
               onChange={(e) => setSettings({ ...settings, input_placeholder: e.target.value })}
               placeholder="Send message..."
               maxLength={100}
             />
-            <p className="text-xs text-gray-500">Placeholder text in the message input field</p>
+            <p className="text-xs text-gray-500">{t('widget.inputPlaceholderDesc')}</p>
           </div>
 
           <div className="flex flex-col gap-2">
-            <label className="text-sm font-medium">View Product Button Text</label>
+            <label className="text-sm font-medium">{t('widget.viewProductButtonText')}</label>
             <Input
               value={settings.view_product_text}
               onChange={(e) => setSettings({ ...settings, view_product_text: e.target.value })}
               placeholder="View Product"
               maxLength={50}
             />
-            <p className="text-xs text-gray-500">Button text on product cards</p>
+            <p className="text-xs text-gray-500">{t('widget.viewProductButtonTextDesc')}</p>
           </div>
 
           <div className="flex flex-col gap-2">
-            <label className="text-sm font-medium">Visit Page Button Text</label>
+            <label className="text-sm font-medium">{t('widget.visitPageButtonText')}</label>
             <Input
               value={settings.visit_page_text}
               onChange={(e) => setSettings({ ...settings, visit_page_text: e.target.value })}
               placeholder="Visit Page"
               maxLength={50}
             />
-            <p className="text-xs text-gray-500">Button text for page links</p>
+            <p className="text-xs text-gray-500">{t('widget.visitPageButtonTextDesc')}</p>
           </div>
         </div>
 
         <div className="flex flex-col gap-2">
-          <label className="text-sm font-medium">Footer Text</label>
+          <label className="text-sm font-medium">{t('widget.footerText')}</label>
           <Input
             value={settings.footer_text}
             onChange={(e) => setSettings({ ...settings, footer_text: e.target.value })}
             placeholder="Ask me anything about this website"
             maxLength={200}
           />
-          <p className="text-xs text-gray-500">Help text below the input field</p>
+          <p className="text-xs text-gray-500">{t('widget.footerTextDesc')}</p>
         </div>
 
         <div className="flex flex-col gap-2">
-          <label className="text-sm font-medium">Default Suggestions</label>
+          <label className="text-sm font-medium">{t('widget.defaultSuggestions')}</label>
           <div className="flex gap-2">
             <Input
               value={newSuggestion}
@@ -610,11 +613,11 @@ export default function WidgetCustomization({ domain, authKey, onSettingsUpdated
                   addSuggestion();
                 }
               }}
-              placeholder="Add a suggestion..."
+              placeholder={t('widget.addSuggestion')}
               className="flex-1"
             />
             <Button onClick={addSuggestion} color="primary">
-              Add
+              {t('widget.add')}
             </Button>
           </div>
           <div className="flex flex-wrap gap-2 mt-2">
@@ -643,7 +646,7 @@ export default function WidgetCustomization({ domain, authKey, onSettingsUpdated
             isLoading={saving}
             className="flex-1"
           >
-            Save Widget Settings
+            {t('widget.saveSettings')}
           </Button>
           <Button
             onClick={() => {
@@ -651,7 +654,7 @@ export default function WidgetCustomization({ domain, authKey, onSettingsUpdated
                 setSettings(cachedSettings);
                 addToast({
                   title: 'Reset',
-                  description: 'Settings reset to last saved state',
+                  description: t('widget.resetSuccess'),
                   color: 'default',
                 });
               }
@@ -660,15 +663,16 @@ export default function WidgetCustomization({ domain, authKey, onSettingsUpdated
             variant="bordered"
             isDisabled={saving}
           >
-            Reset
+            {t('widget.reset')}
           </Button>
         </div>
 
         <div className="mt-4 p-4 bg-gray-50 dark:bg-gray-900 rounded-lg">
           <p className="text-sm text-gray-600 dark:text-gray-400">
-            <strong>Preview:</strong> Changes will be applied to the chat widget after saving. The widget will use these custom colors, title, and suggestions.
+            <strong>{t('widget.preview')}</strong> {t('widget.previewDesc')}
           </p>
         </div>
+
       </CardBody>
     </Card>
   );

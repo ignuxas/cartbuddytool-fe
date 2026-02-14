@@ -3,9 +3,11 @@
 import { usePathname } from "next/navigation";
 import { Link } from "@heroui/link";
 import { Navbar } from "@/components/navbar";
+import { useLanguage } from "@/app/contexts/LanguageContext";
 
 export function LayoutContent({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
+  const { t } = useLanguage();
   const isDemoPage = pathname?.startsWith("/demo");
 
   if (isDemoPage) {
@@ -24,10 +26,10 @@ export function LayoutContent({ children }: { children: React.ReactNode }) {
         <Link
           isExternal
           className="flex items-center gap-1 text-current"
-          href="https://preview--cartbuddyai.lovable.app/"
+          href="https://cartbuddy.ai/"
           title="heroui.com homepage"
         >
-          <span className="text-default-600">Built For</span>
+          <span className="text-default-600">{t('common.builtFor')}</span>
           <p className="text-primary">CartBuddy.ai</p>
         </Link>
       </footer>

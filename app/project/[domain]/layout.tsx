@@ -5,6 +5,7 @@ import { Tabs, Tab } from "@heroui/tabs";
 import { Card, CardBody } from "@heroui/card";
 import { Link } from "@heroui/link";
 import ChatWidgetLoader from "@/app/components/ChatWidgetLoader";
+import { useLanguage } from "@/app/contexts/LanguageContext";
 
 export default function ProjectLayout({
   children,
@@ -15,6 +16,7 @@ export default function ProjectLayout({
   const pathname = usePathname();
   const params = useParams();
   const domain = params.domain as string;
+  const { t } = useLanguage();
 
   // Determine selected tab based on pathname
   let selected = "overview";
@@ -28,7 +30,7 @@ export default function ProjectLayout({
         <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
             <div>
                  <div className="flex items-center gap-2 text-sm text-muted-foreground mb-1">
-                    <Link href="/" className="text-muted-foreground hover:text-foreground">Projects</Link>
+                    <Link href="/" className="text-muted-foreground hover:text-foreground">{t('navigation.projects')}</Link>
                     <span>/</span>
                     <span>{domain}</span>
                  </div>
@@ -54,10 +56,10 @@ export default function ProjectLayout({
                 tabContent: "group-data-[selected=true]:text-primary"
             }}
         >
-            <Tab key="overview" title="Overview" />
-            <Tab key="scraping" title="Scraping & Data" />
-            <Tab key="bot" title="Bot Configuration" />
-            <Tab key="metrics" title="Metrics" />
+            <Tab key="overview" title={t('navigation.overview')} />
+            <Tab key="scraping" title={t('navigation.scraping')} />
+            <Tab key="bot" title={t('navigation.botConfiguration')} />
+            <Tab key="metrics" title={t('navigation.metrics')} />
         </Tabs>
       </div>
       <div className="w-full">

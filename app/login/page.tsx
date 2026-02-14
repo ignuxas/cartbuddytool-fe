@@ -8,10 +8,12 @@ import { Link } from "@heroui/link";
 import { Divider } from "@heroui/divider";
 import { addToast } from "@heroui/toast";
 import { useAuth } from "@/app/contexts/AuthContext";
+import { useLanguage } from "@/app/contexts/LanguageContext";
 import { useRouter } from "next/navigation";
 
 export default function LoginPage() {
   const { login, loginWithGoogle, isAuthenticated } = useAuth();
+  const { t } = useLanguage();
   const router = useRouter();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -32,14 +34,14 @@ export default function LoginPage() {
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!email.trim() || !password) {
-      addToast({ title: "Error", description: "Please enter email and password", color: "danger" });
+      addToast({ title: t('login.errorTitle'), description: t('login.missingCredentials'), color: "danger" });
       return;
     }
     setLoading(true);
     const result = await login(email.trim(), password);
     setLoading(false);
     if (result.error) {
-      addToast({ title: "Login Failed", description: result.error, color: "danger" });
+      addToast({ title: t('login.loginFailed'), description: result.error, color: "danger" });
     } else {
       router.push("/");
     }
@@ -50,7 +52,7 @@ export default function LoginPage() {
     const result = await loginWithGoogle();
     setGoogleLoading(false);
     if (result.error) {
-      addToast({ title: "Google Login Failed", description: result.error, color: "danger" });
+      addToast({ title: t('login.googleLoginFailed'), description: result.error, color: "danger" });
     }
   };
 
@@ -62,13 +64,13 @@ export default function LoginPage() {
           <h1 className="text-4xl font-bold tracking-tight bg-clip-text text-transparent bg-gradient-to-b from-foreground to-foreground/70">
             CartBuddy
           </h1>
-          <p className="text-default-500 mt-2">Sign in to manage your AI chat widgets</p>
+          <p className="text-default-500 mt-2">{t('login.subtitle')}</p>
         </div>
 
         <Card className="shadow-xl border border-divider/50">
           <CardHeader className="flex flex-col gap-1 pb-0">
-            <h2 className="text-xl font-semibold">Welcome back</h2>
-            <p className="text-sm text-default-500">Enter your credentials to continue</p>
+            <h2 className="text-xl font-semibold">{t('login.welcomeBack')}</h2>
+            <p className="text-sm text-default-500">{t('login.enterCredentials')}</p>
           </CardHeader>
           <CardBody className="gap-4">
             {/* Google OAuth */}
@@ -89,21 +91,21 @@ export default function LoginPage() {
                 )
               }
             >
-              Continue with Google
+              {t('login.continueWithGoogle')}
             </Button>
 
             {/* Divider */}
             <div className="flex items-center gap-4">
               <Divider className="flex-1" />
-              <span className="text-xs text-default-400 uppercase">or</span>
+              <span className="text-xs text-default-400 uppercase">{t('login.or')}</span>
               <Divider className="flex-1" />
             </div>
 
             {/* Email/Password Form */}
             <form onSubmit={handleLogin} className="flex flex-col gap-4">
               <Input
-                label="Email"
-                placeholder="you@example.com"
+                label={t('login.emailLabel')}
+                placeholder={t('login.emailPlaceholder')}
                 type="email"
                 value={email}
                 onValueChange={setEmail}
@@ -112,8 +114,8 @@ export default function LoginPage() {
                 autoComplete="email"
               />
               <Input
-                label="Password"
-                placeholder="Enter your password"
+                label={t('login.passwordLabel')}
+                placeholder="******"
                 type="password"
                 value={password}
                 onValueChange={setPassword}
@@ -128,15 +130,15 @@ export default function LoginPage() {
                 size="lg"
                 isLoading={loading}
               >
-                Sign In
+                {t('login.signIn')}
               </Button>
             </form>
 
             {/* Register link */}
             <div className="text-center text-sm text-default-500 pt-2">
-              Don&apos;t have an account?{" "}
+              {t('login.noAccount')}{" "}
               <Link href="/register" className="text-primary font-medium">
-                Create one
+                {t('login.signUp')}
               </Link>
             </div>
           </CardBody>

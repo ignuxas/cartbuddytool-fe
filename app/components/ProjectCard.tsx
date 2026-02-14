@@ -5,6 +5,7 @@ import { Card, CardBody } from "@heroui/card";
 import { Button } from "@heroui/button";
 import { Chip } from "@heroui/chip";
 import { useRouter } from "next/navigation";
+import { useLanguage } from "@/app/contexts/LanguageContext";
 
 interface Project {
   domain: string;
@@ -26,13 +27,14 @@ interface ProjectCardProps {
 
 export default function ProjectCard({ project, onSelect, onDelete }: ProjectCardProps) {
   const router = useRouter();
+  const { t } = useLanguage();
 
   const formatDate = (dateString?: string) => {
-    if (!dateString) return "Unknown";
+    if (!dateString) return t('projectCard.unknown');
     try {
       return new Date(dateString).toLocaleDateString();
     } catch {
-      return "Unknown";
+      return t('projectCard.unknown');
     }
   };
 
@@ -46,7 +48,7 @@ export default function ProjectCard({ project, onSelect, onDelete }: ProjectCard
   };
 
   const handleDelete = () => {
-    if (onDelete && confirm(`Are you sure you want to delete project ${project.domain}? This action cannot be undone.`)) {
+    if (onDelete && confirm(t('projectCard.deleteConfirmation', { domain: project.domain }))) {
       onDelete(project.domain);
     }
   };
@@ -62,7 +64,7 @@ export default function ProjectCard({ project, onSelect, onDelete }: ProjectCard
               color="danger"
               variant="light"
               onPress={handleDelete}
-              aria-label="Delete project"
+              aria-label={t('projectCard.deleteProject')}
               className="min-w-8 w-8 h-8"
             >
               <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-4 h-4">
@@ -76,14 +78,14 @@ export default function ProjectCard({ project, onSelect, onDelete }: ProjectCard
             {project.domain}
           </h4>
           <Chip size="sm" variant="flat" color="primary">
-            {project.page_count} pages
+            {project.page_count} {t('projectCard.pages')}
           </Chip>
         </div>
         
         {project.active_job && (
           <div className="mb-3 p-2 bg-primary-50 dark:bg-primary-900/20 rounded-md border border-primary-100 dark:border-primary-800">
             <div className="flex justify-between text-xs mb-1">
-              <span className="font-medium text-primary">Scraping in progress...</span>
+              <span className="font-medium text-primary">{t('projectCard.scrapingInProgress')}</span>
               <span>{project.active_job.scraped_pages} / {project.active_job.total_pages}</span>
             </div>
             <div className="w-full bg-default-200 rounded-full h-1.5">
@@ -96,7 +98,7 @@ export default function ProjectCard({ project, onSelect, onDelete }: ProjectCard
         )}
 
         <p className="text-sm text-gray-600 mb-3">
-          Last updated: {formatDate(project.last_updated)}
+          {t('projectCard.lastUpdated')}{formatDate(project.last_updated)}
         </p>
         <div className="flex gap-2">
           <Button 
@@ -106,7 +108,7 @@ export default function ProjectCard({ project, onSelect, onDelete }: ProjectCard
             className="flex-1"
             onPress={handleClick}
           >
-            Load Project
+            {t('projectCard.loadProject')}
           </Button>
           <Button 
             size="sm" 
@@ -115,7 +117,7 @@ export default function ProjectCard({ project, onSelect, onDelete }: ProjectCard
             className="flex-1"
             onPress={handleMetricsClick}
           >
-            Metrics
+            {t('projectCard.metrics')}
           </Button>
         </div>
       </CardBody>

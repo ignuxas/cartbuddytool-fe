@@ -5,9 +5,11 @@ import { Button } from "@heroui/button";
 import ExistingProjects from "./components/ExistingProjects";
 import { useRouter } from "next/navigation";
 import { useAuth } from "./contexts/AuthContext";
+import { useLanguage } from "@/app/contexts/LanguageContext";
 
 export default function Home() {
   const { isAuthenticated, isLoading, user, accessToken, isSuperAdmin } = useAuth();
+  const { t } = useLanguage();
   const router = useRouter();
 
   useEffect(() => {
@@ -19,7 +21,7 @@ export default function Home() {
   if (isLoading) {
     return (
       <section className="flex flex-col items-center justify-center gap-4 py-8 md:py-10">
-        <div>Loading...</div>
+        <div>{t('dashboard.loading')}</div>
       </section>
     );
   }
@@ -32,11 +34,11 @@ export default function Home() {
     <section className="flex flex-col gap-8 py-8 px-4 w-full">
       <div className="flex flex-col md:flex-row justify-between items-center gap-4 border-b border-divider pb-6">
         <div>
-          <h1 className="text-3xl font-bold">My Projects</h1>
+          <h1 className="text-3xl font-bold">{t('dashboard.title')}</h1>
           <p className="text-muted-foreground mt-1">
             {isSuperAdmin
-              ? "Manage and monitor all website assistants"
-              : "Your assigned website assistants"}
+              ? t('dashboard.superAdminDesc')
+              : t('dashboard.userDesc')}
           </p>
         </div>
         {isSuperAdmin && (
@@ -51,7 +53,7 @@ export default function Home() {
               </svg>
             }
           >
-            New Project
+            {t('dashboard.newProject')}
           </Button>
         )}
       </div>

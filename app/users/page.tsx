@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, useCallback } from "react";
+import { useEffect, useState, useCallback, useMemo } from "react";
 import { Card, CardBody, CardHeader } from "@heroui/card";
 import { Button } from "@heroui/button";
 import { Chip } from "@heroui/chip";
@@ -89,6 +89,44 @@ export default function UsersPage() {
   const [editUser, setEditUser] = useState<UserItem | null>(null);
   const [editRole, setEditRole] = useState<string>("user");
   const [editLimit, setEditLimit] = useState<number>(3);
+
+  const [searchQuery, setSearchQuery] = useState("");
+  const [sortDescriptor, setSortDescriptor] = useState({
+    column: "created_at",
+    direction: "descending",
+  });
+
+  const filteredUsers = useMemo(() => {
+    let result = [...users];
+
+    if (searchQuery) {
+      const q = searchQuery.toLowerCase();
+      result = result.filter(
+        (u) =>
+          u.email.toLowerCase().includes(q) ||
+          u.projects.some((p) => p.toLowerCase().includes(q))
+      );
+    }
+
+    result.sort((a, b) => {
+      const first = a[sortDescriptor.column as keyof UserItem];
+      const second = b[sortDescriptor.column as keyof UserItem];
+      let cmp = 0;
+
+      if (sortDescriptor.column === "projects") {
+          // Sort by project count
+          cmp = a.projects.length - b.projects.length;
+      } else if (sortDescriptor.column === "ai_limit") {
+          cmp = a.refine_ai_daily_limit - b.refine_ai_daily_limit;
+      } else {
+        cmp = (first as string) < (second as string) ? -1 : (first as string) > (second as string) ? 1 : 0;
+      }
+
+      return sortDescriptor.direction === "descending" ? -cmp : cmp;
+    });
+
+    return result;
+  }, [users, searchQuery, sortDescriptor]);
 
   const fetchUsers = useCallback(async () => {
     if (!accessToken) return;
@@ -304,19 +342,41 @@ export default function UsersPage() {
       </div>
 
       {/* Users Table */}
+      <div className="flex justify-between items-center mb-4">
+        <Input
+          placeholder="Search by email or project..."
+          value={searchQuery}
+          onValueChange={setSearchQuery}
+          className="max-w-xs"
+          startContent={
+            <svg className="w-4 h-4 text-default-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+            </svg>
+          }
+        />
+        <div className="text-default-400 text-small">
+          Total {users.length} users
+        </div>
+      </div>
+
       <Card>
         <CardBody className="p-0">
-          <Table aria-label="Users table" removeWrapper>
+          <Table 
+            aria-label="Users table" 
+            removeWrapper
+            sortDescriptor={sortDescriptor as any}
+            onSortChange={(descriptor: any) => setSortDescriptor(descriptor)}
+          >
             <TableHeader>
-              <TableColumn>EMAIL</TableColumn>
-              <TableColumn>ROLE</TableColumn>
-              <TableColumn>PROJECTS</TableColumn>
-              <TableColumn>AI LIMIT</TableColumn>
-              <TableColumn>JOINED</TableColumn>
-              <TableColumn>ACTIONS</TableColumn>
+              <TableColumn key="email" allowsSorting>EMAIL</TableColumn>
+              <TableColumn key="role" allowsSorting>ROLE</TableColumn>
+              <TableColumn key="projects" allowsSorting>PROJECTS</TableColumn>
+              <TableColumn key="ai_limit" allowsSorting>AI LIMIT</TableColumn>
+              <TableColumn key="created_at" allowsSorting>JOINED</TableColumn>
+              <TableColumn key="actions">ACTIONS</TableColumn>
             </TableHeader>
-            <TableBody emptyContent="No users found">
-              {users.map((user) => (
+            <TableBody emptyContent="No users found" items={filteredUsers}>
+              {(user) => (
                 <TableRow key={user.id}>
                   <TableCell>
                     <button
@@ -398,7 +458,7 @@ export default function UsersPage() {
                     </Dropdown>
                   </TableCell>
                 </TableRow>
-              ))}
+              )}
             </TableBody>
           </Table>
         </CardBody>

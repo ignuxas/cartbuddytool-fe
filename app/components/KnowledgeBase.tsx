@@ -8,6 +8,7 @@ import { Spinner } from "@heroui/spinner";
 import { addToast } from "@heroui/toast";
 import { Tooltip } from "@heroui/tooltip"; // Assuming this exists in HeroUI
 import { config } from "@/lib/config";
+import { useLanguage } from "@/app/contexts/LanguageContext";
 
 interface KnowledgeFile {
   id: string;
@@ -55,6 +56,7 @@ export const KnowledgeBase: React.FC<KnowledgeBaseProps> = ({ domain, authKey, i
   const [actionLoading, setActionLoading] = useState<string | null>(null); // 'upload' or fileId for specific actions
   const [uploadMode, setUploadMode] = useState<'create' | 'update'>('create');
   const [targetFileId, setTargetFileId] = useState<string | null>(null);
+  const { t } = useLanguage();
   
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -71,7 +73,7 @@ export const KnowledgeBase: React.FC<KnowledgeBaseProps> = ({ domain, authKey, i
       }
     } catch (error) {
       console.error(error);
-      addToast({ title: "Error fetching files", color: "danger" });
+      addToast({ title: t('project.fetchFilesError'), color: "danger" });
     } finally {
       setLoading(false);
     }
@@ -120,13 +122,13 @@ export const KnowledgeBase: React.FC<KnowledgeBaseProps> = ({ domain, authKey, i
       });
       const data = await res.json();
       if (res.ok) {
-        addToast({ title: "File uploaded successfully", color: "success" });
+        addToast({ title: t('project.uploadSuccess'), color: "success" });
         fetchFiles();
       } else {
-        addToast({ title: data.error || "Upload failed", color: "danger" });
+        addToast({ title: data.error || t('project.uploadFailed'), color: "danger" });
       }
     } catch (error) {
-       addToast({ title: "Upload error", color: "danger" });
+       addToast({ title: t('project.uploadError'), color: "danger" });
     } finally {
       setActionLoading(null);
     }
@@ -147,14 +149,14 @@ export const KnowledgeBase: React.FC<KnowledgeBaseProps> = ({ domain, authKey, i
               body: formData
           });
           if (res.ok) {
-              addToast({ title: "File updated successfully", color: "success" });
+              addToast({ title: t('project.updateSuccess'), color: "success" });
               fetchFiles();
           } else {
               const data = await res.json();
-              addToast({ title: data.error || "Update failed", color: "danger" });
+              addToast({ title: data.error || t('project.updateFailed'), color: "danger" });
           }
       } catch (error) {
-          addToast({ title: "Update error", color: "danger" });
+          addToast({ title: t('project.updateError'), color: "danger" });
       } finally {
           setActionLoading(null);
       }
@@ -171,10 +173,10 @@ export const KnowledgeBase: React.FC<KnowledgeBaseProps> = ({ domain, authKey, i
           if (res.ok && data.download_url) {
               window.open(data.download_url, '_blank');
           } else {
-              addToast({ title: "Failed to get download link", color: "danger" });
+              addToast({ title: t('project.getDownloadLinkFailed'), color: "danger" });
           }
       } catch (error) {
-           addToast({ title: "Download error", color: "danger" });
+           addToast({ title: t('project.downloadError'), color: "danger" });
       } finally {
           setActionLoading(null);
       }
@@ -182,7 +184,7 @@ export const KnowledgeBase: React.FC<KnowledgeBaseProps> = ({ domain, authKey, i
 
   const handleDelete = async (fileId: string) => {
     if (!authKey) return;
-    if (!confirm("Are you sure you want to delete this file?")) return;
+    if (!confirm(t('project.confirmDelete'))) return;
     setActionLoading(fileId);
     try {
       const res = await fetch(`${config.serverUrl}/api/knowledge/delete/`, {
@@ -194,10 +196,10 @@ export const KnowledgeBase: React.FC<KnowledgeBaseProps> = ({ domain, authKey, i
         body: JSON.stringify({ file_id: fileId, domain })
       });
       if (res.ok) {
-        addToast({ title: "File deleted", color: "success" });
+        addToast({ title: t('project.fileDeleted'), color: "success" });
         fetchFiles();
       } else {
-        addToast({ title: "Delete failed", color: "danger" });
+        addToast({ title: t('project.deleteFailed'), color: "danger" });
       }
     } catch (error) {
        addToast({ title: "Delete error", color: "danger" });
@@ -218,8 +220,8 @@ export const KnowledgeBase: React.FC<KnowledgeBaseProps> = ({ domain, authKey, i
     <Card className="w-full mt-6">
       <CardHeader className="flex justify-between items-center px-6 py-4">
         <div>
-            <h2 className="text-xl font-bold">Knowledge Base</h2>
-            <p className="text-sm text-default-500">Attach PDF/TXT files to train the assistant.</p>
+            <h2 className="text-xl font-bold">{t('project.knowledgeBaseTitle')}</h2>
+            <p className="text-sm text-default-500">{t('project.knowledgeBaseDesc')}</p>
         </div>
         <div className="flex gap-2">
             <input 
@@ -236,7 +238,7 @@ export const KnowledgeBase: React.FC<KnowledgeBaseProps> = ({ domain, authKey, i
                 onPress={() => triggerUpload('create')}
                 isLoading={actionLoading === 'upload_new'}
             >
-                Upload File
+                {t('project.uploadFile')}
             </Button>
         </div>
       </CardHeader>
@@ -247,16 +249,16 @@ export const KnowledgeBase: React.FC<KnowledgeBaseProps> = ({ domain, authKey, i
             </div>
         ) : files.length === 0 ? (
             <div className="text-center text-gray-500 py-12 border-2 border-dashed border-default-200 rounded-lg">
-                <p>No knowledge files attached.</p>
-                <p className="text-sm">Upload context documents (PDF, TXT) to enhance your assistant.</p>
+                <p>{t('project.noFiles')}</p>
+                <p className="text-sm">{t('project.noFilesDesc')}</p>
             </div>
         ) : (
             <Table aria-label="Knowledge Files">
                 <TableHeader>
-                    <TableColumn>NAME</TableColumn>
-                    <TableColumn>SIZE</TableColumn>
-                    <TableColumn>UPLOADED</TableColumn>
-                    <TableColumn align="center">ACTIONS</TableColumn>
+                    <TableColumn>{t('project.fileName')}</TableColumn>
+                    <TableColumn>{t('project.fileSize')}</TableColumn>
+                    <TableColumn>{t('project.uploadedAt')}</TableColumn>
+                    <TableColumn align="center">{t('project.actions')}</TableColumn>
                 </TableHeader>
                 <TableBody>
                     {files.map((file) => (
@@ -271,7 +273,7 @@ export const KnowledgeBase: React.FC<KnowledgeBaseProps> = ({ domain, authKey, i
                             <TableCell>{new Date(file.uploaded_at).toLocaleDateString()}</TableCell>
                             <TableCell>
                                 <div className="flex gap-1 justify-center">
-                                    <Tooltip content="Download">
+                                    <Tooltip content={t('common.download')}>
                                         <Button 
                                             isIconOnly 
                                             size="sm" 
@@ -282,7 +284,7 @@ export const KnowledgeBase: React.FC<KnowledgeBaseProps> = ({ domain, authKey, i
                                             <DownloadIcon />
                                         </Button>
                                     </Tooltip>
-                                    <Tooltip content="Update File">
+                                    <Tooltip content={t('project.updateFile')}>
                                         <Button 
                                             isIconOnly 
                                             size="sm" 
@@ -293,7 +295,7 @@ export const KnowledgeBase: React.FC<KnowledgeBaseProps> = ({ domain, authKey, i
                                             <EditIcon />
                                         </Button>
                                     </Tooltip>
-                                    <Tooltip content="Delete">
+                                    <Tooltip content={t('common.delete')}>
                                         <Button 
                                             isIconOnly 
                                             size="sm" 

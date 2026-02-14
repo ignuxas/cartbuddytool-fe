@@ -11,6 +11,7 @@ import { Card, CardBody } from "@heroui/card";
 import { useProjectData, useWebhookSecret, invalidateProjectCache } from "@/app/utils/swr";
 import { KnowledgeBase } from "@/app/components/KnowledgeBase";
 import { makeApiCall, logError } from "@/app/utils/apiHelper";
+import { useLanguage } from "@/app/contexts/LanguageContext";
 
 interface ScrapedDataItem {
   url: string;
@@ -35,6 +36,7 @@ export default function ProjectPage() {
   const params = useParams();
   const domain = params.domain as string;
   const { isAuthenticated, accessToken: authKey, isLoading: authIsLoading, isSuperAdmin, user } = useAuth();
+  const { t } = useLanguage();
   const router = useRouter();
   
   // SWR Hooks
@@ -95,8 +97,8 @@ export default function ProjectPage() {
 
     if (projectError) {
       logError("loadProjectData", projectError, { domain });
-      const message = projectError.message || "Failed to load project data";
-      addToast({ title: "Error", description: message, color: "danger" });
+      const message = projectError.message || t('project.loadFailed');
+      addToast({ title: t('project.errorTitle'), description: message, color: "danger" });
       setErrorMessage(message);
       return;
     }
@@ -133,8 +135,8 @@ export default function ProjectPage() {
       }
       
     } else if (!projectData.active_job && !loading) { // Only redirect if fully loaded and no job
-      const message = "No data found for this project. Redirecting to home page.";
-      addToast({ title: "Error", description: message, color: "danger" });
+      const message = t('project.noData');
+      addToast({ title: t('project.errorTitle'), description: message, color: "danger" });
       setErrorMessage(message);
       setTimeout(() => router.push('/'), 3000);
     }
@@ -192,7 +194,7 @@ export default function ProjectPage() {
             setRetryLoading(null);
             setScrapingProgress(null);
             pollingJobRef.current = null; // Clean up
-            addToast({ title: "Success", description: "Scraping completed", color: "success" });
+            addToast({ title: t('common.success'), description: t('project.scrapingCompleted'), color: "success" });
             
             // Reload project data via SWR cache invalidation
             invalidateProjectCache(domain);
@@ -201,8 +203,8 @@ export default function ProjectPage() {
             setRetryLoading(null);
             setScrapingProgress(null);
             pollingJobRef.current = null; // Clean up
-            setErrorMessage(statusData.error_message || "Scraping failed");
-            addToast({ title: "Error", description: statusData.error_message || "Scraping failed", color: "danger" });
+            setErrorMessage(statusData.error_message || t('project.scrapingFailed'));
+            addToast({ title: t('common.error'), description: statusData.error_message || t('project.scrapingFailed'), color: "danger" });
         } else {
             pollingTimerRef.current = setTimeout(poll, 2000);
         }
@@ -240,15 +242,15 @@ export default function ProjectPage() {
       }
       
       addToast({
-        title: "Success",
-        description: `Prompt improved!${!isSuperAdmin && data.remaining_quota !== undefined ? ` ${data.remaining_quota} requests remaining.` : ''}`,
+        title: t('common.success'),
+        description: `${t('project.promptImproved')}${!isSuperAdmin && data.remaining_quota !== undefined ? ` ${data.remaining_quota} ${t('project.requestsRemaining')}.` : ''}`,
         color: "success",
       });
     } catch (error: any) {
       logError("handleImprovePrompt", error, { domain });
       addToast({
-        title: "Error",
-        description: error.message || "Failed to improve prompt",
+        title: t('common.error'),
+        description: error.message || t('project.improvePromptFailed'),
         color: "danger",
       });
     } finally {
@@ -283,14 +285,14 @@ export default function ProjectPage() {
       invalidateProjectCache(domain);
 
       addToast({
-        title: "Success",
-        description: data.message || "Prompt regenerated successfully",
+        title: t('common.success'),
+        description: data.message || t('project.promptRegenerated'),
         color: "success",
       });
     } catch (error: any) {
       logError("handleRegeneratePrompt", error, { url });
-      const message = error.message || "Failed to regenerate prompt";
-      addToast({ title: "Error", description: message, color: "danger" });
+      const message = error.message || t('project.regeneratePromptFailed');
+      addToast({ title: t('common.error'), description: message, color: "danger" });
       setErrorMessage(message);
     } finally {
       setRetryLoading(null);
@@ -299,8 +301,8 @@ export default function ProjectPage() {
 
   const handleSavePromptToWorkflow = async () => {
     if (!prompt.trim()) {
-      const message = "Cannot save empty prompt";
-      addToast({ title: "Error", description: message, color: "danger" });
+      const message = t('project.cannotSaveEmptyPrompt');
+      addToast({ title: t('common.error'), description: message, color: "danger" });
       return;
     }
 
@@ -322,14 +324,14 @@ export default function ProjectPage() {
 
       setSavedPrompt(prompt); // Update saved state after successful save
       addToast({
-        title: "Success",
-        description: data.message || "Prompt saved successfully",
+        title: t('common.success'),
+        description: data.message || t('project.promptSaved'),
         color: "success",
       });
     } catch (error: any) {
       logError("handleSavePromptToWorkflow", error, { domain, promptLength: prompt.length });
-      const message = error.message || "Failed to save prompt";
-      addToast({ title: "Error", description: message, color: "danger" });
+      const message = error.message || t('project.savePromptFailed');
+      addToast({ title: t('common.error'), description: message, color: "danger" });
       setErrorMessage(message);
     } finally {
       setRetryLoading(null);
@@ -342,7 +344,7 @@ export default function ProjectPage() {
   if (authIsLoading) {
     return (
       <section className="flex flex-col items-center justify-center gap-4 py-8 md:py-10">
-        <div>Loading...</div>
+        <div>{t('common.loading')}</div>
       </section>
     );
   }
@@ -352,7 +354,7 @@ export default function ProjectPage() {
       <div className="flex flex-col gap-6 w-full py-6">
         {loading ? (
             <div className="flex justify-center items-center py-12">
-               <div>Loading project data...</div>
+               <div>{t('project.loadingData')}</div>
             </div>
         ) : (
           <>
@@ -375,14 +377,14 @@ export default function ProjectPage() {
                 }}
                >
                   <CardBody className="gap-2 p-6">
-                       <h3 className="font-bold text-lg">View Live Demo</h3>
-                       <p className="text-sm text-default-500">Test the assistant in a live environment.</p>
+                       <h3 className="font-bold text-lg">{t('project.viewLiveDemo')}</h3>
+                       <p className="text-sm text-default-500">{t('project.viewLiveDemoDesc')}</p>
                   </CardBody>
                </Card>
                <Card className="hover:scale-[1.02] transition-transform cursor-pointer border-primary/20 bg-primary/10" isPressable onPress={() => router.push(`/project/${domain}/scraping`)}>
                   <CardBody className="gap-2 p-6">
-                       <h3 className="font-bold text-lg">Scraping Settings</h3>
-                       <p className="text-sm text-default-500">Manage URLs, re-scrape, and configure settings.</p>
+                       <h3 className="font-bold text-lg">{t('project.scrapingSettings')}</h3>
+                       <p className="text-sm text-default-500">{t('project.scrapingSettingsDesc')}</p>
                   </CardBody>
                </Card>
             </div>
@@ -390,7 +392,7 @@ export default function ProjectPage() {
             {scrapingProgress && (
               <div className="w-full mt-4 p-4 border rounded-lg bg-content1 cursor-pointer hover:bg-content2 transition-colors" onClick={() => router.push(`/project/${domain}/scraping`)}>
                 <div className="flex justify-between mb-2">
-                  <span className="text-sm font-medium">Scraping in Progress...</span>
+                  <span className="text-sm font-medium">{t('project.scrapingInProgress')}</span>
                   <span className="text-sm text-default-500">
                     {scrapingProgress.current} / {scrapingProgress.total}
                   </span>

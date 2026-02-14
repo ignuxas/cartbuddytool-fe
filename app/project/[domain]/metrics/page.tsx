@@ -10,6 +10,7 @@ import { config } from "@/lib/config";
 import FormattedMessage from "@/app/components/FormattedMessage";
 import { useWidgetSettings, useMetricsDashboard } from "@/app/utils/swr";
 import { useAuth } from "@/app/contexts/AuthContext";
+import { useLanguage } from "@/app/contexts/LanguageContext";
 import {
   LineChart,
   Line,
@@ -77,6 +78,7 @@ export default function MetricsPage() {
   const router = useRouter();
   const domain = params.domain as string;
   const { accessToken: authKey } = useAuth();
+  const { t } = useLanguage();
 
   // SWR: dashboard metrics (stats, charts, initial recent items)
   const { metrics: dashboardData, isLoading: loading, error: metricsError } = useMetricsDashboard(domain, authKey);
@@ -208,8 +210,8 @@ export default function MetricsPage() {
     return (
       <div className="flex items-center justify-center min-h-screen bg-background">
         <div className="text-center">
-          <div className="text-xl font-semibold mb-2 text-foreground">Loading metrics...</div>
-          <div className="text-default-500">Please wait</div>
+          <div className="text-xl font-semibold mb-2 text-foreground">{t('metrics.loading')}</div>
+          <div className="text-default-500">{t('metrics.pleaseWait')}</div>
         </div>
       </div>
     );
@@ -220,10 +222,10 @@ export default function MetricsPage() {
       <div className="flex items-center justify-center min-h-screen bg-background">
         <Card className="max-w-md">
           <CardBody className="text-center">
-            <div className="text-xl font-semibold mb-2 text-danger">Error</div>
+            <div className="text-xl font-semibold mb-2 text-danger">{t('metrics.error')}</div>
             <div className="text-default-500 mb-4">{error}</div>
             <Button color="primary" onPress={() => router.back()}>
-              Go Back
+              {t('metrics.goBack')}
             </Button>
           </CardBody>
         </Card>
@@ -244,7 +246,7 @@ export default function MetricsPage() {
               <div className="text-3xl font-bold text-blue-500">
                 {metrics.total_interactions}
               </div>
-              <div className="text-default-500 mt-1">Total Interactions</div>
+              <div className="text-default-500 mt-1">{t('metrics.totalInteractions')}</div>
             </CardBody>
           </Card>
           <Card>
@@ -252,7 +254,7 @@ export default function MetricsPage() {
               <div className="text-3xl font-bold text-green-500">
                 {metrics.unique_sessions}
               </div>
-              <div className="text-default-500 mt-1">Unique Sessions</div>
+              <div className="text-default-500 mt-1">{t('metrics.uniqueSessions')}</div>
             </CardBody>
           </Card>
           <Card>
@@ -260,7 +262,7 @@ export default function MetricsPage() {
               <div className="text-3xl font-bold text-purple-500">
                 {metrics.unique_ips}
               </div>
-              <div className="text-default-500 mt-1">Unique IPs</div>
+              <div className="text-default-500 mt-1">{t('metrics.uniqueIps')}</div>
             </CardBody>
           </Card>
           <Card>
@@ -268,7 +270,7 @@ export default function MetricsPage() {
               <div className="text-3xl font-bold text-orange-500">
                 {metrics.average_response_length.toFixed(0)}
               </div>
-              <div className="text-default-500 mt-1">Avg Response Length</div>
+              <div className="text-default-500 mt-1">{t('metrics.avgResponseLength')}</div>
             </CardBody>
           </Card>
         </div>
@@ -280,7 +282,7 @@ export default function MetricsPage() {
               <div className="text-3xl font-bold text-cyan-500">
                 {metrics.widget_opens || 0}
               </div>
-              <div className="text-default-500 mt-1">Widget Opens</div>
+              <div className="text-default-500 mt-1">{t('metrics.widgetOpens')}</div>
             </CardBody>
           </Card>
           <Card>
@@ -288,7 +290,7 @@ export default function MetricsPage() {
               <div className="text-3xl font-bold text-amber-500">
                 {metrics.link_clicks || 0}
               </div>
-              <div className="text-default-500 mt-1">Link / Product Clicks</div>
+              <div className="text-default-500 mt-1">{t('metrics.linkProductClicks')}</div>
             </CardBody>
           </Card>
           <Card>
@@ -296,7 +298,7 @@ export default function MetricsPage() {
               <div className="text-3xl font-bold text-indigo-500">
                 {metrics.total_products_recommended || 0}
               </div>
-              <div className="text-default-500 mt-1">Products Recommended</div>
+              <div className="text-default-500 mt-1">{t('metrics.productsRecommended')}</div>
             </CardBody>
           </Card>
           <Card>
@@ -304,7 +306,7 @@ export default function MetricsPage() {
               <div className="text-3xl font-bold text-teal-500">
                 {metrics.total_links_recommended || 0}
               </div>
-              <div className="text-default-500 mt-1">Links Recommended</div>
+              <div className="text-default-500 mt-1">{t('metrics.linksRecommended')}</div>
             </CardBody>
           </Card>
         </div>
@@ -316,8 +318,8 @@ export default function MetricsPage() {
               <div className="text-3xl font-bold text-emerald-500">
                 {metrics.chat_conversion_rate || 0}%
               </div>
-              <div className="text-default-500 mt-1">Chat Conversion Rate</div>
-              <div className="text-xs text-default-400 mt-0.5">Opens → Messages</div>
+              <div className="text-default-500 mt-1">{t('metrics.chatConversionRate')}</div>
+              <div className="text-xs text-default-400 mt-0.5">{t('metrics.opensToMessages')}</div>
             </CardBody>
           </Card>
           <Card>
@@ -325,8 +327,8 @@ export default function MetricsPage() {
               <div className="text-3xl font-bold text-rose-500">
                 {metrics.product_click_rate || 0}%
               </div>
-              <div className="text-default-500 mt-1">Click-Through Rate</div>
-              <div className="text-xs text-default-400 mt-0.5">Recommended → Clicked</div>
+              <div className="text-default-500 mt-1">{t('metrics.clickThroughRate')}</div>
+              <div className="text-xs text-default-400 mt-0.5">{t('metrics.recommendedToClicked')}</div>
             </CardBody>
           </Card>
           <Card>
@@ -334,7 +336,7 @@ export default function MetricsPage() {
               <div className="text-3xl font-bold text-sky-500">
                 {metrics.suggestion_clicks || 0}
               </div>
-              <div className="text-default-500 mt-1">Suggestion Clicks</div>
+              <div className="text-default-500 mt-1">{t('metrics.suggestionClicks')}</div>
             </CardBody>
           </Card>
           <Card>
@@ -342,10 +344,10 @@ export default function MetricsPage() {
               <div className="text-3xl font-bold text-violet-500">
                 {metrics.interactions_with_products || 0}
               </div>
-              <div className="text-default-500 mt-1">Chats with Products</div>
+              <div className="text-default-500 mt-1">{t('metrics.chatsWithProducts')}</div>
               <div className="text-xs text-default-400 mt-0.5">
                 {metrics.total_interactions > 0 
-                  ? `${((metrics.interactions_with_products || 0) / metrics.total_interactions * 100).toFixed(1)}% of all chats`
+                  ? `${((metrics.interactions_with_products || 0) / metrics.total_interactions * 100).toFixed(1)}% ${t('metrics.ofAllChats')}`
                   : '—'
                 }
               </div>
@@ -360,7 +362,7 @@ export default function MetricsPage() {
               <div className="text-3xl font-bold text-red-500">
                 {metrics.total_errors || 0}
               </div>
-              <div className="text-default-500 mt-1">Total Errors</div>
+              <div className="text-default-500 mt-1">{t('metrics.totalErrors')}</div>
             </CardBody>
           </Card>
           <Card>
@@ -368,7 +370,7 @@ export default function MetricsPage() {
               <div className="text-3xl font-bold text-red-400">
                 {(metrics.error_percentage || 0).toFixed(2)}%
               </div>
-              <div className="text-default-500 mt-1">Error Rate</div>
+              <div className="text-default-500 mt-1">{t('metrics.errorRate')}</div>
             </CardBody>
           </Card>
           <Card>
@@ -376,7 +378,7 @@ export default function MetricsPage() {
               <div className="text-3xl font-bold text-green-400">
                 {((100 - (metrics.error_percentage || 0))).toFixed(2)}%
               </div>
-              <div className="text-default-500 mt-1">Success Rate</div>
+              <div className="text-default-500 mt-1">{t('metrics.successRate')}</div>
             </CardBody>
           </Card>
         </div>
@@ -387,7 +389,7 @@ export default function MetricsPage() {
           <Card className={fullscreenChart === 'daily' ? "fixed inset-0 z-50 m-0 h-screen w-screen" : (fullscreenChart ? "hidden" : "")}>
             <CardHeader className="flex flex-col sm:flex-row justify-between items-start sm:items-center px-6 py-4 gap-4">
               <div className="flex flex-col sm:flex-row items-start sm:items-center gap-4 w-full sm:w-auto">
-                <h3 className="text-xl font-semibold whitespace-nowrap">Daily Activity</h3>
+                <h3 className="text-xl font-semibold whitespace-nowrap">{t('metrics.dailyActivity')}</h3>
                 <div className="flex flex-wrap gap-2">
                   <Button
                     size="sm"
@@ -397,7 +399,7 @@ export default function MetricsPage() {
                     onPress={() => toggleChartFilter('daily', 'interactions')}
                     className="min-h-7 h-7 text-xs font-medium"
                   >
-                    Interactions
+                    {t('metrics.chart.interactions')}
                   </Button>
                   <Button 
                     size="sm" 
@@ -407,7 +409,7 @@ export default function MetricsPage() {
                     onPress={() => toggleChartFilter('daily', 'opens')}
                     className="min-h-7 h-7 text-xs font-medium"
                   >
-                    Widget Opens
+                    {t('metrics.chart.widgetOpens')}
                   </Button>
                   <Button 
                     size="sm" 
@@ -417,7 +419,7 @@ export default function MetricsPage() {
                     onPress={() => toggleChartFilter('daily', 'errors')}
                     className="min-h-7 h-7 text-xs font-medium"
                   >
-                    Errors
+                    {t('metrics.chart.errors')}
                   </Button>
                 </div>
               </div>
@@ -458,14 +460,14 @@ export default function MetricsPage() {
                         color: '#F3F4F6'
                       }}
                     />
-                    <Legend />
+                    <Legend formatter={(value) => t(`metrics.chart.${value}`) || value} />
                     {chartFilters.daily.interactions && (
                       <Line
                         type="monotone"
                         dataKey="count"
                         stroke="#3B82F6"
                         strokeWidth={2}
-                        name="Total Interactions"
+                        name="interactions"
                       />
                     )}
                     {chartFilters.daily.opens && (
@@ -474,7 +476,7 @@ export default function MetricsPage() {
                         dataKey="widget_opens"
                         stroke="#06B6D4"
                         strokeWidth={2}
-                        name="Widget Opens"
+                        name="widgetOpens"
                         strokeDasharray="5 5"
                       />
                     )}
@@ -484,14 +486,14 @@ export default function MetricsPage() {
                         dataKey="errors"
                         stroke="#EF4444"
                         strokeWidth={2}
-                        name="Errors"
+                        name="errors"
                       />
                     )}
                   </LineChart>
                 </ResponsiveContainer>
               ) : (
                 <div className="text-center text-default-500 py-12">
-                  No daily activity data available
+                  {t('metrics.noDailyActivity')}
                 </div>
               )}
             </CardBody>
@@ -501,7 +503,7 @@ export default function MetricsPage() {
           <Card className={fullscreenChart === 'hourly' ? "fixed inset-0 z-50 m-0 h-screen w-screen" : (fullscreenChart ? "hidden" : "")}>
             <CardHeader className="flex flex-col sm:flex-row justify-between items-start sm:items-center px-6 py-4 gap-4">
               <div className="flex flex-col sm:flex-row items-start sm:items-center gap-4 w-full sm:w-auto">
-                <h3 className="text-xl font-semibold whitespace-nowrap">Hourly Distribution</h3>
+                <h3 className="text-xl font-semibold whitespace-nowrap">{t('metrics.hourlyDistribution')}</h3>
                 <div className="flex flex-wrap gap-2">
                   <Button 
                     size="sm" 
@@ -511,7 +513,7 @@ export default function MetricsPage() {
                     onPress={() => toggleChartFilter('hourly', 'interactions')}
                     className="min-h-7 h-7 text-xs font-medium"
                   >
-                    Interactions
+                    {t('metrics.chart.interactions')}
                   </Button>
                   <Button 
                     size="sm" 
@@ -521,7 +523,7 @@ export default function MetricsPage() {
                     onPress={() => toggleChartFilter('hourly', 'opens')}
                     className="min-h-7 h-7 text-xs font-medium"
                   >
-                    Widget Opens
+                    {t('metrics.chart.widgetOpens')}
                   </Button>
                 </div>
               </div>
@@ -554,18 +556,18 @@ export default function MetricsPage() {
                         color: '#F3F4F6'
                       }}
                     />
-                    <Legend />
+                    <Legend formatter={(value) => t(`metrics.chart.${value}`) || value} />
                     {chartFilters.hourly.interactions && (
-                      <Bar dataKey="count" fill="#10B981" name="Interactions" />
+                      <Bar dataKey="count" fill="#10B981" name="interactions" />
                     )}
                     {chartFilters.hourly.opens && (
-                      <Bar dataKey="widget_opens" fill="#06B6D4" name="Widget Opens" />
+                      <Bar dataKey="widget_opens" fill="#06B6D4" name="widgetOpens" />
                     )}
                   </BarChart>
                 </ResponsiveContainer>
               ) : (
                 <div className="text-center text-default-500 py-12">
-                  No hourly data available
+                  {t('metrics.noHourlyData')}
                 </div>
               )}
             </CardBody>
@@ -600,7 +602,7 @@ export default function MetricsPage() {
                 </div>
               ) : (
                 <div className="text-center text-default-500 py-12">
-                  No query data available
+                  {t('metrics.noTopQueries')}
                 </div>
               )}
             </CardBody>
@@ -609,7 +611,7 @@ export default function MetricsPage() {
           {/* Top Pages */}
           <Card>
             <CardHeader>
-              <h3 className="text-xl font-semibold">Top Pages</h3>
+              <h3 className="text-xl font-semibold">{t('metrics.visitedPages')}</h3>
             </CardHeader>
             <CardBody>
               {metrics.top_pages && metrics.top_pages.length > 0 ? (
@@ -637,7 +639,7 @@ export default function MetricsPage() {
                 </div>
               ) : (
                 <div className="text-center text-default-500 py-12">
-                  No page data available
+                  {t('metrics.noPageData')}
                 </div>
               )}
             </CardBody>
@@ -647,7 +649,7 @@ export default function MetricsPage() {
           {metrics.total_errors > 0 && (
             <Card>
               <CardHeader>
-                <h3 className="text-xl font-semibold">Error Types Distribution</h3>
+                <h3 className="text-xl font-semibold">{t('metrics.errorDistribution')}</h3>
               </CardHeader>
               <CardBody>
                 {metrics.error_types && metrics.error_types.length > 0 ? (
@@ -670,7 +672,7 @@ export default function MetricsPage() {
                   </div>
                 ) : (
                   <div className="text-center text-default-500 py-12">
-                    No error type data available
+                    {t('metrics.noErrorDetails')}
                   </div>
                 )}
               </CardBody>
@@ -685,7 +687,7 @@ export default function MetricsPage() {
           {metrics.clicked_links && metrics.clicked_links.length > 0 && (
           <Card>
             <CardHeader>
-              <h3 className="text-xl font-semibold">Most Clicked Links</h3>
+              <h3 className="text-xl font-semibold">{t('metrics.mostClickedLinks')}</h3>
             </CardHeader>
             <CardBody>
               <div className="space-y-2 max-h-72 overflow-y-auto pr-2">
@@ -697,7 +699,7 @@ export default function MetricsPage() {
                     <div className="flex-1 mr-4 min-w-0">
                       <div className="flex items-center gap-2 mb-0.5">
                         <Chip size="sm" variant="flat" color={item.type === 'product_card' ? 'success' : item.type === 'link_card' ? 'warning' : 'default'}>
-                          {item.type === 'product_card' ? 'Product' : item.type === 'link_card' ? 'Link Card' : 'Link'}
+                          {item.type === 'product_card' ? t('metrics.product') : item.type === 'link_card' ? t('metrics.linkCard') : t('metrics.link')}
                         </Chip>
                       </div>
                       <div className="text-sm font-medium text-foreground truncate" title={item.title || item.url}>
@@ -714,7 +716,7 @@ export default function MetricsPage() {
                       </a>
                     </div>
                     <Chip size="sm" color="warning" variant="flat" className="flex-shrink-0">
-                      {item.count} clicks
+                      {item.count} {t('metrics.clicks')}
                     </Chip>
                   </div>
                 ))}
@@ -727,7 +729,7 @@ export default function MetricsPage() {
           {metrics.top_recommended && metrics.top_recommended.length > 0 && (
           <Card>
             <CardHeader>
-              <h3 className="text-xl font-semibold">Top Recommended by AI</h3>
+              <h3 className="text-xl font-semibold">{t('metrics.topRecommended')}</h3>
             </CardHeader>
             <CardBody>
               <div className="space-y-2 max-h-72 overflow-y-auto pr-2">
@@ -743,7 +745,7 @@ export default function MetricsPage() {
                       <div className="flex-1 mr-4 min-w-0">
                         <div className="flex items-center gap-2 mb-0.5">
                           <Chip size="sm" variant="flat" color={item.type === 'product' ? 'success' : 'secondary'}>
-                            {item.type === 'product' ? 'Product' : 'Link'}
+                            {item.type === 'product' ? t('metrics.product') : t('metrics.link')}
                           </Chip>
                         </div>
                         <div className="text-sm font-medium text-foreground truncate" title={item.title || item.url}>
@@ -761,11 +763,11 @@ export default function MetricsPage() {
                       </div>
                       <div className="flex flex-col items-end gap-1 flex-shrink-0">
                         <Chip size="sm" color="primary" variant="flat">
-                          {item.count}x shown
+                          {item.count}x {t('metrics.shown')}
                         </Chip>
                         {clickCount > 0 && (
                           <Chip size="sm" color="warning" variant="flat">
-                            {clickCount} clicks
+                            {clickCount} {t('metrics.clicks')}
                           </Chip>
                         )}
                       </div>
@@ -785,10 +787,10 @@ export default function MetricsPage() {
           {paginatedErrors && paginatedErrors.length > 0 && (
             <Card>
               <CardHeader className="flex justify-between items-center">
-                <h3 className="text-xl font-semibold text-red-500">Recent Errors</h3>
+                <h3 className="text-xl font-semibold text-red-500">{t('metrics.recentErrors')}</h3>
                 {errorsTotal > ITEMS_PER_PAGE && (
                   <Chip size="sm" variant="flat" color="danger">
-                    {errorsTotal} Total
+                    {errorsTotal} {t('metrics.total')}
                   </Chip>
                 )}
               </CardHeader>
@@ -820,7 +822,7 @@ export default function MetricsPage() {
                           {error.last_node_executed && error.last_node_executed !== '-' && (
                             <div>
                               <div className="text-xs font-semibold text-default-600 mb-1">
-                                Last Node:
+                                {t('metrics.lastNode')}:
                               </div>
                               <div className="text-xs text-default-500 bg-content2 p-2 rounded">
                                 {error.last_node_executed}
@@ -833,7 +835,7 @@ export default function MetricsPage() {
                           {error.execution_url && error.execution_url !== '-' && (
                             <div>
                               <div className="text-xs font-semibold text-default-600 mb-1">
-                                URL:
+                                {t('metrics.url')}:
                               </div>
                               <a
                                 href={error.execution_url}
@@ -851,7 +853,7 @@ export default function MetricsPage() {
                       {error.error_stack && error.error_stack !== '' && (
                         <div>
                           <div className="text-xs font-semibold text-default-600 mb-1">
-                            Stack:
+                            {t('metrics.stack')}:
                           </div>
                           <div className="text-xs text-default-500 bg-content2 p-2 rounded max-h-40 overflow-y-auto font-mono whitespace-pre-wrap">
                             {error.error_stack}
@@ -883,10 +885,10 @@ export default function MetricsPage() {
           {/* Recent Interactions */}
           <Card>
             <CardHeader className="flex justify-between items-center">
-              <h3 className="text-xl font-semibold">Recent Interactions</h3>
+              <h3 className="text-xl font-semibold">{t('metrics.recentInteractions')}</h3>
               {interactionsTotal > ITEMS_PER_PAGE && (
                 <Chip size="sm" variant="flat" color="primary">
-                  {interactionsTotal} Total
+                  {interactionsTotal} {t('metrics.total')}
                 </Chip>
               )}
             </CardHeader>
@@ -920,7 +922,7 @@ export default function MetricsPage() {
                       </div>
                       <div className="mb-2">
                         <div className="text-sm font-semibold text-foreground mb-1">
-                          Input:
+                          {t('metrics.input')}:
                         </div>
                         <div className="text-sm text-default-600 bg-content2 p-2 rounded">
                           {metric.chatInput !== "-" ? metric.chatInput : "N/A"}
@@ -928,7 +930,7 @@ export default function MetricsPage() {
                       </div>
                       <div>
                         <div className="text-sm font-semibold text-foreground mb-1">
-                          Output:
+                          {t('metrics.output')}:
                         </div>
                         {/* eslint-disable-next-line */}
                         <div 
@@ -963,7 +965,7 @@ export default function MetricsPage() {
                 </>
               ) : (
                 <div className="text-center text-default-500 py-12">
-                  No recent interactions available
+                  {t('metrics.noRecentInteractions')}
                 </div>
               )}
             </CardBody>

@@ -1,10 +1,19 @@
 "use client";
 
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useState, useMemo } from "react";
 import { Card, CardBody, CardHeader } from "@heroui/card";
+import { Button } from "@heroui/button";
+import { Input } from "@heroui/input";
+import {
+  Dropdown,
+  DropdownTrigger,
+  DropdownMenu,
+  DropdownItem
+} from "@heroui/dropdown";
 import { config } from "@/lib/config";
 import { addToast } from "@heroui/toast";
 import ProjectCard from "./ProjectCard";
+import { useLanguage } from "@/app/contexts/LanguageContext";
 
 interface Project {
   domain: string;
@@ -47,6 +56,32 @@ const EmptyStateIcon = () => (
 const ExistingProjects: React.FC<ExistingProjectsProps> = ({ authKey, onSelectProject, isSuperAdmin = false }) => {
   const [projects, setProjects] = useState<Project[]>([]);
   const [loading, setLoading] = useState(true);
+  const [searchQuery, setSearchQuery] = useState("");
+  const [sortKey, setSortKey] = useState<string>("updated_desc");
+  const { t } = useLanguage();
+
+  const sortedProjects = useMemo(() => {
+    let result = [...projects];
+
+    if (searchQuery) {
+      const q = searchQuery.toLowerCase();
+      result = result.filter(p => p.domain.toLowerCase().includes(q));
+    }
+
+    result.sort((a, b) => {
+      switch (sortKey) {
+        case "domain_asc": return a.domain.localeCompare(b.domain);
+        case "domain_desc": return b.domain.localeCompare(a.domain);
+        case "pages_asc": return (a.page_count || 0) - (b.page_count || 0);
+        case "pages_desc": return (b.page_count || 0) - (a.page_count || 0);
+        case "updated_asc": return new Date(a.last_updated || 0).getTime() - new Date(b.last_updated || 0).getTime();
+        case "updated_desc": return new Date(b.last_updated || 0).getTime() - new Date(a.last_updated || 0).getTime();
+        default: return 0;
+      }
+    });
+
+    return result;
+  }, [projects, searchQuery, sortKey]);
 
   useEffect(() => {
     fetchProjects();
@@ -78,15 +113,17 @@ const ExistingProjects: React.FC<ExistingProjectsProps> = ({ authKey, onSelectPr
       const data = await response.json();
 
       if (!response.ok) {
-        throw new Error(data.error || "Failed to fetch projects");
+        throw new Error(data.error || t('existingProjects.fetchError'));
       }
 
-      setProjects(data.projects || []);
+      const ignoredProjects = ['widget.events', 'users', 'user.projects'];
+      const filteredProjects = (data.projects || []).filter((p: Project) => !ignoredProjects.includes(p.domain));
+      setProjects(filteredProjects);
     } catch (error: any) {
       if (!silent) {
         addToast({
-          title: "Error",
-          description: error.message || "Failed to fetch projects",
+          title: t('existingProjects.errorTitle'),
+          description: error.message || t('existingProjects.fetchError'),
           color: "danger",
         });
       }
@@ -118,12 +155,12 @@ const ExistingProjects: React.FC<ExistingProjectsProps> = ({ authKey, onSelectPr
 
       if (!response.ok) {
         const data = await response.json();
-        throw new Error(data.error || "Failed to delete project");
+        throw new Error(data.error || t('existingProjects.deleteError'));
       }
 
       addToast({
-        title: "Success",
-        description: `Project ${domain} deleted successfully`,
+        title: t('existingProjects.successTitle'),
+        description: t('existingProjects.deleteSuccess', { domain }),
         color: "success",
       });
       
@@ -131,8 +168,8 @@ const ExistingProjects: React.FC<ExistingProjectsProps> = ({ authKey, onSelectPr
       fetchProjects();
     } catch (error: any) {
       addToast({
-        title: "Error",
-        description: error.message || "Failed to delete project",
+        title: t('existingProjects.errorTitle'),
+        description: error.message || t('existingProjects.deleteError'),
         color: "danger",
       });
     }
@@ -141,7 +178,7 @@ const ExistingProjects: React.FC<ExistingProjectsProps> = ({ authKey, onSelectPr
   if (loading) {
     return (
       <div className="w-full">
-        <h3 className="text-2xl font-bold mb-6">Existing Projects</h3>
+        <h3 className="text-2xl font-bold mb-6">{t('existingProjects.title')}</h3>
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
           {[...Array(3)].map((_, i) => <SkeletonCard key={i} />)}
         </div>
@@ -153,18 +190,59 @@ const ExistingProjects: React.FC<ExistingProjectsProps> = ({ authKey, onSelectPr
     return (
         <div className="w-full text-center py-16">
             <EmptyStateIcon />
-            <h3 className="text-xl font-semibold mt-4">No Projects Yet</h3>
-            <p className="text-gray-500 mt-2">Start by scraping your first website to see your projects here.</p>
+            <h3 className="text-xl font-semibold mt-4">{t('existingProjects.noProjects')}</h3>
+            <p className="text-gray-500 mt-2">{t('existingProjects.startScraping')}</p>
         </div>
     );
   }
 
   return (
     <div className="w-full pt-6">
-      <h3 className="text-2xl font-bold mb-6">Existing Projects ({projects.length})</h3>
-      {projects.length > 0 && (
+      <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 mb-6">
+        <h3 className="text-2xl font-bold">{t('existingProjects.title')} ({sortedProjects.length})</h3>
+        <div className="flex flex-col sm:flex-row gap-3 w-full md:w-auto">
+          <Input
+            placeholder="Search projects..."
+            value={searchQuery}
+            onValueChange={setSearchQuery}
+            className="w-full sm:w-64"
+            startContent={
+              <svg className="w-4 h-4 text-default-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+              </svg>
+            }
+          />
+          <Dropdown>
+            <DropdownTrigger>
+              <Button variant="bordered" className="capitalize">
+                Sort by: {sortKey.replace('_', ' ')}
+              </Button>
+            </DropdownTrigger>
+            <DropdownMenu 
+              aria-label="Sort options"
+              disallowEmptySelection
+              selectionMode="single"
+              selectedKeys={[sortKey]}
+              onSelectionChange={(keys) => setSortKey(Array.from(keys)[0] as string)}
+            >
+              <DropdownItem key="updated_desc">Newest First</DropdownItem>
+              <DropdownItem key="updated_asc">Oldest First</DropdownItem>
+              <DropdownItem key="domain_asc">Name (A-Z)</DropdownItem>
+              <DropdownItem key="domain_desc">Name (Z-A)</DropdownItem>
+              <DropdownItem key="pages_desc">Most Pages</DropdownItem>
+              <DropdownItem key="pages_asc">Fewest Pages</DropdownItem>
+            </DropdownMenu>
+          </Dropdown>
+        </div>
+      </div>
+
+      {sortedProjects.length === 0 && searchQuery ? (
+        <div className="text-center py-12 text-default-500">
+          No projects found matching "{searchQuery}"
+        </div>
+      ) : sortedProjects.length > 0 ? (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-          {projects.map((project) => (
+          {sortedProjects.map((project) => (
             <ProjectCard
               key={project.domain}
               project={project}
@@ -173,7 +251,12 @@ const ExistingProjects: React.FC<ExistingProjectsProps> = ({ authKey, onSelectPr
             />
           ))}
         </div>
-      )}
+      ) : projects.length > 0 ? (
+        // Only show empty if no projects at all (not filtered)
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+             {/* Fallback unlikely needed due to previous check */}
+        </div>
+      ) : null}
     </div>
   );
 };

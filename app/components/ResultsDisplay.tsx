@@ -8,6 +8,7 @@ import { Tooltip } from "@heroui/tooltip";
 import { addToast } from "@heroui/toast";
 import { config } from "@/lib/config";
 import { useRouter } from "next/navigation";
+import { useLanguage } from "@/app/contexts/LanguageContext";
 
 interface ScrapedDataItem {
   url: string;
@@ -117,6 +118,7 @@ export default function ResultsDisplay({
   const [showSecret, setShowSecret] = React.useState(false);
   const [embedCodeWithSettings, setEmbedCodeWithSettings] = React.useState<string>("");
   const router = useRouter();
+  const { t } = useLanguage();
 
 
   // Load embed code with widget settings when workflow result is available
@@ -164,15 +166,15 @@ export default function ResultsDisplay({
       
       await navigator.clipboard.writeText(embedCode);
       addToast({
-        title: "Success",
-        description: "Copied to clipboard!",
+        title: t('common.success'),
+        description: t('project.clipboardSuccess'),
         color: "success",
       });
     } catch (error: any) {
       logComponentError("copyEmbedCode", error, { workflowResult });
       addToast({
-        title: "Error",
-        description: "Failed to copy to clipboard.",
+        title: t('common.error'),
+        description: t('project.clipboardFailed'),
         color: "danger",
       });
     }
@@ -188,8 +190,8 @@ export default function ResultsDisplay({
       logComponentError("testChat", error, { workflowResult });
       console.error("Failed to open chat:", error.message);
       addToast({
-        title: "Error",
-        description: "Failed to open chat.",
+        title: t('common.error'),
+        description: t('project.openChatFailed'),
         color: "danger",
       });
     }
@@ -205,8 +207,8 @@ export default function ResultsDisplay({
       logComponentError("viewWorkflow", error, { workflowResult });
       console.error("Failed to open workflow:", error.message);
       addToast({
-        title: "Error",
-        description: "Failed to open workflow.",
+        title: t('common.error'),
+        description: t('project.openWorkflowFailed'),
         color: "danger",
       });
     }
@@ -224,8 +226,8 @@ export default function ResultsDisplay({
       logComponentError("openDemo", error, { workflowResult, url });
       console.error("Failed to open demo:", error.message);
       addToast({
-        title: "Error",
-        description: "Failed to open demo.",
+        title: t('common.error'),
+        description: t('project.openDemoFailed'),
         color: "danger",
       });
     }
@@ -242,16 +244,16 @@ export default function ResultsDisplay({
       
       navigator.clipboard.writeText(demoUrl);
       addToast({
-        title: "Success",
-        description: "Demo link copied to clipboard! Share it with your clients.",
+        title: t('common.success'),
+        description: t('project.demoLinkCopied'),
         color: "success",
       });
     } catch (error: any) {
       logComponentError("copyDemoLink", error, { workflowResult, url });
       console.error("Failed to copy demo link:", error.message);
       addToast({
-        title: "Error",
-        description: "Failed to copy demo link.",
+        title: t('common.error'),
+        description: t('project.copyDemoLinkFailed'),
         color: "danger",
       });
     }
@@ -264,14 +266,14 @@ export default function ResultsDisplay({
   return (
     <div className="w-full flex flex-col gap-4">
       <div className="mt-8">
-        <h3 className="text-xl font-bold mb-4">AI Assistant Settings</h3>
+        <h3 className="text-xl font-bold mb-4">{t('project.aiSettings')}</h3>
         <Card className="mb-4">
           <CardBody>
              <div className="space-y-4">
                 <div>
-                   <label className="block text-sm font-medium mb-2">Custom Instructions (Prompt)</label>
+                   <label className="block text-sm font-medium mb-2">{t('project.customInstructions')}</label>
                    <p className="text-xs text-default-500 mb-2">
-                     The system prompt defines how the AI assistant behaves. You can edit this directly or use AI tools below to refine it.
+                     {t('project.customInstructionsDesc')}
                    </p>
                    <Textarea
                       minRows={5}
@@ -293,34 +295,34 @@ export default function ResultsDisplay({
                             {promptModified ? (
                                 <span className="text-warning-600 flex items-center gap-1">
                                     <span className="w-2 h-2 rounded-full bg-warning-500"></span>
-                                    Unsaved changes
+                                    {t('project.unsavedChanges')}
                                 </span>
                             ) : (
                                 <span className="text-success-600 flex items-center gap-1">
                                     <span className="w-2 h-2 rounded-full bg-success-500"></span>
-                                    System prompt saved
+                                    {t('project.savedToWorkflow')}
                                 </span>
                             )}
                         </div>
                         <div className="flex gap-2">
-                             <Tooltip content={!prompt ? "Generate a system prompt based on the scraped content." : "Revert to the original prompt generated from website content. This will discard all manual changes."} placement="top">
+                             <Tooltip content={!prompt ? t('project.regeneratePromptTooltip') : t('project.resetPromptTooltip')} placement="top">
                                  <Button
                                     size="sm"
                                     variant={!prompt ? "solid" : "light"}
                                     color={!prompt ? "primary" : "default"}
                                     onClick={() => {
-                                        if (!prompt || confirm("Are you sure? This will discard your current prompt and regenerate it from scraped content.")) {
+                                        if (!prompt || confirm(t('project.resetPromptConfirm'))) {
                                             handleRegeneratePrompt();
                                         }
                                     }}
                                     isLoading={retryLoading === "prompt"}
                                     className={!prompt ? "" : "text-default-500 hover:text-default-900"}
                                  >
-                                   {!prompt ? "Generate instructions" : "Reset to Default"}
+                                   {!prompt ? t('project.generateInstructions') : t('project.resetToDefault')}
                                  </Button>
                              </Tooltip>
                              <Tooltip 
-                                content={!isSuperAdmin && refineAiQuota && refineAiQuota.remaining <= 0 ? "Daily AI refinement quota exhausted" : "Use AI to improve this prompt"}
+                                content={!isSuperAdmin && refineAiQuota && refineAiQuota.remaining <= 0 ? t('project.quotaExhausted') : t('project.useAiRefinement')}
                                 placement="top"
                              >
                                <Button
@@ -331,7 +333,7 @@ export default function ResultsDisplay({
                                   startContent={<span>✨</span>}
                                   isDisabled={!isSuperAdmin && refineAiQuota !== undefined && refineAiQuota !== null && refineAiQuota.remaining <= 0}
                                >
-                                 {showRefinementTools ? "Close AI Tools" : "Refine with AI"}
+                                 {showRefinementTools ? t('project.closeAiTools') : t('project.refineWithAi')}
                                </Button>
                              </Tooltip>
                         </div>
@@ -340,11 +342,11 @@ export default function ResultsDisplay({
                    {showRefinementTools && (
                        <div className="p-4 rounded-xl border border-default-200 bg-content2/50 animate-appearance-in mb-6">
                           <label className="block text-sm font-semibold mb-3 text-default-700">
-                            How should the AI improve this prompt?
+                            {t('project.aiImproveLabel')}
                           </label>
                           <div className="flex flex-col gap-3">
                               <Textarea
-                                  placeholder="e.g. 'Make the tone more professional', 'Focus on selling hiking boots', 'Be shorter'..."
+                                  placeholder={t('project.aiImprovePlaceholder')}
                                   minRows={2}
                                   value={improvementInstructions}
                                   onValueChange={setImprovementInstructions}
@@ -357,13 +359,13 @@ export default function ResultsDisplay({
                               <div className="flex justify-between items-center gap-2 pt-1">
                                  <p className="text-xs text-default-400">
                                    {isSuperAdmin ? (
-                                     "Consumes 1 AI quota per request."
+                                     t('project.quotaDisclaimer')
                                    ) : refineAiQuota ? (
                                      <span className={refineAiQuota.remaining <= 0 ? "text-danger" : refineAiQuota.remaining <= 3 ? "text-warning" : ""}>
-                                       {refineAiQuota.remaining} / {refineAiQuota.limit} AI refinements remaining today
+                                       {refineAiQuota.remaining} / {refineAiQuota.limit} {t('project.refinementsRemaining')}
                                      </span>
                                    ) : (
-                                     "Consumes 1 AI quota per request."
+                                     t('project.quotaDisclaimer')
                                    )}
                                  </p>
                                  <Button
@@ -377,7 +379,7 @@ export default function ResultsDisplay({
                                         setImprovementInstructions(""); // Clear after success
                                     }}
                                  >
-                                   Generate Improvements
+                                   {t('project.generateImprovements')}
                                  </Button>
                               </div>
                           </div>
@@ -395,7 +397,7 @@ export default function ResultsDisplay({
                           isDisabled={!promptModified}
                           className="font-bold px-8"
                        >
-                         Save Settings
+                         {t('project.manualSave')}
                        </Button>
                    )}
                 </div>
@@ -403,19 +405,19 @@ export default function ResultsDisplay({
           </CardBody>
         </Card>
         
-        <h3 className="text-xl font-bold mb-4">Integration & Demo</h3>
+        <h3 className="text-xl font-bold mb-4">{t('project.integrationAndDemo')}</h3>
         <Card className="mb-4">
             <CardBody>
               <div className="space-y-4">
                   <div>
-                    <h4 className="text-lg font-semibold mb-2">💬 Live Chat Widget</h4>
+                    <h4 className="text-lg font-semibold mb-2">{t('project.liveChatWidget')}</h4>
                     <div className="bg-green-800 rounded-lg p-4 mb-4">
                       <div className="flex items-center gap-2 mb-2">
                         <div className="w-3 h-3 bg-green-500 rounded-full animate-pulse"></div>
-                        <span className="text-green-400 font-medium">Chat widget is ready!</span>
+                        <span className="text-green-400 font-medium">{t('project.chatWidgetReady')}</span>
                       </div>
                       <p className="text-sm text-green-400">
-                        Use the buttons below to test the assistant in a live environment.
+                        {t('project.testEnvironmentDesc')}
                       </p>
                     </div>
 
@@ -429,17 +431,17 @@ export default function ResultsDisplay({
                                 const domain = new URL(url).hostname;
                                 router.push(`/demo?domain=${encodeURIComponent(domain)}`);
                             } catch {
-                                addToast({title: "Error", description: "Invalid URL", color: "danger"});
+                                addToast({title: t('common.error'), description: t('project.invalidUrl'), color: "danger"});
                             }
                         }}
                         className="w-full font-semibold mb-2"
                         startContent={<span>🚀</span>}
                       >
-                        View Live Demo on Your Website
+                        {t('project.viewWidgetLiveDemo')}
                       </Button>
                     </div>
 
-                    <h4 className="text-lg font-semibold mb-2">📋 Embed Code</h4>
+                    <h4 className="text-lg font-semibold mb-2">{t('project.embedCode')}</h4>
                     <div className="bg-gray-900 text-gray-100 p-4 rounded-lg text-sm font-mono overflow-x-auto">
                       <pre>{`<script src="${config.serverUrl}/api/widget.js" data-domain="${(() => { try { return new URL(url).hostname; } catch { return 'website'; } })()}" defer></script>`}</pre>
                     </div>
@@ -452,20 +454,20 @@ export default function ResultsDisplay({
                                 const siteName = new URL(url).hostname;
                                 const code = `<script src="${config.serverUrl}/api/widget.js" data-domain="${siteName}" defer></script>`;
                                 navigator.clipboard.writeText(code);
-                                addToast({title: "Copied!", color: "success"});
+                                addToast({title: t('project.copied'), color: "success"});
                             } catch {
-                                addToast({title: "Error", description: "Failed to generate code", color: "danger"});
+                                addToast({title: t('common.error'), description: t('project.failedToGenerateCode'), color: "danger"});
                             }
                         }}
                       >
-                        📋 Copy Embed Code
+                       {t('project.copyEmbedCode')}
                       </Button>
                     </div>
                   </div>
                   
                   {webhookSecret && (
                   <div className="mt-4 p-4 border border-yellow-200 bg-yellow-50 rounded-lg">
-                      <h4 className="text-sm font-semibold text-yellow-800 mb-2">🔒 Webhook Security</h4>
+                      <h4 className="text-sm font-semibold text-yellow-800 mb-2">{t('project.webhookSecurity')}</h4>
                       <div className="flex items-center gap-2">
                           <code className="bg-white px-2 py-1 rounded border text-xs flex-1 break-all font-mono select-all text-black">
                               {showSecret ? webhookSecret : "•".repeat(webhookSecret ? webhookSecret.length : 12)}
@@ -475,7 +477,7 @@ export default function ResultsDisplay({
                               variant="flat" 
                               onClick={() => setShowSecret(!showSecret)}
                           >
-                              {showSecret ? "Hide" : "Show"}
+                              {showSecret ? t('project.hide') : t('project.show')}
                           </Button>
                       </div>
                   </div>

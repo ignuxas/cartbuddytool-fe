@@ -3,6 +3,7 @@
 import { Input } from "@heroui/input";
 import { Button } from "@heroui/button";
 import { PlayIcon } from "./PlayIcon";
+import { useLanguage } from "@/app/contexts/LanguageContext";
 
 interface UrlFormProps {
   url: string;
@@ -19,6 +20,7 @@ export default function UrlForm({
   loading,
   retryLoading,
 }: UrlFormProps) {
+  const { t } = useLanguage();
   return (
     <form
       onSubmit={handleSubmit}
@@ -26,8 +28,8 @@ export default function UrlForm({
     >
       <Input
         type="text"
-        aria-label="Website URL"
-        placeholder="Enter your website URL to get started... (e.g. example.com)"
+        aria-label={t('urlForm.ariaLabel')}
+        placeholder={t('urlForm.placeholder')}
         value={url}
         onChange={(e) => setUrl(e.target.value)}
         required
@@ -39,7 +41,7 @@ export default function UrlForm({
         isIconOnly
         isLoading={loading}
         disabled={loading || retryLoading !== null}
-        aria-label={loading ? "Generating..." : "Generate Assistant"}
+        aria-label={loading ? t('urlForm.generating') : t('urlForm.generate')}
       >
         {!loading && <PlayIcon />}
       </Button>

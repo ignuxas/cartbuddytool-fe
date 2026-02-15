@@ -25,6 +25,7 @@
     "@heroui/modal": "^2.2.21",
     "@heroui/navbar": "2.2.22",
     "@heroui/pagination": "^2.2.26",
+    "@heroui/select": "^2.4.32",
     "@heroui/snippet": "2.2.25",
     "@heroui/spinner": "^2.2.20",
     "@heroui/switch": "2.2.22",

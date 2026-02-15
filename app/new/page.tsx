@@ -191,6 +191,21 @@ export default function NewProjectPage() {
   }, [isLoading, isAuthenticated, isSuperAdmin, router]);
 
   const [url, setUrl] = useState("");
+
+  // Handle URL query param from marketer page
+  useEffect(() => {
+    // Only run on client
+    if (typeof window !== "undefined") {
+      const params = new URLSearchParams(window.location.search);
+      const urlParam = params.get("url");
+
+      if (urlParam) {
+        setUrl(urlParam);
+      }
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
   const [loading, setLoading] = useState(false);
   const [errorMessage, setErrorMessage] = useState("");
   const [step, setStep] = useState<

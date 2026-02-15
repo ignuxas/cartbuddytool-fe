@@ -152,6 +152,8 @@ const ExistingProjects: React.FC<ExistingProjectsProps> = ({
         "users",
         "user.projects",
         "site.settings",
+        "marketer.leads",
+        "marketer.settings",
       ];
       const filteredProjects = (data.projects || []).filter(
         (p: Project) => !ignoredProjects.includes(p.domain),

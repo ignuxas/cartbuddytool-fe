@@ -75,6 +75,16 @@ export const Navbar = () => {
             </NavbarItem>
           )}
           {isAuthenticated && isSuperAdmin && (
+            <NavbarItem isActive={pathname === "/marketer"}>
+              <NextLink
+                className="text-foreground data-[active=true]:text-primary data-[active=true]:font-medium"
+                href="/marketer"
+              >
+                {t("common.marketer")}
+              </NextLink>
+            </NavbarItem>
+          )}
+          {isAuthenticated && isSuperAdmin && (
             <NavbarItem isActive={pathname === "/settings"}>
               <NextLink
                 className="text-foreground data-[active=true]:text-primary data-[active=true]:font-medium"

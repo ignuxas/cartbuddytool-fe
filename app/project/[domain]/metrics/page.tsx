@@ -1178,7 +1178,7 @@ export default function MetricsPage() {
                           {t("metrics.output")}:
                         </div>
                         {/* eslint-disable-next-line */}
-                        <div 
+                        <div
                           className="p-3 rounded-lg max-h-64 overflow-y-auto"
                           style={{
                             backgroundColor:

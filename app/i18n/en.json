@@ -20,7 +20,8 @@
     "upload": "Upload",
     "download": "Download",
     "yes": "Yes",
-    "no": "No"
+    "no": "No",
+    "marketer": "Marketer"
   },
   "dashboard": {
     "title": "My Projects",

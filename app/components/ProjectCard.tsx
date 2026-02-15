@@ -5,6 +5,7 @@ import { Card, CardBody } from "@heroui/card";
 import { Button } from "@heroui/button";
 import { Chip } from "@heroui/chip";
 import { useRouter } from "next/navigation";
+
 import { useLanguage } from "@/app/contexts/LanguageContext";
 
 interface Project {
@@ -25,16 +26,20 @@ interface ProjectCardProps {
   onDelete?: (domain: string) => void;
 }
 
-export default function ProjectCard({ project, onSelect, onDelete }: ProjectCardProps) {
+export default function ProjectCard({
+  project,
+  onSelect: _onSelect,
+  onDelete,
+}: ProjectCardProps) {
   const router = useRouter();
   const { t } = useLanguage();
 
   const formatDate = (dateString?: string) => {
-    if (!dateString) return t('projectCard.unknown');
+    if (!dateString) return t("projectCard.unknown");
     try {
       return new Date(dateString).toLocaleDateString();
     } catch {
-      return t('projectCard.unknown');
+      return t("projectCard.unknown");
     }
   };
 
@@ -48,7 +53,10 @@ export default function ProjectCard({ project, onSelect, onDelete }: ProjectCard
   };
 
   const handleDelete = () => {
-    if (onDelete && confirm(t('projectCard.deleteConfirmation', { domain: project.domain }))) {
+    if (
+      onDelete &&
+      confirm(t("projectCard.deleteConfirmation", { domain: project.domain }))
+    ) {
       onDelete(project.domain);
     }
   };
@@ -60,15 +68,26 @@ export default function ProjectCard({ project, onSelect, onDelete }: ProjectCard
           <div className="absolute top-2 right-2 z-10 opacity-0 group-hover:opacity-100 transition-opacity">
             <Button
               isIconOnly
-              size="sm"
+              aria-label={t("projectCard.deleteProject")}
+              className="min-w-8 w-8 h-8"
               color="danger"
+              size="sm"
               variant="light"
               onPress={handleDelete}
-              aria-label={t('projectCard.deleteProject')}
-              className="min-w-8 w-8 h-8"
             >
-              <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-4 h-4">
-                <path strokeLinecap="round" strokeLinejoin="round" d="M14.74 9l-.346 9m-4.788 0L9.26 9m9.968-3.21c.342.052.682.107 1.022.166m-1.022-.165L18.16 19.673a2.25 2.25 0 01-2.244 2.077H8.084a2.25 2.25 0 01-2.244-2.077L4.772 5.79m14.456 0a48.108 48.108 0 00-3.478-.397m-12 .562c.34-.059.68-.114 1.022-.165m0 0a48.11 48.11 0 013.478-.397m7.5 0v-.916c0-1.18-.91-2.164-2.09-2.201a51.964 51.964 0 00-3.32 0c-1.18.037-2.09 1.022-2.09 2.201v.916m7.5 0a48.667 48.667 0 00-7.5 0" />
+              <svg
+                className="w-4 h-4"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth={1.5}
+                viewBox="0 0 24 24"
+                xmlns="http://www.w3.org/2000/svg"
+              >
+                <path
+                  d="M14.74 9l-.346 9m-4.788 0L9.26 9m9.968-3.21c.342.052.682.107 1.022.166m-1.022-.165L18.16 19.673a2.25 2.25 0 01-2.244 2.077H8.084a2.25 2.25 0 01-2.244-2.077L4.772 5.79m14.456 0a48.108 48.108 0 00-3.478-.397m-12 .562c.34-.059.68-.114 1.022-.165m0 0a48.11 48.11 0 013.478-.397m7.5 0v-.916c0-1.18-.91-2.164-2.09-2.201a51.964 51.964 0 00-3.32 0c-1.18.037-2.09 1.022-2.09 2.201v.916m7.5 0a48.667 48.667 0 00-7.5 0"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                />
               </svg>
             </Button>
           </div>
@@ -77,47 +96,55 @@ export default function ProjectCard({ project, onSelect, onDelete }: ProjectCard
           <h4 className="text-lg font-semibold text-blue-600 truncate">
             {project.domain}
           </h4>
-          <Chip size="sm" variant="flat" color="primary">
-            {project.page_count} {t('projectCard.pages')}
+          <Chip color="primary" size="sm" variant="flat">
+            {project.page_count} {t("projectCard.pages")}
           </Chip>
         </div>
-        
+
         {project.active_job && (
           <div className="mb-3 p-2 bg-primary-50 dark:bg-primary-900/20 rounded-md border border-primary-100 dark:border-primary-800">
             <div className="flex justify-between text-xs mb-1">
-              <span className="font-medium text-primary">{t('projectCard.scrapingInProgress')}</span>
-              <span>{project.active_job.scraped_pages} / {project.active_job.total_pages}</span>
+              <span className="font-medium text-primary">
+                {t("projectCard.scrapingInProgress")}
+              </span>
+              <span>
+                {project.active_job.scraped_pages} /{" "}
+                {project.active_job.total_pages}
+              </span>
             </div>
             <div className="w-full bg-default-200 rounded-full h-1.5">
-              <div 
-                className="bg-primary h-1.5 rounded-full transition-all duration-500" 
-                style={{ width: `${(project.active_job.scraped_pages / Math.max(project.active_job.total_pages, 1)) * 100}%` }}
-              ></div>
+              <div
+                className="bg-primary h-1.5 rounded-full transition-all duration-500"
+                style={{
+                  width: `${(project.active_job.scraped_pages / Math.max(project.active_job.total_pages, 1)) * 100}%`,
+                }}
+              />
             </div>
           </div>
         )}
 
         <p className="text-sm text-gray-600 mb-3">
-          {t('projectCard.lastUpdated')}{formatDate(project.last_updated)}
+          {t("projectCard.lastUpdated")}
+          {formatDate(project.last_updated)}
         </p>
         <div className="flex gap-2">
-          <Button 
-            size="sm" 
-            color="primary" 
-            variant="flat"
+          <Button
             className="flex-1"
+            color="primary"
+            size="sm"
+            variant="flat"
             onPress={handleClick}
           >
-            {t('projectCard.loadProject')}
+            {t("projectCard.loadProject")}
           </Button>
-          <Button 
-            size="sm" 
-            color="secondary" 
-            variant="flat"
+          <Button
             className="flex-1"
+            color="secondary"
+            size="sm"
+            variant="flat"
             onPress={handleMetricsClick}
           >
-            {t('projectCard.metrics')}
+            {t("projectCard.metrics")}
           </Button>
         </div>
       </CardBody>

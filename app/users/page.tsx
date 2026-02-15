@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState, useCallback, useMemo } from "react";
-import { Card, CardBody, CardHeader } from "@heroui/card";
+import { Card, CardBody } from "@heroui/card";
 import { Button } from "@heroui/button";
 import { Chip } from "@heroui/chip";
 import { Input } from "@heroui/input";
@@ -29,8 +29,9 @@ import {
 } from "@heroui/dropdown";
 import { Checkbox } from "@heroui/checkbox";
 import { addToast } from "@heroui/toast";
-import { useAuth } from "@/app/contexts/AuthContext";
 import { useRouter } from "next/navigation";
+
+import { useAuth } from "@/app/contexts/AuthContext";
 import { config } from "@/lib/config";
 import { getAuthHeaders } from "@/app/utils/apiHelper";
 
@@ -68,7 +69,12 @@ interface UserDetail {
 }
 
 export default function UsersPage() {
-  const { isAuthenticated, isSuperAdmin, isLoading: authLoading, accessToken } = useAuth();
+  const {
+    isAuthenticated,
+    isSuperAdmin,
+    isLoading: authLoading,
+    accessToken,
+  } = useAuth();
   const router = useRouter();
 
   const [users, setUsers] = useState<UserItem[]>([]);
@@ -101,10 +107,11 @@ export default function UsersPage() {
 
     if (searchQuery) {
       const q = searchQuery.toLowerCase();
+
       result = result.filter(
         (u) =>
           u.email.toLowerCase().includes(q) ||
-          u.projects.some((p) => p.toLowerCase().includes(q))
+          u.projects.some((p) => p.toLowerCase().includes(q)),
       );
     }
 
@@ -114,12 +121,17 @@ export default function UsersPage() {
       let cmp = 0;
 
       if (sortDescriptor.column === "projects") {
-          // Sort by project count
-          cmp = a.projects.length - b.projects.length;
+        // Sort by project count
+        cmp = a.projects.length - b.projects.length;
       } else if (sortDescriptor.column === "ai_limit") {
-          cmp = a.refine_ai_daily_limit - b.refine_ai_daily_limit;
+        cmp = a.refine_ai_daily_limit - b.refine_ai_daily_limit;
       } else {
-        cmp = (first as string) < (second as string) ? -1 : (first as string) > (second as string) ? 1 : 0;
+        cmp =
+          (first as string) < (second as string)
+            ? -1
+            : (first as string) > (second as string)
+              ? 1
+              : 0;
       }
 
       return sortDescriptor.direction === "descending" ? -cmp : cmp;
@@ -135,8 +147,10 @@ export default function UsersPage() {
       const res = await fetch(`${config.serverUrl}/api/users/`, {
         headers: getAuthHeaders(accessToken),
       });
+
       if (!res.ok) throw new Error("Failed to fetch users");
       const data = await res.json();
+
       setUsers(data.users || []);
     } catch (e: any) {
       addToast({ title: "Error", description: e.message, color: "danger" });
@@ -151,8 +165,10 @@ export default function UsersPage() {
       const res = await fetch(`${config.serverUrl}/api/users/projects/`, {
         headers: getAuthHeaders(accessToken),
       });
+
       if (res.ok) {
         const data = await res.json();
+
         setAllDomains(data.domains || []);
       }
     } catch (e) {
@@ -164,11 +180,19 @@ export default function UsersPage() {
     if (authLoading) return;
     if (!isAuthenticated || !isSuperAdmin) {
       router.replace("/");
+
       return;
     }
     fetchUsers();
     fetchAllDomains();
-  }, [authLoading, isAuthenticated, isSuperAdmin, router, fetchUsers, fetchAllDomains]);
+  }, [
+    authLoading,
+    isAuthenticated,
+    isSuperAdmin,
+    router,
+    fetchUsers,
+    fetchAllDomains,
+  ]);
 
   const openDetail = async (userId: string) => {
     if (!accessToken) return;
@@ -178,8 +202,10 @@ export default function UsersPage() {
       const res = await fetch(`${config.serverUrl}/api/users/${userId}/`, {
         headers: getAuthHeaders(accessToken),
       });
+
       if (!res.ok) throw new Error("Failed to fetch user details");
       const data = await res.json();
+
       setSelectedUser(data);
     } catch (e: any) {
       addToast({ title: "Error", description: e.message, color: "danger" });
@@ -199,16 +225,28 @@ export default function UsersPage() {
   const saveEdit = async () => {
     if (!accessToken || !editUser) return;
     try {
-      const res = await fetch(`${config.serverUrl}/api/users/${editUser.id}/update/`, {
-        method: "PUT",
-        headers: getAuthHeaders(accessToken),
-        body: JSON.stringify({ role: editRole, refine_ai_daily_limit: editLimit }),
-      });
+      const res = await fetch(
+        `${config.serverUrl}/api/users/${editUser.id}/update/`,
+        {
+          method: "PUT",
+          headers: getAuthHeaders(accessToken),
+          body: JSON.stringify({
+            role: editRole,
+            refine_ai_daily_limit: editLimit,
+          }),
+        },
+      );
+
       if (!res.ok) {
         const data = await res.json();
+
         throw new Error(data.error || "Update failed");
       }
-      addToast({ title: "Success", description: "User updated", color: "success" });
+      addToast({
+        title: "Success",
+        description: "User updated",
+        color: "success",
+      });
       setEditModalOpen(false);
       fetchUsers();
     } catch (e: any) {
@@ -231,11 +269,17 @@ export default function UsersPage() {
         headers: getAuthHeaders(accessToken),
         body: JSON.stringify({ user_id: assignUserId, domains: assignDomains }),
       });
+
       if (!res.ok) {
         const data = await res.json();
+
         throw new Error(data.error || "Assignment failed");
       }
-      addToast({ title: "Success", description: `Project assigned`, color: "success" });
+      addToast({
+        title: "Success",
+        description: `Project assigned`,
+        color: "success",
+      });
       setAssignModalOpen(false);
       fetchUsers();
     } catch (e: any) {
@@ -246,16 +290,25 @@ export default function UsersPage() {
   const unassignProject = async (userId: string, domain: string) => {
     if (!accessToken) return;
     try {
-      const res = await fetch(`${config.serverUrl}/api/users/unassign-project/`, {
-        method: "DELETE",
-        headers: getAuthHeaders(accessToken),
-        body: JSON.stringify({ user_id: userId, domain }),
-      });
+      const res = await fetch(
+        `${config.serverUrl}/api/users/unassign-project/`,
+        {
+          method: "DELETE",
+          headers: getAuthHeaders(accessToken),
+          body: JSON.stringify({ user_id: userId, domain }),
+        },
+      );
+
       if (!res.ok) {
         const data = await res.json();
+
         throw new Error(data.error || "Unassignment failed");
       }
-      addToast({ title: "Success", description: `Project unassigned`, color: "success" });
+      addToast({
+        title: "Success",
+        description: `Project unassigned`,
+        color: "success",
+      });
       // Refresh detail if open
       if (selectedUser && selectedUser.user.id === userId) {
         openDetail(userId);
@@ -270,15 +323,24 @@ export default function UsersPage() {
     if (!accessToken) return;
     if (!confirm("Are you sure you want to delete this user?")) return;
     try {
-      const res = await fetch(`${config.serverUrl}/api/users/${userId}/delete/`, {
-        method: "DELETE",
-        headers: getAuthHeaders(accessToken),
-      });
+      const res = await fetch(
+        `${config.serverUrl}/api/users/${userId}/delete/`,
+        {
+          method: "DELETE",
+          headers: getAuthHeaders(accessToken),
+        },
+      );
+
       if (!res.ok) {
         const data = await res.json();
+
         throw new Error(data.error || "Delete failed");
       }
-      addToast({ title: "Success", description: "User deleted", color: "success" });
+      addToast({
+        title: "Success",
+        description: "User deleted",
+        color: "success",
+      });
       fetchUsers();
     } catch (e: any) {
       addToast({ title: "Error", description: e.message, color: "danger" });
@@ -344,15 +406,25 @@ export default function UsersPage() {
       {/* Users Table */}
       <div className="flex justify-between items-center mb-4">
         <Input
-          placeholder="Search by email or project..."
-          value={searchQuery}
-          onValueChange={setSearchQuery}
           className="max-w-xs"
+          placeholder="Search by email or project..."
           startContent={
-            <svg className="w-4 h-4 text-default-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+            <svg
+              className="w-4 h-4 text-default-400"
+              fill="none"
+              stroke="currentColor"
+              viewBox="0 0 24 24"
+            >
+              <path
+                d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                strokeWidth={2}
+              />
             </svg>
           }
+          value={searchQuery}
+          onValueChange={setSearchQuery}
         />
         <div className="text-default-400 text-small">
           Total {users.length} users
@@ -361,18 +433,28 @@ export default function UsersPage() {
 
       <Card>
         <CardBody className="p-0">
-          <Table 
-            aria-label="Users table" 
+          <Table
             removeWrapper
+            aria-label="Users table"
             sortDescriptor={sortDescriptor as any}
             onSortChange={(descriptor: any) => setSortDescriptor(descriptor)}
           >
             <TableHeader>
-              <TableColumn key="email" allowsSorting>EMAIL</TableColumn>
-              <TableColumn key="role" allowsSorting>ROLE</TableColumn>
-              <TableColumn key="projects" allowsSorting>PROJECTS</TableColumn>
-              <TableColumn key="ai_limit" allowsSorting>AI LIMIT</TableColumn>
-              <TableColumn key="created_at" allowsSorting>JOINED</TableColumn>
+              <TableColumn key="email" allowsSorting>
+                EMAIL
+              </TableColumn>
+              <TableColumn key="role" allowsSorting>
+                ROLE
+              </TableColumn>
+              <TableColumn key="projects" allowsSorting>
+                PROJECTS
+              </TableColumn>
+              <TableColumn key="ai_limit" allowsSorting>
+                AI LIMIT
+              </TableColumn>
+              <TableColumn key="created_at" allowsSorting>
+                JOINED
+              </TableColumn>
               <TableColumn key="actions">ACTIONS</TableColumn>
             </TableHeader>
             <TableBody emptyContent="No users found" items={filteredUsers}>
@@ -380,16 +462,18 @@ export default function UsersPage() {
                 <TableRow key={user.id}>
                   <TableCell>
                     <button
-                      onClick={() => openDetail(user.id)}
                       className="text-primary hover:underline font-medium text-left"
+                      onClick={() => openDetail(user.id)}
                     >
                       {user.email}
                     </button>
                   </TableCell>
                   <TableCell>
                     <Chip
+                      color={
+                        user.role === "super_admin" ? "warning" : "default"
+                      }
                       size="sm"
-                      color={user.role === "super_admin" ? "warning" : "default"}
                       variant="flat"
                     >
                       {user.role === "super_admin" ? "Admin" : "User"}
@@ -407,7 +491,7 @@ export default function UsersPage() {
                             </Chip>
                           ))}
                           {user.projects.length > 3 && (
-                            <Chip size="sm" variant="flat" color="default">
+                            <Chip color="default" size="sm" variant="flat">
                               +{user.projects.length - 3} more
                             </Chip>
                           )}
@@ -417,7 +501,9 @@ export default function UsersPage() {
                   </TableCell>
                   <TableCell>
                     <span className="text-sm">
-                      {user.role === "super_admin" ? "∞" : `${user.refine_ai_daily_limit}/day`}
+                      {user.role === "super_admin"
+                        ? "∞"
+                        : `${user.refine_ai_daily_limit}/day`}
                     </span>
                   </TableCell>
                   <TableCell>
@@ -428,8 +514,15 @@ export default function UsersPage() {
                   <TableCell>
                     <Dropdown>
                       <DropdownTrigger>
-                        <Button variant="light" size="sm" isIconOnly>
-                          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                        <Button isIconOnly size="sm" variant="light">
+                          <svg
+                            fill="none"
+                            height="16"
+                            stroke="currentColor"
+                            strokeWidth="2"
+                            viewBox="0 0 24 24"
+                            width="16"
+                          >
                             <circle cx="12" cy="5" r="1" />
                             <circle cx="12" cy="12" r="1" />
                             <circle cx="12" cy="19" r="1" />
@@ -437,13 +530,19 @@ export default function UsersPage() {
                         </Button>
                       </DropdownTrigger>
                       <DropdownMenu aria-label="User actions">
-                        <DropdownItem key="view" onPress={() => openDetail(user.id)}>
+                        <DropdownItem
+                          key="view"
+                          onPress={() => openDetail(user.id)}
+                        >
                           View Details
                         </DropdownItem>
                         <DropdownItem key="edit" onPress={() => openEdit(user)}>
                           Edit User
                         </DropdownItem>
-                        <DropdownItem key="assign" onPress={() => openAssign(user.id)}>
+                        <DropdownItem
+                          key="assign"
+                          onPress={() => openAssign(user.id)}
+                        >
                           Assign Project
                         </DropdownItem>
                         <DropdownItem
@@ -467,9 +566,9 @@ export default function UsersPage() {
       {/* ─── Detail Modal ─── */}
       <Modal
         isOpen={detailModalOpen}
-        onClose={() => setDetailModalOpen(false)}
-        size="3xl"
         scrollBehavior="inside"
+        size="3xl"
+        onClose={() => setDetailModalOpen(false)}
       >
         <ModalContent>
           {detailLoading || !selectedUser ? (
@@ -482,11 +581,17 @@ export default function UsersPage() {
                 <div className="flex items-center gap-3">
                   <span>{selectedUser.user.email}</span>
                   <Chip
+                    color={
+                      selectedUser.user.role === "super_admin"
+                        ? "warning"
+                        : "default"
+                    }
                     size="sm"
-                    color={selectedUser.user.role === "super_admin" ? "warning" : "default"}
                     variant="flat"
                   >
-                    {selectedUser.user.role === "super_admin" ? "Admin" : "User"}
+                    {selectedUser.user.role === "super_admin"
+                      ? "Admin"
+                      : "User"}
                   </Chip>
                 </div>
                 <p className="text-sm text-default-500 font-normal">
@@ -498,19 +603,27 @@ export default function UsersPage() {
                 <div className="grid grid-cols-3 gap-4 mb-6">
                   <Card className="bg-content2">
                     <CardBody className="text-center py-3">
-                      <p className="text-2xl font-bold">{selectedUser.total_metrics.total_interactions}</p>
-                      <p className="text-xs text-default-500">Total Interactions</p>
+                      <p className="text-2xl font-bold">
+                        {selectedUser.total_metrics.total_interactions}
+                      </p>
+                      <p className="text-xs text-default-500">
+                        Total Interactions
+                      </p>
                     </CardBody>
                   </Card>
                   <Card className="bg-content2">
                     <CardBody className="text-center py-3">
-                      <p className="text-2xl font-bold">{selectedUser.total_metrics.total_widget_opens}</p>
+                      <p className="text-2xl font-bold">
+                        {selectedUser.total_metrics.total_widget_opens}
+                      </p>
                       <p className="text-xs text-default-500">Widget Opens</p>
                     </CardBody>
                   </Card>
                   <Card className="bg-content2">
                     <CardBody className="text-center py-3">
-                      <p className="text-2xl font-bold">{selectedUser.total_metrics.total_sessions}</p>
+                      <p className="text-2xl font-bold">
+                        {selectedUser.total_metrics.total_sessions}
+                      </p>
                       <p className="text-xs text-default-500">Sessions</p>
                     </CardBody>
                   </Card>
@@ -522,13 +635,28 @@ export default function UsersPage() {
                     <CardBody className="py-3">
                       <div className="flex justify-between items-center">
                         <div>
-                          <p className="text-sm font-medium">Refine with AI Usage</p>
+                          <p className="text-sm font-medium">
+                            Refine with AI Usage
+                          </p>
                           <p className="text-xs text-default-500">
-                            {selectedUser.user.refine_ai_count} / {selectedUser.user.refine_ai_daily_limit} used today
+                            {selectedUser.user.refine_ai_count} /{" "}
+                            {selectedUser.user.refine_ai_daily_limit} used today
                           </p>
                         </div>
-                        <Chip size="sm" color={selectedUser.user.refine_ai_count >= selectedUser.user.refine_ai_daily_limit ? "danger" : "success"} variant="flat">
-                          {selectedUser.user.refine_ai_count >= selectedUser.user.refine_ai_daily_limit ? "Limit Reached" : "Available"}
+                        <Chip
+                          color={
+                            selectedUser.user.refine_ai_count >=
+                            selectedUser.user.refine_ai_daily_limit
+                              ? "danger"
+                              : "success"
+                          }
+                          size="sm"
+                          variant="flat"
+                        >
+                          {selectedUser.user.refine_ai_count >=
+                          selectedUser.user.refine_ai_daily_limit
+                            ? "Limit Reached"
+                            : "Available"}
                         </Chip>
                       </div>
                     </CardBody>
@@ -538,7 +666,9 @@ export default function UsersPage() {
                 {/* Projects */}
                 <h3 className="font-semibold mb-3">Assigned Projects</h3>
                 {selectedUser.projects.length === 0 ? (
-                  <p className="text-default-400 text-sm mb-4">No projects assigned</p>
+                  <p className="text-default-400 text-sm mb-4">
+                    No projects assigned
+                  </p>
                 ) : (
                   <div className="space-y-2 mb-4">
                     {selectedUser.projects.map((p) => (
@@ -548,14 +678,17 @@ export default function UsersPage() {
                             <div>
                               <p className="font-medium text-sm">{p.domain}</p>
                               <p className="text-xs text-default-500">
-                                {p.interactions} interactions · {p.widget_opens} opens · {p.sessions} sessions
+                                {p.interactions} interactions · {p.widget_opens}{" "}
+                                opens · {p.sessions} sessions
                               </p>
                             </div>
                             <Button
-                              size="sm"
                               color="danger"
+                              size="sm"
                               variant="light"
-                              onPress={() => unassignProject(selectedUser.user.id, p.domain)}
+                              onPress={() =>
+                                unassignProject(selectedUser.user.id, p.domain)
+                              }
                             >
                               Remove
                             </Button>
@@ -566,8 +699,8 @@ export default function UsersPage() {
                   </div>
                 )}
                 <Button
-                  size="sm"
                   color="primary"
+                  size="sm"
                   variant="flat"
                   onPress={() => {
                     setDetailModalOpen(false);
@@ -578,7 +711,10 @@ export default function UsersPage() {
                 </Button>
               </ModalBody>
               <ModalFooter>
-                <Button variant="light" onPress={() => setDetailModalOpen(false)}>
+                <Button
+                  variant="light"
+                  onPress={() => setDetailModalOpen(false)}
+                >
                   Close
                 </Button>
               </ModalFooter>
@@ -588,7 +724,11 @@ export default function UsersPage() {
       </Modal>
 
       {/* ─── Edit Modal ─── */}
-      <Modal isOpen={editModalOpen} onClose={() => setEditModalOpen(false)} size="md">
+      <Modal
+        isOpen={editModalOpen}
+        size="md"
+        onClose={() => setEditModalOpen(false)}
+      >
         <ModalContent>
           <ModalHeader>Edit User</ModalHeader>
           <ModalBody>
@@ -596,20 +736,22 @@ export default function UsersPage() {
               <div className="flex flex-col gap-4">
                 <p className="text-sm text-default-500">{editUser.email}</p>
                 <div>
-                  <label className="text-sm font-medium mb-1 block">Role</label>
+                  <span className="text-sm font-medium mb-1 block">Role</span>
                   <div className="flex gap-2">
                     <Button
-                      size="sm"
                       color={editRole === "user" ? "primary" : "default"}
+                      size="sm"
                       variant={editRole === "user" ? "solid" : "bordered"}
                       onPress={() => setEditRole("user")}
                     >
                       User
                     </Button>
                     <Button
-                      size="sm"
                       color={editRole === "super_admin" ? "warning" : "default"}
-                      variant={editRole === "super_admin" ? "solid" : "bordered"}
+                      size="sm"
+                      variant={
+                        editRole === "super_admin" ? "solid" : "bordered"
+                      }
                       onPress={() => setEditRole("super_admin")}
                     >
                       Admin
@@ -618,13 +760,13 @@ export default function UsersPage() {
                 </div>
                 {editRole === "user" && (
                   <Input
-                    label="Daily AI Refine Limit"
-                    type="number"
-                    min={0}
-                    value={String(editLimit)}
-                    onValueChange={(v) => setEditLimit(parseInt(v) || 0)}
-                    variant="bordered"
                     description="How many times per day the user can use 'Refine with AI'"
+                    label="Daily AI Refine Limit"
+                    min={0}
+                    type="number"
+                    value={String(editLimit)}
+                    variant="bordered"
+                    onValueChange={(v) => setEditLimit(parseInt(v) || 0)}
                   />
                 )}
               </div>
@@ -642,7 +784,11 @@ export default function UsersPage() {
       </Modal>
 
       {/* ─── Assign Project Modal ─── */}
-      <Modal isOpen={assignModalOpen} onClose={() => setAssignModalOpen(false)} size="md">
+      <Modal
+        isOpen={assignModalOpen}
+        size="md"
+        onClose={() => setAssignModalOpen(false)}
+      >
         <ModalContent>
           <ModalHeader>Assign Project</ModalHeader>
           <ModalBody>
@@ -650,42 +796,62 @@ export default function UsersPage() {
               Select a project to assign to this user
             </p>
             <Input
+              // eslint-disable-next-line jsx-a11y/no-autofocus
               autoFocus
+              isClearable
+              className="mb-2"
               label="Search Project"
               placeholder="Type to filter..."
               value={assignSearch}
-              onValueChange={setAssignSearch}
               variant="bordered"
-              className="mb-2"
-              isClearable
               onClear={() => setAssignSearch("")}
+              onValueChange={setAssignSearch}
             />
             <div className="flex flex-col gap-1 max-h-64 overflow-y-auto pr-2">
-              {allDomains.filter((d) => 
-                d.toLowerCase().includes(assignSearch.toLowerCase())
+              {allDomains.filter((d) =>
+                d.toLowerCase().includes(assignSearch.toLowerCase()),
               ).length === 0 ? (
-                <p className="text-default-400 text-sm py-4 text-center">No matching projects found</p>
+                <p className="text-default-400 text-sm py-4 text-center">
+                  No matching projects found
+                </p>
               ) : (
                 allDomains
-                  .filter((d) => d.toLowerCase().includes(assignSearch.toLowerCase()))
+                  .filter((d) =>
+                    d.toLowerCase().includes(assignSearch.toLowerCase()),
+                  )
                   .map((domain) => {
                     const isSelected = assignDomains.includes(domain);
+
                     return (
                       <div
                         key={domain}
                         className={`flex items-center px-4 py-2 cursor-pointer hover:bg-default-100 rounded-lg transition-colors ${isSelected ? "bg-primary-50" : ""}`}
+                        role="button"
+                        tabIndex={0}
                         onClick={() => {
-                          setAssignDomains((prev) => 
-                            isSelected ? prev.filter((d) => d !== domain) : [...prev, domain]
+                          setAssignDomains((prev) =>
+                            isSelected
+                              ? prev.filter((d) => d !== domain)
+                              : [...prev, domain],
                           );
                         }}
+                        onKeyDown={(e) => {
+                          if (e.key === "Enter" || e.key === " ") {
+                            e.preventDefault();
+                            setAssignDomains((prev) =>
+                              isSelected
+                                ? prev.filter((d) => d !== domain)
+                                : [...prev, domain],
+                            );
+                          }
+                        }}
                       >
-                        <Checkbox 
-                            isSelected={isSelected} 
-                            onValueChange={() => {}} // Controlled by div click
-                            classNames={{ base: "pointer-events-none" }}
+                        <Checkbox
+                          classNames={{ base: "pointer-events-none" }}
+                          isSelected={isSelected}
+                          onValueChange={() => {}} // Controlled by div click
                         >
-                            {domain}
+                          {domain}
                         </Checkbox>
                       </div>
                     );

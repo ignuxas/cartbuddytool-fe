@@ -4,6 +4,7 @@
     "newProject": "New Project",
     "prompts": "Prompts",
     "users": "Users",
+    "settings": "Settings",
     "admin": "Admin",
     "logout": "Logout",
     "builtFor": "Built For",
@@ -164,6 +165,7 @@
     "secondaryColor": "Secondary Color",
     "backgroundColor": "Background Color",
     "textColor": "Text Color",
+    "textBubbleColor": "User Bubble Color",
     "widgetTitle": "Widget Title",
     "welcomeMessage": "Welcome Message",
     "chatBubbleGreeting": "Chat Bubble Greeting",
@@ -275,5 +277,97 @@
     "input": "User Input",
     "output": "Assistant Output",
     "noRecentInteractions": "No recent interactions found"
+  },
+  "settings": {
+    "title": "Site Settings",
+    "description": "Configure global settings that apply to all projects.",
+    "allowedModels": "Allowed AI Models",
+    "noRestrictions": "No restrictions — all models are available to users.",
+    "modelsAllowed": "models allowed for users.",
+    "saved": "Site settings saved successfully.",
+    "noModelsAvailable": "No models available. Check API keys configuration.",
+    "selectAll": "Select All",
+    "deselectAll": "Deselect All",
+    "enableAll": "Enable All",
+    "clearRestrictions": "Clear Restrictions",
+    "warningTitle": "Warning: Potential Cost Increase",
+    "warningDescription": "Enabling all models allows users to select any available AI model, including expensive ones. This may lead to significantly increased API costs. Are you sure you want to proceed?",
+    "confirmEnable": "Enable All",
+    "cancel": "Cancel"
+  },
+  "scraping": {
+    "adminOnly": "Scraping actions are managed by administrators. Contact your admin to re-scrape or update data.",
+    "controls": {
+      "title": "Controls",
+      "keepOldImages": "Keep old images",
+      "aiImageSelection": "AI Image Selection",
+      "usePlaywright": "Use Playwright",
+      "addPages": "Add Pages",
+      "blacklistSelected": "Blacklist Selected",
+      "rescrapeSelected": "Re-scrape Selected"
+    },
+    "status": {
+      "scanning": "Scanning in progress...",
+      "completed": "Completed!",
+      "failed": "Failed",
+      "initializing": "Initializing...",
+      "current": "Current: "
+    },
+    "addPages": {
+      "title": "Add Additional Pages",
+      "selectAll": "Select All",
+      "deselectAll": "Deselect All",
+      "noPagesFound": "No additional pages found in sitemap",
+      "placeholder": "Add custom URL (include http:// or https://)",
+      "add": "Add",
+      "scrapeSelected": "Scrape Selected Pages",
+      "cancel": "Cancel",
+      "urlAlreadyInList": "URL already in list",
+      "invalidUrl": "Invalid URL format."
+    },
+    "modals": {
+      "blacklist": {
+        "title": "Confirm Blacklist",
+        "body": "Are you sure you want to blacklist {count} item(s)?",
+        "warning": "This will remove them from the list and prevent them from being scraped again.",
+        "confirm": "Blacklist & Delete"
+      },
+      "rescrape": {
+        "title": "Confirm Full Rescrape",
+        "body": "Are you sure you want to re-scrape the entire site?",
+        "warning": "This will update all pages. If AI extraction is enabled, it may consume a significant amount of credits/time.",
+        "confirm": "Rescrape All"
+      },
+      "cancel": "Cancel"
+    },
+    "stats": {
+      "totalPages": "Total Pages",
+      "imagesFound": "Images Found",
+      "mainPages": "Main Pages",
+      "estTokens": "Est. Tokens"
+    },
+    "scrapedContent": {
+      "title": "Scraped Content",
+      "searchPlaceholder": "Search by URL or title...",
+      "showingPages": "Showing {count} of {total} pages"
+    },
+    "blacklistManager": {
+      "title": "Scraping Blacklist",
+      "description": "Add URL patterns to exclude from scraping. Matches are simple text inclusion (e.g. \"/cart/\" matches \"domain.com/cart/item\").",
+      "placeholder": "Add pattern (e.g. /wp-admin/)",
+      "enterPatternPlaceholder": "Enter URL pattern (e.g. /login, /admin)",
+      "searchPlaceholder": "Search patterns...",
+      "totalPatterns": "Total: {count}",
+      "add": "Add",
+      "patternHeader": "Pattern",
+      "actionsHeader": "Actions",
+      "deleteConfirmTitle": "Delete Pattern",
+      "deleteConfirmBody": "Are you sure you want to remove pattern",
+      "cancel": "Cancel",
+      "delete": "Delete",
+      "patternExists": "Pattern already exists",
+      "patternAdded": "Pattern added",
+      "patternRemoved": "Pattern removed"
+    }
   }
 }

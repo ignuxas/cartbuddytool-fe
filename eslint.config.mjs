@@ -86,13 +86,14 @@ export default defineConfig([globalIgnores([
     files: ["**/*.ts", "**/*.tsx"],
 
     rules: {
-        "no-console": "warn",
+        "no-console": "off",
         "react/prop-types": "off",
         "react/jsx-uses-react": "off",
         "react/react-in-jsx-scope": "off",
         "react-hooks/exhaustive-deps": "off",
         "jsx-a11y/click-events-have-key-events": "warn",
         "jsx-a11y/interactive-supports-focus": "warn",
+        "@next/next/no-img-element": "off",
         "prettier/prettier": "warn",
         "no-unused-vars": "off",
         "unused-imports/no-unused-vars": "off",
@@ -100,8 +101,10 @@ export default defineConfig([globalIgnores([
 
         "@typescript-eslint/no-unused-vars": ["warn", {
             args: "after-used",
-            ignoreRestSiblings: false,
-            argsIgnorePattern: "^_.*?$",
+            ignoreRestSiblings: true,
+            argsIgnorePattern: "^_",
+            varsIgnorePattern: "^_",
+            caughtErrorsIgnorePattern: "^_",
         }],
 
         "import/order": ["warn", {

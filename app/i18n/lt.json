@@ -4,6 +4,7 @@
     "newProject": "Naujas Projektas",
     "prompts": "Instrukcijos",
     "users": "Vartotojai",
+    "settings": "Nustatymai",
     "admin": "Admin",
     "logout": "Atsijungti",
     "builtFor": "Sukurta",
@@ -164,6 +165,7 @@
     "secondaryColor": "Antrinė spalva",
     "backgroundColor": "Fono spalva",
     "textColor": "Teksto spalva",
+    "textBubbleColor": "Vartotojo žinutės spalva",
     "widgetTitle": "Valdiklio pavadinimas",
     "welcomeMessage": "Pasisveikinimo žinutė",
     "chatBubbleGreeting": "Pokalbio burbulo pasisveikinimas",
@@ -275,5 +277,97 @@
     "input": "Vartotojo įvestis",
     "output": "Asistento atsakymas",
     "noRecentInteractions": "Paskutinių sąveikų nerasta"
+  },
+  "settings": {
+    "title": "Svetainės nustatymai",
+    "description": "Konfigūruokite globalius nustatymus, taikomus visiems projektams.",
+    "allowedModels": "Leidžiami AI modeliai",
+    "noRestrictions": "Jokių apribojimų — visi modeliai prieinami vartotojams.",
+    "modelsAllowed": "modelių leidžiama vartotojams.",
+    "saved": "Svetainės nustatymai išsaugoti sėkmingai.",
+    "noModelsAvailable": "Modelių nėra. Patikrinkite API raktų konfigūraciją.",
+    "selectAll": "Pasirinkti visus",
+    "deselectAll": "Atžymėti visus",
+    "enableAll": "Įjungti visus",
+    "clearRestrictions": "Pašalinti apribojimus",
+    "warningTitle": "Įspėjimas: Galimas išlaidų padidėjimas",
+    "warningDescription": "Leidus visus modelius, vartotojai galės pasirinkti bet kurį prieinamą AI modelį, įskaitant brangius. Tai gali žymiai padidinti API išlaidas. Ar tikrai norite tęsti?",
+    "confirmEnable": "Įjungti visus",
+    "cancel": "Atšaukti"
+  },
+  "scraping": {
+    "adminOnly": "Nuskaitymo veiksmus valdo administratoriai. Susisiekite su savo administratoriumi, kad atnaujintumėte duomenis.",
+    "controls": {
+      "title": "Valdikliai",
+      "keepOldImages": "Palikti senus paveikslėlius",
+      "aiImageSelection": "AI paveikslėlių atranka",
+      "usePlaywright": "Naudoti Playwright",
+      "addPages": "Pridėti puslapius",
+      "blacklistSelected": "Blokuoti pasirinktus",
+      "rescrapeSelected": "Nuskaityti pasirinktus iš naujo"
+    },
+    "status": {
+      "scanning": "Vyksta nuskaitymas...",
+      "completed": "Baigta!",
+      "failed": "Nepavyko",
+      "initializing": "Inicijuojama...",
+      "current": "Dabartinis: "
+    },
+    "addPages": {
+      "title": "Pridėti papildomų puslapių",
+      "selectAll": "Pasirinkti visus",
+      "deselectAll": "Atžymėti visus",
+      "noPagesFound": "Papildomų puslapių svetainės žemėlapyje nerasta",
+      "placeholder": "Pridėti savo URL (įskaitant http:// arba https://)",
+      "add": "Pridėti",
+      "scrapeSelected": "Nuskaityti pasirinktus puslapius",
+      "cancel": "Atšaukti",
+      "urlAlreadyInList": "URL jau yra sąraše",
+      "invalidUrl": "Neteisingas URL formatas."
+    },
+    "modals": {
+      "blacklist": {
+        "title": "Patvirtinti blokavimą",
+        "body": "Ar tikrai norite užblokuoti {count} elementą(-us)?",
+        "warning": "Tai pašalins juos iš sąrašo ir neleis jų nuskaityti ateityje.",
+        "confirm": "Blokuoti ir ištrinti"
+      },
+      "rescrape": {
+        "title": "Patvirtinti pilną nuskaitymą",
+        "body": "Ar tikrai norite nuskaityti visą svetainę iš naujo?",
+        "warning": "Tai atnaujins visus puslapius. Jei įjungtas AI atpažinimas, tai gali sunaudoti daug kreditų/laiko.",
+        "confirm": "Nuskaityti viską"
+      },
+      "cancel": "Atšaukti"
+    },
+    "stats": {
+      "totalPages": "Iš viso puslapių",
+      "imagesFound": "Rasta paveikslėlių",
+      "mainPages": "Pagrindiniai puslapiai",
+      "estTokens": "Apytiksliai žetonų (tokens)"
+    },
+    "scrapedContent": {
+      "title": "Nuskaitytas turinys",
+      "searchPlaceholder": "Ieškoti pagal URL arba pavadinimą...",
+      "showingPages": "Rodoma {count} iš {total} puslapių"
+    },
+    "blacklistManager": {
+      "title": "Nuskaitymo blokavimo sąrašas",
+      "description": "Pridėkite URL šablonus, kuriuos norite ignoruoti nuskaitymo metu. Sutapimai tikrinami pagal paprastą teksto įtraukimą (pvz. \"/krepselis/\" atitiks \"domenas.lt/krepselis/preke\").",
+      "placeholder": "Pridėti šabloną (pvz. /wp-admin/)",
+      "enterPatternPlaceholder": "Įveskite URL šabloną (pvz. /login, /admin)",
+      "searchPlaceholder": "Ieškoti šablonų...",
+      "totalPatterns": "Iš viso: {count}",
+      "add": "Pridėti",
+      "patternHeader": "Šablonas",
+      "actionsHeader": "Veiksmai",
+      "deleteConfirmTitle": "Ištrinti šabloną",
+      "deleteConfirmBody": "Ar tikrai norite pašalinti šabloną",
+      "cancel": "Atšaukti",
+      "delete": "Ištrinti",
+      "patternExists": "Šablonas jau egzistuoja",
+      "patternAdded": "Šablonas pridėtas",
+      "patternRemoved": "Šablonas pašalintas"
+    }
   }
 }

@@ -9,6 +9,7 @@
     "lint": "eslint --fix"
   },
   "dependencies": {
+    "@eslint/compat": "^2.0.2",
     "@heroui/accordion": "^2.2.26",
     "@heroui/button": "2.2.24",
     "@heroui/card": "^2.2.23",

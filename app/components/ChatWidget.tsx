@@ -1,6 +1,7 @@
 "use client";
 
-import React, { useEffect } from "react";
+import { useEffect } from "react";
+
 import { config } from "@/lib/config";
 
 interface ChatWidgetProps {
@@ -10,24 +11,34 @@ interface ChatWidgetProps {
   siteName?: string;
 }
 
-export default function ChatWidget({ webhookUrl, label, description = "Get instant help with your questions", siteName }: ChatWidgetProps) {
-  
+export default function ChatWidget({
+  webhookUrl,
+  label: _label,
+  description: _description = "Get instant help with your questions",
+  siteName,
+}: ChatWidgetProps) {
   useEffect(() => {
     const domain = siteName || window.location.hostname;
-    console.log('[ChatWidget] Initializing widget for domain:', domain);
+
+    console.log("[ChatWidget] Initializing widget for domain:", domain);
 
     // Clean up any existing widget elements
     const cleanup = () => {
-      const existingWidget = document.querySelector('.chat-widget-container');
+      const existingWidget = document.querySelector(".chat-widget-container");
+
       if (existingWidget) existingWidget.remove();
-      
-      const existingStyle = document.querySelector('style[data-chat-widget]');
+
+      const existingStyle = document.querySelector("style[data-chat-widget]");
+
       if (existingStyle) existingStyle.remove();
 
       // Remove the script tag if it exists
-      const existingScript = document.querySelector(`script[data-domain="${domain}"]`);
+      const existingScript = document.querySelector(
+        `script[data-domain="${domain}"]`,
+      );
+
       if (existingScript) existingScript.remove();
-      
+
       // Clean up global functions
       // @ts-ignore
       delete window.toggleAIAssistant;
@@ -40,9 +51,10 @@ export default function ChatWidget({ webhookUrl, label, description = "Get insta
     cleanup();
 
     // Inject the script
-    const script = document.createElement('script');
+    const script = document.createElement("script");
+
     script.src = `${config.serverUrl}/api/widget.js`;
-    script.setAttribute('data-domain', domain);
+    script.setAttribute("data-domain", domain);
     script.defer = true;
     document.body.appendChild(script);
 

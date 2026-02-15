@@ -6,7 +6,6 @@ import {
   NavbarBrand,
   NavbarItem,
 } from "@heroui/navbar";
-import { Link } from "@heroui/link";
 import NextLink from "next/link";
 import { Button } from "@heroui/button";
 import { Chip } from "@heroui/chip";
@@ -14,15 +13,13 @@ import {
   Dropdown,
   DropdownTrigger,
   DropdownMenu,
-  DropdownItem
+  DropdownItem,
 } from "@heroui/dropdown";
-import { useAuth } from "@/app/contexts/AuthContext";
-import { useLanguage } from "@/app/contexts/LanguageContext";
 import { usePathname } from "next/navigation";
 
-import {
-  Logo,
-} from "@/components/icons";
+import { useAuth } from "@/app/contexts/AuthContext";
+import { useLanguage } from "@/app/contexts/LanguageContext";
+import { Logo } from "@/components/icons";
 
 export const Navbar = () => {
   const { isAuthenticated, isSuperAdmin, user, logout } = useAuth();
@@ -35,36 +32,58 @@ export const Navbar = () => {
         <NavbarBrand as="li" className="gap-3 max-w-fit">
           <NextLink className="flex justify-start items-center gap-1" href="/">
             <Logo />
-            <p className="font-bold text-inherit">{t('common.appName')}</p>
+            <p className="font-bold text-inherit">{t("common.appName")}</p>
           </NextLink>
         </NavbarBrand>
         <div className="hidden lg:flex gap-4 justify-start ml-2">
-            <NavbarItem isActive={pathname === "/"}>
-              <NextLink className="text-foreground data-[active=true]:text-primary data-[active=true]:font-medium" href="/">
-                {t('common.dashboard')}
+          <NavbarItem isActive={pathname === "/"}>
+            <NextLink
+              className="text-foreground data-[active=true]:text-primary data-[active=true]:font-medium"
+              href="/"
+            >
+              {t("common.dashboard")}
+            </NextLink>
+          </NavbarItem>
+          {isAuthenticated && isSuperAdmin && (
+            <NavbarItem isActive={pathname === "/new"}>
+              <NextLink
+                className="text-foreground data-[active=true]:text-primary data-[active=true]:font-medium"
+                href="/new"
+              >
+                {t("common.newProject")}
               </NextLink>
             </NavbarItem>
-            {isAuthenticated && isSuperAdmin && (
-              <NavbarItem isActive={pathname === "/new"}>
-                <NextLink className="text-foreground data-[active=true]:text-primary data-[active=true]:font-medium" href="/new">
-                  {t('common.newProject')}
-                </NextLink>
-              </NavbarItem>
-            )}
-            {isAuthenticated && isSuperAdmin && (
-              <NavbarItem isActive={pathname === "/prompts"}>
-                <NextLink className="text-foreground data-[active=true]:text-primary data-[active=true]:font-medium" href="/prompts">
-                  {t('common.prompts')}
-                </NextLink>
-              </NavbarItem>
-            )}
-            {isAuthenticated && isSuperAdmin && (
-              <NavbarItem isActive={pathname === "/users"}>
-                <NextLink className="text-foreground data-[active=true]:text-primary data-[active=true]:font-medium" href="/users">
-                  {t('common.users')}
-                </NextLink>
-              </NavbarItem>
-            )}
+          )}
+          {isAuthenticated && isSuperAdmin && (
+            <NavbarItem isActive={pathname === "/prompts"}>
+              <NextLink
+                className="text-foreground data-[active=true]:text-primary data-[active=true]:font-medium"
+                href="/prompts"
+              >
+                {t("common.prompts")}
+              </NextLink>
+            </NavbarItem>
+          )}
+          {isAuthenticated && isSuperAdmin && (
+            <NavbarItem isActive={pathname === "/users"}>
+              <NextLink
+                className="text-foreground data-[active=true]:text-primary data-[active=true]:font-medium"
+                href="/users"
+              >
+                {t("common.users")}
+              </NextLink>
+            </NavbarItem>
+          )}
+          {isAuthenticated && isSuperAdmin && (
+            <NavbarItem isActive={pathname === "/settings"}>
+              <NextLink
+                className="text-foreground data-[active=true]:text-primary data-[active=true]:font-medium"
+                href="/settings"
+              >
+                {t("common.settings")}
+              </NextLink>
+            </NavbarItem>
+          )}
         </div>
       </NavbarContent>
 
@@ -72,18 +91,33 @@ export const Navbar = () => {
         <NavbarItem>
           <Dropdown>
             <DropdownTrigger>
-              <Button variant="light" size="sm" isIconOnly={false} className="min-w-fit px-2">
-                {language === 'lt' ? '🇱🇹 LT' : '🇺🇸 EN'}
+              <Button
+                className="min-w-fit px-2"
+                isIconOnly={false}
+                size="sm"
+                variant="light"
+              >
+                {language === "lt" ? "🇱🇹 LT" : "🇺🇸 EN"}
               </Button>
             </DropdownTrigger>
-            <DropdownMenu 
-              aria-label="Language" 
-              onAction={(key) => setLanguage(key as 'en' | 'lt')}
+            <DropdownMenu
+              aria-label="Language"
               selectedKeys={new Set([language])}
               selectionMode="single"
+              onAction={(key) => setLanguage(key as "en" | "lt")}
             >
-              <DropdownItem key="en" startContent={<span className="text-xl">🇺🇸</span>}>English</DropdownItem>
-              <DropdownItem key="lt" startContent={<span className="text-xl">🇱🇹</span>}>Lietuvių</DropdownItem>
+              <DropdownItem
+                key="en"
+                startContent={<span className="text-xl">🇺🇸</span>}
+              >
+                English
+              </DropdownItem>
+              <DropdownItem
+                key="lt"
+                startContent={<span className="text-xl">🇱🇹</span>}
+              >
+                Lietuvių
+              </DropdownItem>
             </DropdownMenu>
           </Dropdown>
         </NavbarItem>
@@ -92,17 +126,14 @@ export const Navbar = () => {
             <NavbarItem className="hidden sm:flex items-center gap-2">
               <span className="text-sm text-default-500">{user?.email}</span>
               {isSuperAdmin && (
-                <Chip size="sm" color="warning" variant="flat">{t('common.admin')}</Chip>
+                <Chip color="warning" size="sm" variant="flat">
+                  {t("common.admin")}
+                </Chip>
               )}
             </NavbarItem>
             <NavbarItem>
-              <Button 
-                color="danger" 
-                variant="flat" 
-                size="sm"
-                onPress={logout}
-              >
-                {t('common.logout')}
+              <Button color="danger" size="sm" variant="flat" onPress={logout}>
+                {t("common.logout")}
               </Button>
             </NavbarItem>
           </>

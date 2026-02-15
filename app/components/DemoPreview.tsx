@@ -16,7 +16,7 @@ export default function DemoPreview({
   error,
 }: DemoPreviewProps) {
   const iframeRef = useRef<HTMLIFrameElement>(null);
-  const [iframeLoaded, setIframeLoaded] = useState(false);
+  const [_iframeLoaded, setIframeLoaded] = useState(false);
 
   // Write HTML to iframe once it's rendered and we have content
   useEffect(() => {
@@ -26,6 +26,7 @@ export default function DemoPreview({
         const iframeDoc =
           iframeRef.current.contentDocument ||
           iframeRef.current.contentWindow?.document;
+
         if (iframeDoc) {
           console.log("Writing HTML to iframe, length:", htmlContent.length);
           iframeDoc.open();
@@ -53,8 +54,10 @@ export default function DemoPreview({
   // Suppress CORS errors from the iframe's internal scripts
   useEffect(() => {
     const originalConsoleError = console.error;
+
     console.error = (...args) => {
       const message = args[0]?.toString() || "";
+
       // Suppress CORS-related errors that come from the iframe's scripts
       if (
         message.includes("CORS") ||
@@ -63,8 +66,9 @@ export default function DemoPreview({
       ) {
         console.warn(
           "[Demo] CORS error suppressed (expected in demo mode):",
-          args[0]?.substring?.(0, 100) || args[0]
+          args[0]?.substring?.(0, 100) || args[0],
         );
+
         return;
       }
       originalConsoleError.apply(console, args);
@@ -80,7 +84,7 @@ export default function DemoPreview({
       {loading && (
         <div className="absolute inset-0 flex items-center justify-center bg-gray-50 z-10">
           <div className="text-center">
-            <Spinner size="lg" color="primary" />
+            <Spinner color="primary" size="lg" />
             <p className="mt-4 text-gray-600">Loading website preview...</p>
           </div>
         </div>
@@ -108,10 +112,10 @@ export default function DemoPreview({
       <iframe
         ref={iframeRef}
         className="w-full h-full border-0"
-        title="Website Preview"
         sandbox="allow-same-origin allow-scripts allow-forms allow-popups allow-modals allow-presentation"
-        onLoad={handleIframeLoad}
+        title="Website Preview"
         onError={handleIframeError}
+        onLoad={handleIframeLoad}
       />
     </div>
   );

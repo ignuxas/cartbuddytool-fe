@@ -8,11 +8,13 @@ import {
   Dropdown,
   DropdownTrigger,
   DropdownMenu,
-  DropdownItem
+  DropdownItem,
 } from "@heroui/dropdown";
-import { config } from "@/lib/config";
 import { addToast } from "@heroui/toast";
+
 import ProjectCard from "./ProjectCard";
+
+import { config } from "@/lib/config";
 import { useLanguage } from "@/app/contexts/LanguageContext";
 
 interface Project {
@@ -36,24 +38,38 @@ interface ExistingProjectsProps {
 const SkeletonCard = () => (
   <Card className="animate-pulse flex flex-col h-full">
     <CardHeader>
-      <div className="h-6 bg-gray-300 rounded-md dark:bg-gray-700 w-2/3"></div>
+      <div className="h-6 bg-gray-300 rounded-md dark:bg-gray-700 w-2/3" />
     </CardHeader>
     <CardBody className="flex-grow flex flex-col">
-      <div className="h-4 bg-gray-300 rounded-md dark:bg-gray-700 w-1/2 mb-4"></div>
+      <div className="h-4 bg-gray-300 rounded-md dark:bg-gray-700 w-1/2 mb-4" />
       <div className="flex-grow" />
-      <div className="h-8 bg-gray-300 rounded-md dark:bg-gray-700 w-1/3"></div>
+      <div className="h-8 bg-gray-300 rounded-md dark:bg-gray-700 w-1/3" />
     </CardBody>
   </Card>
 );
 
 const EmptyStateIcon = () => (
-    <svg xmlns="http://www.w3.org/2000/svg" className="mx-auto h-16 w-16 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
-        <path strokeLinecap="round" strokeLinejoin="round" d="M19.5 14.25v-2.625a3.375 3.375 0 00-3.375-3.375h-1.5A1.125 1.125 0 0113.5 7.125v-1.5a3.375 3.375 0 00-3.375-3.375H8.25m0 12.75h7.5m-7.5 3H12M10.5 2.25H5.625c-.621 0-1.125.504-1.125 1.125v17.25c0 .621.504 1.125 1.125 1.125h12.75c.621 0 1.125-.504 1.125-1.125V11.25a9 9 0 00-9-9z" />
-    </svg>
+  <svg
+    className="mx-auto h-16 w-16 text-gray-400"
+    fill="none"
+    stroke="currentColor"
+    strokeWidth={1.5}
+    viewBox="0 0 24 24"
+    xmlns="http://www.w3.org/2000/svg"
+  >
+    <path
+      d="M19.5 14.25v-2.625a3.375 3.375 0 00-3.375-3.375h-1.5A1.125 1.125 0 0113.5 7.125v-1.5a3.375 3.375 0 00-3.375-3.375H8.25m0 12.75h7.5m-7.5 3H12M10.5 2.25H5.625c-.621 0-1.125.504-1.125 1.125v17.25c0 .621.504 1.125 1.125 1.125h12.75c.621 0 1.125-.504 1.125-1.125V11.25a9 9 0 00-9-9z"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+    />
+  </svg>
 );
 
-
-const ExistingProjects: React.FC<ExistingProjectsProps> = ({ authKey, onSelectProject, isSuperAdmin = false }) => {
+const ExistingProjects: React.FC<ExistingProjectsProps> = ({
+  authKey,
+  onSelectProject,
+  isSuperAdmin = false,
+}) => {
   const [projects, setProjects] = useState<Project[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState("");
@@ -65,18 +81,32 @@ const ExistingProjects: React.FC<ExistingProjectsProps> = ({ authKey, onSelectPr
 
     if (searchQuery) {
       const q = searchQuery.toLowerCase();
-      result = result.filter(p => p.domain.toLowerCase().includes(q));
+
+      result = result.filter((p) => p.domain.toLowerCase().includes(q));
     }
 
     result.sort((a, b) => {
       switch (sortKey) {
-        case "domain_asc": return a.domain.localeCompare(b.domain);
-        case "domain_desc": return b.domain.localeCompare(a.domain);
-        case "pages_asc": return (a.page_count || 0) - (b.page_count || 0);
-        case "pages_desc": return (b.page_count || 0) - (a.page_count || 0);
-        case "updated_asc": return new Date(a.last_updated || 0).getTime() - new Date(b.last_updated || 0).getTime();
-        case "updated_desc": return new Date(b.last_updated || 0).getTime() - new Date(a.last_updated || 0).getTime();
-        default: return 0;
+        case "domain_asc":
+          return a.domain.localeCompare(b.domain);
+        case "domain_desc":
+          return b.domain.localeCompare(a.domain);
+        case "pages_asc":
+          return (a.page_count || 0) - (b.page_count || 0);
+        case "pages_desc":
+          return (b.page_count || 0) - (a.page_count || 0);
+        case "updated_asc":
+          return (
+            new Date(a.last_updated || 0).getTime() -
+            new Date(b.last_updated || 0).getTime()
+          );
+        case "updated_desc":
+          return (
+            new Date(b.last_updated || 0).getTime() -
+            new Date(a.last_updated || 0).getTime()
+          );
+        default:
+          return 0;
       }
     });
 
@@ -85,20 +115,21 @@ const ExistingProjects: React.FC<ExistingProjectsProps> = ({ authKey, onSelectPr
 
   useEffect(() => {
     fetchProjects();
-    
+
     // Poll for updates every 3 seconds to show scraping progress
     const interval = setInterval(() => {
       fetchProjects(true);
     }, 30000);
-    
+
     return () => clearInterval(interval);
   }, [authKey]);
 
   const fetchProjects = async (silent = false) => {
     if (!authKey) {
-        setLoading(false);
-        setProjects([]);
-        return;
+      setLoading(false);
+      setProjects([]);
+
+      return;
     }
     if (!silent) setLoading(true);
     try {
@@ -106,24 +137,32 @@ const ExistingProjects: React.FC<ExistingProjectsProps> = ({ authKey, onSelectPr
         method: "GET",
         headers: {
           "Content-Type": "application/json",
-          "Authorization": `Bearer ${authKey}`,
+          Authorization: `Bearer ${authKey}`,
         },
       });
 
       const data = await response.json();
 
       if (!response.ok) {
-        throw new Error(data.error || t('existingProjects.fetchError'));
+        throw new Error(data.error || t("existingProjects.fetchError"));
       }
 
-      const ignoredProjects = ['widget.events', 'users', 'user.projects'];
-      const filteredProjects = (data.projects || []).filter((p: Project) => !ignoredProjects.includes(p.domain));
+      const ignoredProjects = [
+        "widget.events",
+        "users",
+        "user.projects",
+        "site.settings",
+      ];
+      const filteredProjects = (data.projects || []).filter(
+        (p: Project) => !ignoredProjects.includes(p.domain),
+      );
+
       setProjects(filteredProjects);
     } catch (error: any) {
       if (!silent) {
         addToast({
-          title: t('existingProjects.errorTitle'),
-          description: error.message || t('existingProjects.fetchError'),
+          title: t("existingProjects.errorTitle"),
+          description: error.message || t("existingProjects.fetchError"),
           color: "danger",
         });
       }
@@ -142,34 +181,38 @@ const ExistingProjects: React.FC<ExistingProjectsProps> = ({ authKey, onSelectPr
 
   const handleDeleteProject = async (domain: string) => {
     if (!authKey) return;
-    
+
     try {
-      const response = await fetch(`${config.serverUrl}/api/scrape/project/delete/`, {
-        method: "DELETE",
-        headers: {
-          "Content-Type": "application/json",
-          "Authorization": `Bearer ${authKey}`,
+      const response = await fetch(
+        `${config.serverUrl}/api/scrape/project/delete/`,
+        {
+          method: "DELETE",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${authKey}`,
+          },
+          body: JSON.stringify({ domain }),
         },
-        body: JSON.stringify({ domain }),
-      });
+      );
 
       if (!response.ok) {
         const data = await response.json();
-        throw new Error(data.error || t('existingProjects.deleteError'));
+
+        throw new Error(data.error || t("existingProjects.deleteError"));
       }
 
       addToast({
-        title: t('existingProjects.successTitle'),
-        description: t('existingProjects.deleteSuccess', { domain }),
+        title: t("existingProjects.successTitle"),
+        description: t("existingProjects.deleteSuccess", { domain }),
         color: "success",
       });
-      
+
       // Refresh projects list
       fetchProjects();
     } catch (error: any) {
       addToast({
-        title: t('existingProjects.errorTitle'),
-        description: error.message || t('existingProjects.deleteError'),
+        title: t("existingProjects.errorTitle"),
+        description: error.message || t("existingProjects.deleteError"),
         color: "danger",
       });
     }
@@ -178,9 +221,13 @@ const ExistingProjects: React.FC<ExistingProjectsProps> = ({ authKey, onSelectPr
   if (loading) {
     return (
       <div className="w-full">
-        <h3 className="text-2xl font-bold mb-6">{t('existingProjects.title')}</h3>
+        <h3 className="text-2xl font-bold mb-6">
+          {t("existingProjects.title")}
+        </h3>
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-          {[...Array(3)].map((_, i) => <SkeletonCard key={i} />)}
+          {[...Array(3)].map((_, i) => (
+            <SkeletonCard key={i} />
+          ))}
         </div>
       </div>
     );
@@ -188,42 +235,60 @@ const ExistingProjects: React.FC<ExistingProjectsProps> = ({ authKey, onSelectPr
 
   if (projects.length === 0) {
     return (
-        <div className="w-full text-center py-16">
-            <EmptyStateIcon />
-            <h3 className="text-xl font-semibold mt-4">{t('existingProjects.noProjects')}</h3>
-            <p className="text-gray-500 mt-2">{t('existingProjects.startScraping')}</p>
-        </div>
+      <div className="w-full text-center py-16">
+        <EmptyStateIcon />
+        <h3 className="text-xl font-semibold mt-4">
+          {t("existingProjects.noProjects")}
+        </h3>
+        <p className="text-gray-500 mt-2">
+          {t("existingProjects.startScraping")}
+        </p>
+      </div>
     );
   }
 
   return (
     <div className="w-full pt-6">
       <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 mb-6">
-        <h3 className="text-2xl font-bold">{t('existingProjects.title')} ({sortedProjects.length})</h3>
+        <h3 className="text-2xl font-bold">
+          {t("existingProjects.title")} ({sortedProjects.length})
+        </h3>
         <div className="flex flex-col sm:flex-row gap-3 w-full md:w-auto">
           <Input
-            placeholder="Search projects..."
-            value={searchQuery}
-            onValueChange={setSearchQuery}
             className="w-full sm:w-64"
+            placeholder="Search projects..."
             startContent={
-              <svg className="w-4 h-4 text-default-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+              <svg
+                className="w-4 h-4 text-default-400"
+                fill="none"
+                stroke="currentColor"
+                viewBox="0 0 24 24"
+              >
+                <path
+                  d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={2}
+                />
               </svg>
             }
+            value={searchQuery}
+            onValueChange={setSearchQuery}
           />
           <Dropdown>
             <DropdownTrigger>
-              <Button variant="bordered" className="capitalize">
-                Sort by: {sortKey.replace('_', ' ')}
+              <Button className="capitalize" variant="bordered">
+                Sort by: {sortKey.replace("_", " ")}
               </Button>
             </DropdownTrigger>
-            <DropdownMenu 
-              aria-label="Sort options"
+            <DropdownMenu
               disallowEmptySelection
-              selectionMode="single"
+              aria-label="Sort options"
               selectedKeys={[sortKey]}
-              onSelectionChange={(keys) => setSortKey(Array.from(keys)[0] as string)}
+              selectionMode="single"
+              onSelectionChange={(keys) =>
+                setSortKey(Array.from(keys)[0] as string)
+              }
             >
               <DropdownItem key="updated_desc">Newest First</DropdownItem>
               <DropdownItem key="updated_asc">Oldest First</DropdownItem>
@@ -238,7 +303,7 @@ const ExistingProjects: React.FC<ExistingProjectsProps> = ({ authKey, onSelectPr
 
       {sortedProjects.length === 0 && searchQuery ? (
         <div className="text-center py-12 text-default-500">
-          No projects found matching "{searchQuery}"
+          No projects found matching &ldquo;{searchQuery}&rdquo;
         </div>
       ) : sortedProjects.length > 0 ? (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
@@ -246,15 +311,15 @@ const ExistingProjects: React.FC<ExistingProjectsProps> = ({ authKey, onSelectPr
             <ProjectCard
               key={project.domain}
               project={project}
-              onSelect={handleSelectProject}
               onDelete={isSuperAdmin ? handleDeleteProject : undefined}
+              onSelect={handleSelectProject}
             />
           ))}
         </div>
       ) : projects.length > 0 ? (
         // Only show empty if no projects at all (not filtered)
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-             {/* Fallback unlikely needed due to previous check */}
+          {/* Fallback unlikely needed due to previous check */}
         </div>
       ) : null}
     </div>

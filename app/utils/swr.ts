@@ -1,9 +1,10 @@
-import useSWR, { SWRConfiguration, mutate } from 'swr';
-import { config } from '@/lib/config';
+import useSWR, { SWRConfiguration, mutate } from "swr";
+
+import { config } from "@/lib/config";
 
 /**
  * SWR-based data fetching with caching for CartBuddy
- * 
+ *
  * Benefits:
  * - Automatic caching of responses
  * - Deduplication of requests (multiple components = 1 request)
@@ -13,15 +14,15 @@ import { config } from '@/lib/config';
 
 // Custom fetcher for authenticated API calls
 export const authenticatedFetcher = async (
-  url: string, 
+  url: string,
   authKey: string,
-  options?: { method?: string; body?: any }
+  options?: { method?: string; body?: any },
 ) => {
   const response = await fetch(url, {
-    method: options?.method || 'GET',
+    method: options?.method || "GET",
     headers: {
-      'Content-Type': 'application/json',
-      'Authorization': `Bearer ${authKey}`,
+      "Content-Type": "application/json",
+      Authorization: `Bearer ${authKey}`,
     },
     body: options?.body ? JSON.stringify(options.body) : undefined,
   });
@@ -29,12 +30,16 @@ export const authenticatedFetcher = async (
   if (!response.ok) {
     const errorText = await response.text();
     let errorData;
+
     try {
       errorData = JSON.parse(errorText);
     } catch {
       errorData = { error: errorText || `HTTP ${response.status}` };
     }
-    const error = new Error(errorData.error || `Request failed with status ${response.status}`);
+    const error = new Error(
+      errorData.error || `Request failed with status ${response.status}`,
+    );
+
     (error as any).status = response.status;
     throw error;
   }
@@ -58,25 +63,30 @@ export const swrConfig: SWRConfiguration = {
  * Hook for fetching project data with caching
  */
 export function useProjectData(domain: string | null, authKey: string | null) {
-  const url = domain && authKey 
-    ? `${config.serverUrl}/api/scrape/check-existing/` 
-    : null;
+  const url =
+    domain && authKey ? `${config.serverUrl}/api/scrape/check-existing/` : null;
 
-  const { data, error, isLoading, mutate: revalidate } = useSWR(
+  const {
+    data,
+    error,
+    isLoading,
+    mutate: revalidate,
+  } = useSWR(
     // Key includes domain to cache per-project
-    url ? ['project-data', domain] : null,
+    url ? ["project-data", domain] : null,
     async () => {
       if (!authKey || !domain) return null;
+
       return authenticatedFetcher(
         `${config.serverUrl}/api/scrape/check-existing/`,
         authKey,
-        { method: 'POST', body: { url: `http://${domain}` } }
+        { method: "POST", body: { url: `http://${domain}` } },
       );
     },
     {
       ...swrConfig,
       revalidateOnMount: true, // Always fetch on first mount
-    }
+    },
   );
 
   return {
@@ -91,35 +101,50 @@ export function useProjectData(domain: string | null, authKey: string | null) {
  * Hook for fetching widget settings with caching
  * Supports both authenticated (POST) and public (GET) fetching
  */
-export function useWidgetSettings(domain: string | null, authKey: string | null = null) {
+export function useWidgetSettings(
+  domain: string | null,
+  authKey: string | null = null,
+) {
   const isPublic = !authKey;
 
-  const { data, error, isLoading, mutate: revalidate } = useSWR(
-    domain ? ['widget-settings', domain, isPublic ? 'public' : 'private'] : null,
+  const {
+    data,
+    error,
+    isLoading,
+    mutate: revalidate,
+  } = useSWR(
+    domain
+      ? ["widget-settings", domain, isPublic ? "public" : "private"]
+      : null,
     async () => {
       if (!domain) return null;
-      
+
       if (isPublic) {
         // Public GET request
-        const res = await fetch(`${config.serverUrl}/api/widget/settings/?domain=${encodeURIComponent(domain)}`);
+        const res = await fetch(
+          `${config.serverUrl}/api/widget/settings/?domain=${encodeURIComponent(domain)}`,
+        );
+
         if (!res.ok) {
-           const text = await res.text();
-           throw new Error(text || "Failed to fetch settings");
+          const text = await res.text();
+
+          throw new Error(text || "Failed to fetch settings");
         }
+
         return res.json();
       } else {
         // Authenticated GET request
         return authenticatedFetcher(
           `${config.serverUrl}/api/widget/settings/?domain=${encodeURIComponent(domain)}`,
           authKey!,
-          { method: 'GET' }
+          { method: "GET" },
         );
       }
     },
     {
       ...swrConfig,
       dedupingInterval: 10000, // Widget settings change less often
-    }
+    },
   );
 
   return {
@@ -133,21 +158,26 @@ export function useWidgetSettings(domain: string | null, authKey: string | null 
 /**
  * Hook for fetching webhook secret with caching
  */
-export function useWebhookSecret(domain: string | null, authKey: string | null, enabled = true) {
+export function useWebhookSecret(
+  domain: string | null,
+  authKey: string | null,
+  enabled = true,
+) {
   const { data, error, isLoading } = useSWR(
-    domain && authKey && enabled ? ['webhook-secret', domain] : null,
+    domain && authKey && enabled ? ["webhook-secret", domain] : null,
     async () => {
       if (!authKey || !domain) return null;
+
       return authenticatedFetcher(
         `${config.serverUrl}/api/widget/secret/`,
         authKey,
-        { method: 'POST', body: { domain } }
+        { method: "POST", body: { domain } },
       );
     },
     {
       ...swrConfig,
       dedupingInterval: 30000, // Secrets rarely change
-    }
+    },
   );
 
   return {
@@ -161,26 +191,32 @@ export function useWebhookSecret(domain: string | null, authKey: string | null, 
  * Hook for fetching additional URLs with caching
  */
 export function useAdditionalUrls(
-  domain: string | null, 
-  authKey: string | null, 
-  enabled = false
+  domain: string | null,
+  authKey: string | null,
+  enabled = false,
 ) {
   const url = domain ? `http://${domain}` : null;
-  
-  const { data, error, isLoading, mutate: revalidate } = useSWR(
-    url && authKey && enabled ? ['additional-urls', domain] : null,
+
+  const {
+    data,
+    error,
+    isLoading,
+    mutate: revalidate,
+  } = useSWR(
+    url && authKey && enabled ? ["additional-urls", domain] : null,
     async () => {
       if (!authKey || !url) return null;
+
       return authenticatedFetcher(
         `${config.serverUrl}/api/scrape/get-urls/`,
         authKey,
-        { method: 'POST', body: { url } }
+        { method: "POST", body: { url } },
       );
     },
     {
       ...swrConfig,
       revalidateOnMount: true,
-    }
+    },
   );
 
   return {
@@ -196,11 +232,11 @@ export function useAdditionalUrls(
  * Call this after mutations (scraping, saving, etc.)
  */
 export function invalidateProjectCache(domain: string) {
-  mutate(['project-data', domain]);
-  mutate(['scraping-page-data', domain]);
-  mutate(['widget-settings', domain]);
-  mutate(['webhook-secret', domain]);
-  mutate(['additional-urls', domain]);
+  mutate(["project-data", domain]);
+  mutate(["scraping-page-data", domain]);
+  mutate(["widget-settings", domain]);
+  mutate(["webhook-secret", domain]);
+  mutate(["additional-urls", domain]);
 }
 
 /**
@@ -214,21 +250,30 @@ export function invalidateCache(key: any[]) {
  * Hook for the Scraping & Data page.
  * Fetches scraped pages, active job, and blacklist in a single request.
  */
-export function useScrapingPageData(domain: string | null, authKey: string | null) {
-  const { data, error, isLoading, mutate: revalidate } = useSWR(
-    domain && authKey ? ['scraping-page-data', domain] : null,
+export function useScrapingPageData(
+  domain: string | null,
+  authKey: string | null,
+) {
+  const {
+    data,
+    error,
+    isLoading,
+    mutate: revalidate,
+  } = useSWR(
+    domain && authKey ? ["scraping-page-data", domain] : null,
     async () => {
       if (!authKey || !domain) return null;
+
       return authenticatedFetcher(
         `${config.serverUrl}/api/scrape/project-data/`,
         authKey,
-        { method: 'POST', body: { url: `http://${domain}` } }
+        { method: "POST", body: { url: `http://${domain}` } },
       );
     },
     {
       ...swrConfig,
       revalidateOnMount: true,
-    }
+    },
   );
 
   return {
@@ -249,18 +294,19 @@ export function useScrapingPageData(domain: string | null, authKey: string | nul
  */
 export function useAvailableModels(authKey: string | null) {
   const { data, error, isLoading } = useSWR(
-    authKey ? ['ai-models', authKey] : null,
+    authKey ? ["ai-models", authKey] : null,
     async () => {
       if (!authKey) return null;
+
       return authenticatedFetcher(
         `${config.serverUrl}/api/ai-models/`,
-        authKey
+        authKey,
       );
     },
     {
       ...swrConfig,
       dedupingInterval: 60000, // Models almost never change
-    }
+    },
   );
 
   return {
@@ -273,22 +319,33 @@ export function useAvailableModels(authKey: string | null) {
 /**
  * Hook for fetching metrics dashboard data with caching.
  */
-export function useMetricsDashboard(domain: string | null, authKey: string | null) {
-  const { data, error, isLoading, mutate: revalidate } = useSWR(
-    domain && authKey ? ['metrics-dashboard', domain] : null,
+export function useMetricsDashboard(
+  domain: string | null,
+  authKey: string | null,
+) {
+  const {
+    data,
+    error,
+    isLoading,
+    mutate: revalidate,
+  } = useSWR(
+    domain && authKey ? ["metrics-dashboard", domain] : null,
     async () => {
       if (!authKey || !domain) return null;
       const res = await fetch(
         `${config.serverUrl}/api/metrics/?domain=${encodeURIComponent(domain)}`,
-        { headers: { 'Authorization': `Bearer ${authKey}` } }
+        { headers: { Authorization: `Bearer ${authKey}` } },
       );
-      if (!res.ok) throw new Error(`Failed to fetch metrics: ${res.statusText}`);
+
+      if (!res.ok)
+        throw new Error(`Failed to fetch metrics: ${res.statusText}`);
+
       return res.json();
     },
     {
       ...swrConfig,
       dedupingInterval: 15000, // Metrics can update frequently
-    }
+    },
   );
 
   return {
@@ -302,7 +359,7 @@ export function useMetricsDashboard(domain: string | null, authKey: string | nul
 export function useMasterPrompts(authKey: string) {
   const { data, error, isLoading, mutate } = useSWR(
     authKey ? [`${config.serverUrl}/api/master-prompts/`, authKey] : null,
-    ([url, key]) => authenticatedFetcher(url, key)
+    ([url, key]) => authenticatedFetcher(url, key),
   );
 
   return {
@@ -315,8 +372,10 @@ export function useMasterPrompts(authKey: string) {
 
 export function useMasterPrompt(id: number | null, authKey: string) {
   const { data, error, isLoading, mutate } = useSWR(
-    authKey && id ? [`${config.serverUrl}/api/master-prompts/${id}/`, authKey] : null,
-    ([url, key]) => authenticatedFetcher(url, key)
+    authKey && id
+      ? [`${config.serverUrl}/api/master-prompts/${id}/`, authKey]
+      : null,
+    ([url, key]) => authenticatedFetcher(url, key),
   );
 
   return {
@@ -329,16 +388,75 @@ export function useMasterPrompt(id: number | null, authKey: string) {
 
 export function useSystemMasterPrompt(authKey: string) {
   const { data, error, isLoading } = useSWR(
-    authKey ? [`${config.serverUrl}/api/master-prompts/default/`, authKey] : null,
-    ([url, key]) => authenticatedFetcher(url, key)
+    authKey
+      ? [`${config.serverUrl}/api/master-prompts/default/`, authKey]
+      : null,
+    ([url, key]) => authenticatedFetcher(url, key),
   );
 
   return {
     promptText: data?.prompt_text,
     isLoading,
-    isError: error
+    isError: error,
   };
 }
 
+/**
+ * Hook for fetching site settings (admin only).
+ */
+export function useSiteSettings(authKey: string | null) {
+  const {
+    data,
+    error,
+    isLoading,
+    mutate: revalidate,
+  } = useSWR(
+    authKey ? ["site-settings", authKey] : null,
+    async () => {
+      if (!authKey) return null;
 
+      return authenticatedFetcher(
+        `${config.serverUrl}/api/site-settings/`,
+        authKey,
+      );
+    },
+    {
+      ...swrConfig,
+      dedupingInterval: 30000,
+    },
+  );
 
+  return {
+    settings: data,
+    isLoading,
+    error,
+    revalidate,
+  };
+}
+
+/**
+ * Hook for fetching ALL models (unfiltered) for admin settings page.
+ */
+export function useAllModels(authKey: string | null) {
+  const { data, error, isLoading } = useSWR(
+    authKey ? ["ai-models-all", authKey] : null,
+    async () => {
+      if (!authKey) return null;
+
+      return authenticatedFetcher(
+        `${config.serverUrl}/api/ai-models/all/`,
+        authKey,
+      );
+    },
+    {
+      ...swrConfig,
+      dedupingInterval: 60000,
+    },
+  );
+
+  return {
+    models: data?.models || [],
+    isLoading,
+    error,
+  };
+}

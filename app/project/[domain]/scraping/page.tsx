@@ -1,24 +1,32 @@
 "use client";
 
 import { useEffect, useState, useRef, useCallback } from "react";
-import { config } from "@/lib/config";
-import ActionButtons from "@/app/components/ActionButtons";
-import ScrapedPagesTable from "@/app/components/ScrapedPagesTable";
 import { useRouter, useParams } from "next/navigation";
 import { addToast } from "@heroui/toast";
-import { useAuth } from "@/app/contexts/AuthContext";
 import { Button } from "@heroui/button";
-import { Link } from "@heroui/link";
 import { Card, CardBody } from "@heroui/card";
 import { Divider } from "@heroui/divider";
-import { Modal, ModalContent, ModalHeader, ModalBody, ModalFooter, useDisclosure } from "@heroui/modal";
-import BlacklistManager from "@/app/components/BlacklistManager";
-import PlaywrightSwitch from "@/app/components/PlaywrightSwitch";
+import {
+  Modal,
+  ModalContent,
+  ModalHeader,
+  ModalBody,
+  ModalFooter,
+  useDisclosure,
+} from "@heroui/modal";
 import { Switch } from "@heroui/switch";
 import { Checkbox } from "@heroui/checkbox";
 import { Input } from "@heroui/input";
+
+import PlaywrightSwitch from "@/app/components/PlaywrightSwitch";
+import BlacklistManager from "@/app/components/BlacklistManager";
+import { useAuth } from "@/app/contexts/AuthContext";
+import ScrapedPagesTable from "@/app/components/ScrapedPagesTable";
+import ActionButtons from "@/app/components/ActionButtons";
+import { config } from "@/lib/config";
 import { useScrapingPageData } from "@/app/utils/swr";
 import { makeApiCall, logError } from "@/app/utils/apiHelper";
+import { useLanguage } from "@/app/contexts/LanguageContext";
 
 // Configuration for Main Pages
 const MAX_MAIN_PAGES = 5;
@@ -34,9 +42,15 @@ interface ScrapedDataItem {
 }
 
 export default function ScrapingPage() {
+  const { t } = useLanguage();
   const params = useParams();
   const domain = params.domain as string;
-  const { isAuthenticated, accessToken: authKey, isLoading: authIsLoading, isSuperAdmin } = useAuth();
+  const {
+    isAuthenticated,
+    accessToken: authKey,
+    isLoading: authIsLoading,
+    isSuperAdmin,
+  } = useAuth();
   const router = useRouter();
   const [retryLoading, setRetryLoading] = useState<string | null>(null);
   const [errorMessage, setErrorMessage] = useState("");
@@ -50,22 +64,30 @@ export default function ScrapingPage() {
   const [keepImages, setKeepImages] = useState(true);
   const [usePlaywright, setUsePlaywright] = useState(false);
   const [showAddMorePages, setShowAddMorePages] = useState(false);
-  const [additionalUrls, setAdditionalUrls] = useState<{ url: string; selected: boolean }[]>([]);
+  const [additionalUrls, setAdditionalUrls] = useState<
+    { url: string; selected: boolean }[]
+  >([]);
   const [newAdditionalUrl, setNewAdditionalUrl] = useState("");
-  const [usePlaywrightForAdditional, setUsePlaywrightForAdditional] = useState(false);
-  
+  const [usePlaywrightForAdditional, setUsePlaywrightForAdditional] =
+    useState(false);
+
   // Modals state
   const blacklistModal = useDisclosure();
   const rescrapeModal = useDisclosure();
   const [itemsToBlacklist, setItemsToBlacklist] = useState<string[]>([]);
-  const [actionLoading, setActionLoading] = useState(false);
+  const [_actionLoading, setActionLoading] = useState(false);
 
-  const [scrapingProgress, setScrapingProgress] = useState<{ 
-    current: number; 
-    total: number; 
-    status: string; 
+  const [scrapingProgress, setScrapingProgress] = useState<{
+    current: number;
+    total: number;
+    status: string;
     currentUrl?: string;
-    pageStatuses?: { url: string; status: string; error?: string; status_code?: number }[];
+    pageStatuses?: {
+      url: string;
+      status: string;
+      error?: string;
+      status_code?: number;
+    }[];
   } | null>(null);
 
   // Polling cleanup ref
@@ -79,27 +101,33 @@ export default function ScrapingPage() {
 
   const getAuthHeaders = () => ({
     "Content-Type": "application/json",
-    "Authorization": `Bearer ${authKey!}`,
+    Authorization: `Bearer ${authKey!}`,
   });
 
   // --- SWR: single request for scraped data + blacklist + active job ---
-  const { data: pageData, isLoading: loading, revalidate } = useScrapingPageData(
-    isAuthenticated ? domain : null,
-    authKey
-  );
+  const {
+    data: pageData,
+    isLoading: loading,
+    revalidate,
+  } = useScrapingPageData(isAuthenticated ? domain : null, authKey);
 
   // Sync SWR data into local state when it arrives/updates
   useEffect(() => {
     if (!pageData) return;
 
     if (pageData.has_existing_data) {
-      setScrapedData((pageData.existing_data || []).map((item: any) => ({ ...item, selected: false })));
+      setScrapedData(
+        (pageData.existing_data || []).map((item: any) => ({
+          ...item,
+          selected: false,
+        })),
+      );
     }
     setBlacklist(pageData.blacklist || []);
 
     if (pageData.active_job) {
       console.log("Found active scraping job:", pageData.active_job);
-      setRetryLoading('scraping');
+      setRetryLoading("scraping");
       setActiveJobId(pageData.active_job.id);
       pollScrapingStatus(pageData.active_job.id);
     }
@@ -116,31 +144,43 @@ export default function ScrapingPage() {
   }, []);
 
   const updateBlacklist = async (newList: string[]) => {
-      try {
-          const res = await fetch(`${config.serverUrl}/api/scrape/blacklist/`, {
-              method: "POST",
-              headers: {
-                  "Content-Type": "application/json",
-                  "Authorization": `Bearer ${authKey!}`,
-              },
-              body: JSON.stringify({ domain, blacklist: newList }),
-          });
-          const data = await res.json();
-          if (res.ok) {
-              setBlacklist(data.blacklist);
-              return true;
-          } else {
-              addToast({ title: "Error", description: "Failed to update blacklist", color: "danger" });
-              return false;
-          }
-      } catch (e) {
-          addToast({ title: "Error", description: "Error updating blacklist", color: "danger" });
-          return false;
+    try {
+      const res = await fetch(`${config.serverUrl}/api/scrape/blacklist/`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${authKey!}`,
+        },
+        body: JSON.stringify({ domain, blacklist: newList }),
+      });
+      const data = await res.json();
+
+      if (res.ok) {
+        setBlacklist(data.blacklist);
+
+        return true;
+      } else {
+        addToast({
+          title: "Error",
+          description: "Failed to update blacklist",
+          color: "danger",
+        });
+
+        return false;
       }
+    } catch (_e) {
+      addToast({
+        title: "Error",
+        description: "Error updating blacklist",
+        color: "danger",
+      });
+
+      return false;
+    }
   };
 
   const handleShowAddMorePages = async () => {
-    setRetryLoading('finding-pages');
+    setRetryLoading("finding-pages");
     clearMessages();
 
     try {
@@ -152,29 +192,36 @@ export default function ScrapingPage() {
           headers: getAuthHeaders(),
           body: JSON.stringify({ url }),
         },
-        "show-add-more-pages"
+        "show-add-more-pages",
       );
 
       // Filter out URLs that are already scraped
-      const existingUrls = new Set(scrapedData.map(item => item.url));
-      const newUrls = (data.urls || []).filter((u: string) => !existingUrls.has(u));
-      
+      const existingUrls = new Set(scrapedData.map((item) => item.url));
+      const newUrls = (data.urls || []).filter(
+        (u: string) => !existingUrls.has(u),
+      );
+
       if (newUrls.length === 0) {
         addToast({
           title: "Info",
-          description: "No new pages found in the sitemap that haven't been scraped yet.",
+          description:
+            "No new pages found in the sitemap that haven't been scraped yet.",
           color: "primary",
         });
         setShowAddMorePages(true); // Still show the UI to allow manual entry
         setAdditionalUrls([]);
+
         return;
       }
-      
-      setAdditionalUrls(newUrls.map((u: string) => ({ url: u, selected: true })));
+
+      setAdditionalUrls(
+        newUrls.map((u: string) => ({ url: u, selected: true })),
+      );
       setShowAddMorePages(true);
     } catch (error: any) {
       logError("handleShowAddMorePages", error, { url });
       const message = error.message || "Failed to fetch additional pages";
+
       addToast({ title: "Error", description: message, color: "danger" });
       setErrorMessage(message);
     } finally {
@@ -183,40 +230,54 @@ export default function ScrapingPage() {
   };
 
   const handleScrapeAdditionalPages = async (usePlaywrightFn = false) => {
-    const selectedAdditionalUrls = additionalUrls.filter(item => item.selected).map(item => item.url);
-    
+    const selectedAdditionalUrls = additionalUrls
+      .filter((item) => item.selected)
+      .map((item) => item.url);
+
     if (selectedAdditionalUrls.length === 0) {
       const message = "Please select at least one additional URL to scrape.";
+
       addToast({ title: "Error", description: message, color: "danger" });
       setErrorMessage(message);
+
       return;
     }
 
-    setRetryLoading('additional');
+    setRetryLoading("additional");
     clearMessages();
 
     try {
-      console.log("[handleScrapeAdditionalPages] Scraping additional pages:", selectedAdditionalUrls.length, "Playwright:", usePlaywrightFn);
+      console.log(
+        "[handleScrapeAdditionalPages] Scraping additional pages:",
+        selectedAdditionalUrls.length,
+        "Playwright:",
+        usePlaywrightFn,
+      );
       const data = await makeApiCall(
         `${config.serverUrl}/api/scrape/additional/`,
         {
           method: "POST",
           headers: getAuthHeaders(),
-          body: JSON.stringify({ 
-            url, 
+          body: JSON.stringify({
+            url,
             additional_urls: selectedAdditionalUrls,
-            use_playwright: usePlaywrightFn
+            use_playwright: usePlaywrightFn,
           }),
         },
-        "scrape-additional"
+        "scrape-additional",
       );
 
       // Backend returns all_data, let's update scrapedData
       if (data.all_data) {
-          setScrapedData((data.all_data || []).map((item: any) => ({ ...item, selected: false })));
+        setScrapedData(
+          (data.all_data || []).map((item: any) => ({
+            ...item,
+            selected: false,
+          })),
+        );
       } else {
-          // Revalidate SWR cache to reload data
-          revalidate();
+        // Revalidate SWR cache to reload data
+        revalidate();
       }
 
       addToast({
@@ -234,8 +295,12 @@ export default function ScrapingPage() {
       setShowAddMorePages(false);
       setAdditionalUrls([]);
     } catch (error: any) {
-      logError("handleScrapeAdditionalPages", error, { url, selectedUrls: selectedAdditionalUrls });
+      logError("handleScrapeAdditionalPages", error, {
+        url,
+        selectedUrls: selectedAdditionalUrls,
+      });
       const message = error.message || "Failed to scrape additional pages";
+
       addToast({ title: "Error", description: message, color: "danger" });
       setErrorMessage(message);
     } finally {
@@ -251,180 +316,233 @@ export default function ScrapingPage() {
       try {
         new URL(newAdditionalUrl);
       } catch {
-        addToast({ title: "Error", description: "Invalid URL format.", color: "danger" });
+        addToast({
+          title: "Error",
+          description: "Invalid URL format.",
+          color: "danger",
+        });
+
         return;
       }
-      
-      if (!additionalUrls.some(item => item.url === newAdditionalUrl)) {
-          setAdditionalUrls(prev => [...prev, { url: newAdditionalUrl, selected: true }]);
-           setNewAdditionalUrl("");
-      } else {
-          addToast({ title: "Info", description: "URL already in list", color: "primary" });
-      }
 
+      if (!additionalUrls.some((item) => item.url === newAdditionalUrl)) {
+        setAdditionalUrls((prev) => [
+          ...prev,
+          { url: newAdditionalUrl, selected: true },
+        ]);
+        setNewAdditionalUrl("");
+      } else {
+        addToast({
+          title: "Info",
+          description: "URL already in list",
+          color: "primary",
+        });
+      }
     } catch (error: any) {
       logError("handleAddAdditionalUrl", error, { newAdditionalUrl });
-      addToast({ title: "Error", description: "Failed to add the URL.", color: "danger" });
+      addToast({
+        title: "Error",
+        description: "Failed to add the URL.",
+        color: "danger",
+      });
     }
   };
-   
+
   const handleToggleAdditionalUrl = (urlToToggle: string) => {
-    setAdditionalUrls(prev =>
-        prev.map(item =>
-        item.url === urlToToggle ? { ...item, selected: !item.selected } : item
-        )
+    setAdditionalUrls((prev) =>
+      prev.map((item) =>
+        item.url === urlToToggle ? { ...item, selected: !item.selected } : item,
+      ),
     );
   };
 
   const handleBlacklistItems = (items: string[]) => {
-      if (!items.length) return;
-      setItemsToBlacklist(items);
-      blacklistModal.onOpen();
+    if (!items.length) return;
+    setItemsToBlacklist(items);
+    blacklistModal.onOpen();
   };
 
   const confirmBlacklistItems = async () => {
-      const items = itemsToBlacklist;
-      blacklistModal.onClose();
-      
-      setActionLoading(true);
-      
-      // 1. Update Blacklist
-      const uniqueItems = items.filter(item => !blacklist.includes(item));
-      const newList = [...blacklist, ...uniqueItems];
-      const success = await updateBlacklist(newList);
-      
-      if (success) {
-          // 2. Delete from scraped data
-          try {
-              await makeApiCall(
-                  `${config.serverUrl}/api/scrape/items/delete/`,
-                  {
-                      method: "DELETE",
-                      headers: getAuthHeaders(),
-                      body: JSON.stringify({ urls: items, domain }),
-                  },
-                  "delete-blacklisted-items"
-              );
-              
-              setScrapedData(prev => prev.filter(p => !items.includes(p.url)));
-              addToast({ title: "Success", description: "Items blacklisted and removed", color: "success" });
-          } catch (e) {
-              console.error("Failed to delete items after blacklisting", e);
-              addToast({ title: "Warning", description: "Items blacklisted but failed to delete from current data", color: "warning" });
-          }
-      }
-      setActionLoading(false);
-      setItemsToBlacklist([]);
-  };
+    const items = itemsToBlacklist;
 
-  const pollScrapingStatus = useCallback(async (jobId: string) => {
-    const poll = async () => {
+    blacklistModal.onClose();
+
+    setActionLoading(true);
+
+    // 1. Update Blacklist
+    const uniqueItems = items.filter((item) => !blacklist.includes(item));
+    const newList = [...blacklist, ...uniqueItems];
+    const success = await updateBlacklist(newList);
+
+    if (success) {
+      // 2. Delete from scraped data
       try {
-        const statusData = await makeApiCall(
-          `${config.serverUrl}/api/scrape/status/${jobId}/`,
+        await makeApiCall(
+          `${config.serverUrl}/api/scrape/items/delete/`,
           {
-            method: "GET",
+            method: "DELETE",
             headers: getAuthHeaders(),
+            body: JSON.stringify({ urls: items, domain }),
           },
-          "poll-status"
+          "delete-blacklisted-items",
         );
 
-        setScrapingProgress({
+        setScrapedData((prev) => prev.filter((p) => !items.includes(p.url)));
+        addToast({
+          title: "Success",
+          description: "Items blacklisted and removed",
+          color: "success",
+        });
+      } catch (e) {
+        console.error("Failed to delete items after blacklisting", e);
+        addToast({
+          title: "Warning",
+          description:
+            "Items blacklisted but failed to delete from current data",
+          color: "warning",
+        });
+      }
+    }
+    setActionLoading(false);
+    setItemsToBlacklist([]);
+  };
+
+  const pollScrapingStatus = useCallback(
+    async (jobId: string) => {
+      const poll = async () => {
+        try {
+          const statusData = await makeApiCall(
+            `${config.serverUrl}/api/scrape/status/${jobId}/`,
+            {
+              method: "GET",
+              headers: getAuthHeaders(),
+            },
+            "poll-status",
+          );
+
+          setScrapingProgress({
             current: statusData.scraped_pages,
             total: statusData.total_pages,
             status: statusData.status,
             currentUrl: statusData.current_url,
-            pageStatuses: statusData.page_statuses
-        });
+            pageStatuses: statusData.page_statuses,
+          });
 
-        if (statusData.status === 'completed') {
+          if (statusData.status === "completed") {
             setRetryLoading(null);
             setScrapingProgress(null);
             setActiveJobId(null);
-            addToast({ title: "Success", description: "Scraping completed", color: "success" });
+            addToast({
+              title: "Success",
+              description: "Scraping completed",
+              color: "success",
+            });
             router.push(`/project/${domain}`);
-        } else if (statusData.status === 'failed') {
+          } else if (statusData.status === "failed") {
             setRetryLoading(null);
             setScrapingProgress(null);
             setActiveJobId(null);
             setErrorMessage(statusData.error_message || "Scraping failed");
-            addToast({ title: "Error", description: statusData.error_message || "Scraping failed", color: "danger" });
-        } else if (statusData.status === 'cancelled') {
+            addToast({
+              title: "Error",
+              description: statusData.error_message || "Scraping failed",
+              color: "danger",
+            });
+          } else if (statusData.status === "cancelled") {
             setRetryLoading(null);
             setScrapingProgress(null);
             setActiveJobId(null);
-            addToast({ title: "Cancelled", description: "Scraping job was cancelled", color: "warning" });
-        } else {
+            addToast({
+              title: "Cancelled",
+              description: "Scraping job was cancelled",
+              color: "warning",
+            });
+          } else {
             pollingTimerRef.current = setTimeout(poll, 6000);
-        }
-      } catch (e) {
+          }
+        } catch (e) {
           console.error("Polling failed", e);
           pollingTimerRef.current = setTimeout(poll, 10000);
-      }
-    };
-    poll();
-  }, [authKey, domain]);
+        }
+      };
+
+      poll();
+    },
+    [authKey, domain],
+  );
 
   const handleOpenRetryModal = () => {
-      rescrapeModal.onOpen();
+    rescrapeModal.onOpen();
   };
 
   const confirmRescrape = () => {
-      rescrapeModal.onClose();
-      handleRetryScraping(true);
+    rescrapeModal.onClose();
+    handleRetryScraping(true);
   };
 
-  const handleRescrapePages = async (urlsToRescrape: string[], options?: { keepImages: boolean; useAI: boolean; usePlaywright?: boolean }) => {
+  const handleRescrapePages = async (
+    urlsToRescrape: string[],
+    options?: { keepImages: boolean; useAI: boolean; usePlaywright?: boolean },
+  ) => {
     if (urlsToRescrape.length === 0) return;
 
-    setRetryLoading('scraping');
+    setRetryLoading("scraping");
     clearMessages();
-    setScrapingProgress({ current: 0, total: urlsToRescrape.length, status: 'pending' });
+    setScrapingProgress({
+      current: 0,
+      total: urlsToRescrape.length,
+      status: "pending",
+    });
 
     try {
-      console.log("[handleRescrapePages] Re-scraping pages:", urlsToRescrape.length, options);
+      console.log(
+        "[handleRescrapePages] Re-scraping pages:",
+        urlsToRescrape.length,
+        options,
+      );
       const data = await makeApiCall(
         `${config.serverUrl}/api/scrape/additional/`,
         {
           method: "POST",
           headers: getAuthHeaders(),
-          body: JSON.stringify({ 
-            url, 
+          body: JSON.stringify({
+            url,
             additional_urls: urlsToRescrape,
             force_rescrape: true,
             retry_count: retryCount,
             retry_delay: retryDelay,
             use_ai: options?.useAI ?? useAI,
             keep_images: options?.keepImages ?? false,
-            use_playwright: options?.usePlaywright ?? usePlaywright
+            use_playwright: options?.usePlaywright ?? usePlaywright,
           }),
         },
-        "rescrape-pages"
+        "rescrape-pages",
       );
 
       if (data.job_id) {
-          addToast({
-            title: "Started",
-            description: "Re-scraping started in background...",
-            color: "primary",
-          });
-          setActiveJobId(data.job_id);
-          pollScrapingStatus(data.job_id);
+        addToast({
+          title: "Started",
+          description: "Re-scraping started in background...",
+          color: "primary",
+        });
+        setActiveJobId(data.job_id);
+        pollScrapingStatus(data.job_id);
       } else {
-          addToast({
-            title: "Success",
-            description: data.message || "Pages re-scraped successfully",
-            color: "success",
-          });
-          
-          // Revalidate SWR cache to reload data
-          revalidate();
-          setRetryLoading(null);
-          setScrapingProgress(null);
+        addToast({
+          title: "Success",
+          description: data.message || "Pages re-scraped successfully",
+          color: "success",
+        });
+
+        // Revalidate SWR cache to reload data
+        revalidate();
+        setRetryLoading(null);
+        setScrapingProgress(null);
       }
     } catch (error: any) {
       logError("handleRescrapePages", error, { url, urlsToRescrape });
       const message = error.message || "Failed to re-scrape pages";
+
       addToast({ title: "Error", description: message, color: "danger" });
       setErrorMessage(message);
       setRetryLoading(null);
@@ -432,10 +550,10 @@ export default function ScrapingPage() {
     }
   };
 
-  const handleFindMorePages = async () => {
-    setRetryLoading('finding-pages');
+  const _handleFindMorePages = async () => {
+    setRetryLoading("finding-pages");
     clearMessages();
-    
+
     try {
       console.log("[handleFindMorePages] Fetching additional URLs");
       const data = await makeApiCall(
@@ -445,79 +563,88 @@ export default function ScrapingPage() {
           headers: getAuthHeaders(),
           body: JSON.stringify({ url }),
         },
-        "find-more-pages"
+        "find-more-pages",
       );
 
-      const scrapedUrlsSet = new Set(scrapedData.map(item => item.url));
+      const scrapedUrlsSet = new Set(scrapedData.map((item) => item.url));
       const foundUrlsSet = new Set((data.urls || []) as string[]); // Cast to string[]
-      
+
       // Calculate diffs
-      const newUrls = (data.urls || []).filter((u: string) => !scrapedUrlsSet.has(u));
-      const missingUrls = scrapedData.filter(item => !foundUrlsSet.has(item.url)).map(item => item.url);
+      const newUrls = (data.urls || []).filter(
+        (u: string) => !scrapedUrlsSet.has(u),
+      );
+      const missingUrls = scrapedData
+        .filter((item) => !foundUrlsSet.has(item.url))
+        .map((item) => item.url);
 
       let successMessage = "";
       let hasChanges = false;
 
       // Handle additions
       if (newUrls.length > 0) {
-          const newItems = newUrls.map((u: string) => ({
-             url: u,
-             title: "Found (Not Scraped)",
-             content: "",
-             textLength: 0,
-             main: false,
-             selected: false
-          }));
-          setScrapedData(prev => [...prev, ...newItems]);
-          successMessage += `Found ${newUrls.length} new pages. `;
-          hasChanges = true;
+        const newItems = newUrls.map((u: string) => ({
+          url: u,
+          title: "Found (Not Scraped)",
+          content: "",
+          textLength: 0,
+          main: false,
+          selected: false,
+        }));
+
+        setScrapedData((prev) => [...prev, ...newItems]);
+        successMessage += `Found ${newUrls.length} new pages. `;
+        hasChanges = true;
       }
 
       // Handle removals
       if (missingUrls.length > 0) {
-          // Check for partial scan limits to avoid accidental deletions
-          const isPartialScan = data.total_found > (data.limited_to || data.urls?.length || 0); 
-          
-          if (isPartialScan) {
-               addToast({
-                   title: "Sync Warning",
-                   description: `Scanner found ${data.total_found} pages but only returned ${data.limited_to}. ${missingUrls.length} pages were not found in this batch but won't be deleted to prevent accidental data loss.`,
-                   color: "warning"
-               });
-          } else {
-              // Perform deletion
-              await makeApiCall(
-                `${config.serverUrl}/api/scrape/items/delete/`,
-                {
-                  method: "DELETE",
-                  headers: getAuthHeaders(),
-                  body: JSON.stringify({ urls: missingUrls, domain }),
-                },
-                "delete-missing-items"
-              );
-              
-              setScrapedData(prev => prev.filter(item => foundUrlsSet.has(item.url)));
-              successMessage += `Removed ${missingUrls.length} pages that no longer exist.`;
-              hasChanges = true;
-          }
+        // Check for partial scan limits to avoid accidental deletions
+        const isPartialScan =
+          data.total_found > (data.limited_to || data.urls?.length || 0);
+
+        if (isPartialScan) {
+          addToast({
+            title: "Sync Warning",
+            description: `Scanner found ${data.total_found} pages but only returned ${data.limited_to}. ${missingUrls.length} pages were not found in this batch but won't be deleted to prevent accidental data loss.`,
+            color: "warning",
+          });
+        } else {
+          // Perform deletion
+          await makeApiCall(
+            `${config.serverUrl}/api/scrape/items/delete/`,
+            {
+              method: "DELETE",
+              headers: getAuthHeaders(),
+              body: JSON.stringify({ urls: missingUrls, domain }),
+            },
+            "delete-missing-items",
+          );
+
+          setScrapedData((prev) =>
+            prev.filter((item) => foundUrlsSet.has(item.url)),
+          );
+          successMessage += `Removed ${missingUrls.length} pages that no longer exist.`;
+          hasChanges = true;
+        }
       }
 
       if (hasChanges) {
-          addToast({
-             title: "Sync Complete",
-             description: successMessage,
-             color: "success",
-          });
+        addToast({
+          title: "Sync Complete",
+          description: successMessage,
+          color: "success",
+        });
       } else {
-           addToast({
-             title: "Info",
-             description: "Page list is already up to date.",
-             color: "primary",
-          });
+        addToast({
+          title: "Info",
+          description: "Page list is already up to date.",
+          color: "primary",
+        });
       }
     } catch (error: any) {
       logError("handleFindMorePages", error, { url });
       const message = error.message || "Failed to fetch additional pages";
+
       addToast({ title: "Error", description: message, color: "danger" });
       setErrorMessage(message);
     } finally {
@@ -526,52 +653,57 @@ export default function ScrapingPage() {
   };
 
   const handleRetryScraping = async (forceRescrape = false) => {
-    setRetryLoading('scraping');
+    setRetryLoading("scraping");
     clearMessages();
-    setScrapingProgress({ current: 0, total: 0, status: 'pending' });
+    setScrapingProgress({ current: 0, total: 0, status: "pending" });
 
     try {
-      console.log("[handleRetryScraping] Retrying scraping, force:", forceRescrape, "use_ai:", useAI);
+      console.log(
+        "[handleRetryScraping] Retrying scraping, force:",
+        forceRescrape,
+        "use_ai:",
+        useAI,
+      );
       const data = await makeApiCall(
         `${config.serverUrl}/api/scrape/retry/`,
         {
           method: "POST",
           headers: getAuthHeaders(),
-          body: JSON.stringify({ 
-            url, 
-            force_rescrape: forceRescrape, 
+          body: JSON.stringify({
+            url,
+            force_rescrape: forceRescrape,
             use_ai: useAI,
             retry_count: retryCount,
             retry_delay: retryDelay,
-            concurrency: concurrency
+            concurrency: concurrency,
           }),
         },
-        "retry-scraping"
+        "retry-scraping",
       );
 
       if (data.job_id) {
-          addToast({
-            title: "Started",
-            description: "Scraping started in background...",
-            color: "primary",
-          });
-          setActiveJobId(data.job_id);
-          pollScrapingStatus(data.job_id);
+        addToast({
+          title: "Started",
+          description: "Scraping started in background...",
+          color: "primary",
+        });
+        setActiveJobId(data.job_id);
+        pollScrapingStatus(data.job_id);
       } else {
-          // Fallback for synchronous response
-          addToast({
-            title: "Success",
-            description: data.message || "Scraping retry completed",
-            color: "success",
-          });
-          setRetryLoading(null);
-          setScrapingProgress(null);
-          router.push(`/project/${domain}`);
+        // Fallback for synchronous response
+        addToast({
+          title: "Success",
+          description: data.message || "Scraping retry completed",
+          color: "success",
+        });
+        setRetryLoading(null);
+        setScrapingProgress(null);
+        router.push(`/project/${domain}`);
       }
-
     } catch (error: any) {
       logError("handleRetryScraping", error, { url, forceRescrape });
       const message = error.message || "Failed to retry scraping";
+
       addToast({ title: "Error", description: message, color: "danger" });
       setErrorMessage(message);
       setRetryLoading(null);
@@ -580,11 +712,14 @@ export default function ScrapingPage() {
   };
 
   const handleSmartRescrapeImages = async () => {
-    setRetryLoading('smart-images');
+    setRetryLoading("smart-images");
     clearMessages();
 
     try {
-      console.log("[handleSmartRescrapeImages] Starting smart re-scrape, use_ai:", useAI);
+      console.log(
+        "[handleSmartRescrapeImages] Starting smart re-scrape, use_ai:",
+        useAI,
+      );
       const data = await makeApiCall(
         `${config.serverUrl}/api/scrape/smart-images/`,
         {
@@ -592,23 +727,24 @@ export default function ScrapingPage() {
           headers: getAuthHeaders(),
           body: JSON.stringify({ url, use_ai: useAI, update_all: false }),
         },
-        "smart-rescrape-images"
+        "smart-rescrape-images",
       );
 
       // Handle deletion info in toast if available
       if (data.pages_deleted && data.pages_deleted > 0) {
-          addToast({
-              title: "Cleanup",
-              description: `Removed ${data.pages_deleted} non-existing pages.`,
-              color: "warning"
-          });
+        addToast({
+          title: "Cleanup",
+          description: `Removed ${data.pages_deleted} non-existing pages.`,
+          color: "warning",
+        });
       }
 
       // If job_id is returned, it means a background job started
       if (data.job_id) {
-         setActiveJobId(data.job_id);
-         setRetryLoading(null); // Stop spinner on button, let global progress take over
-         return;
+        setActiveJobId(data.job_id);
+        setRetryLoading(null); // Stop spinner on button, let global progress take over
+
+        return;
       }
 
       addToast({
@@ -616,7 +752,7 @@ export default function ScrapingPage() {
         description: data.message || "Pages updated successfully",
         color: "success",
       });
-      
+
       if (data.completion_percentage !== undefined) {
         addToast({
           title: "Update Summary",
@@ -624,7 +760,7 @@ export default function ScrapingPage() {
           color: "secondary",
         });
       }
-      
+
       if (data.warnings) {
         addToast({
           title: "Warning",
@@ -632,12 +768,12 @@ export default function ScrapingPage() {
           color: "warning",
         });
       }
-      
-      router.push(`/project/${domain}`);
 
+      router.push(`/project/${domain}`);
     } catch (error: any) {
       logError("handleSmartRescrapeImages", error, { url });
       const message = error.message || "Failed to update pages";
+
       addToast({ title: "Error", description: message, color: "danger" });
       setErrorMessage(message);
     } finally {
@@ -650,7 +786,7 @@ export default function ScrapingPage() {
       await makeApiCall(
         `${config.serverUrl}/api/scrape/update-image/`,
         {
-          method: 'POST',
+          method: "POST",
           headers: getAuthHeaders(),
           body: JSON.stringify({
             domain,
@@ -658,23 +794,24 @@ export default function ScrapingPage() {
             image_url: newImageUrl,
           }),
         },
-        'updateImage'
+        "updateImage",
       );
 
       // Update local state
-      setScrapedData(prev => prev.map(item => 
-        item.url === pageUrl ? { ...item, image: newImageUrl } : item
-      ));
-
+      setScrapedData((prev) =>
+        prev.map((item) =>
+          item.url === pageUrl ? { ...item, image: newImageUrl } : item,
+        ),
+      );
     } catch (error: any) {
-      logError('handleUpdateImage', error);
+      logError("handleUpdateImage", error);
       throw error; // Re-throw to be handled by the component
     }
   };
 
   const handleStopScraping = async () => {
     if (!activeJobId) return;
-    
+
     try {
       await makeApiCall(
         `${config.serverUrl}/api/scrape/cancel/`,
@@ -683,71 +820,95 @@ export default function ScrapingPage() {
           headers: getAuthHeaders(),
           body: JSON.stringify({ job_id: activeJobId }),
         },
-        "stop-scraping"
+        "stop-scraping",
       );
-      addToast({ title: "Stopping", description: "Scraping job cancellation requested...", color: "warning" });
+      addToast({
+        title: "Stopping",
+        description: "Scraping job cancellation requested...",
+        color: "warning",
+      });
     } catch (error: any) {
       logError("handleStopScraping", error, { activeJobId });
-      addToast({ title: "Error", description: "Failed to stop scraping", color: "danger" });
+      addToast({
+        title: "Error",
+        description: "Failed to stop scraping",
+        color: "danger",
+      });
     }
   };
 
   const handleToggleMain = async (urlToToggle: string, isMain: boolean) => {
     // Check limit if turning on
     if (isMain) {
-        const currentMainCount = scrapedData.filter(i => i.main).length;
-        if (currentMainCount >= MAX_MAIN_PAGES) {
-            addToast({
-                title: "Limit Reached",
-                description: `You can only have up to ${MAX_MAIN_PAGES} main pages. Unselect another page first.`,
-                color: "warning"
-            });
-            return;
-        }
+      const currentMainCount = scrapedData.filter((i) => i.main).length;
+
+      if (currentMainCount >= MAX_MAIN_PAGES) {
+        addToast({
+          title: "Limit Reached",
+          description: `You can only have up to ${MAX_MAIN_PAGES} main pages. Unselect another page first.`,
+          color: "warning",
+        });
+
+        return;
+      }
     }
 
     // Optimistic update
-    setScrapedData(prev => prev.map(item => 
-        item.url === urlToToggle ? { ...item, main: isMain } : item
-    ));
+    setScrapedData((prev) =>
+      prev.map((item) =>
+        item.url === urlToToggle ? { ...item, main: isMain } : item,
+      ),
+    );
 
     try {
-        await makeApiCall(
-            `${config.serverUrl}/api/scrape/toggle-main/`,
-            {
-                method: "POST",
-                headers: getAuthHeaders(),
-                body: JSON.stringify({ domain, url: urlToToggle, main: isMain }),
-            },
-            "toggle-main"
-        );
-        // Success - state already updated
+      await makeApiCall(
+        `${config.serverUrl}/api/scrape/toggle-main/`,
+        {
+          method: "POST",
+          headers: getAuthHeaders(),
+          body: JSON.stringify({ domain, url: urlToToggle, main: isMain }),
+        },
+        "toggle-main",
+      );
+      // Success - state already updated
     } catch (error: any) {
-        // Revert on failure
-        setScrapedData(prev => prev.map(item => 
-            item.url === urlToToggle ? { ...item, main: !isMain } : item
-        ));
-        
-        logError("handleToggleMain", error, { url: urlToToggle, isMain });
-        addToast({ title: "Error", description: "Failed to update main status", color: "danger" });
+      // Revert on failure
+      setScrapedData((prev) =>
+        prev.map((item) =>
+          item.url === urlToToggle ? { ...item, main: !isMain } : item,
+        ),
+      );
+
+      logError("handleToggleMain", error, { url: urlToToggle, isMain });
+      addToast({
+        title: "Error",
+        description: "Failed to update main status",
+        color: "danger",
+      });
     }
   };
 
   const handleToggleSelect = (urlToToggle: string) => {
-    setScrapedData(prevData =>
-      prevData.map(item =>
-        item.url === urlToToggle ? { ...item, selected: !item.selected } : item
-      )
+    setScrapedData((prevData) =>
+      prevData.map((item) =>
+        item.url === urlToToggle ? { ...item, selected: !item.selected } : item,
+      ),
     );
   };
 
   const handleRescrapeSelected = () => {
-    const selectedUrls = scrapedData.filter(i => i.selected).map(i => i.url);
+    const selectedUrls = scrapedData
+      .filter((i) => i.selected)
+      .map((i) => i.url);
+
     handleRescrapePages(selectedUrls, { keepImages, useAI, usePlaywright });
   };
-  
+
   const handleBlacklistSelected = () => {
-    const selectedUrls = scrapedData.filter(i => i.selected).map(i => i.url);
+    const selectedUrls = scrapedData
+      .filter((i) => i.selected)
+      .map((i) => i.url);
+
     handleBlacklistItems(selectedUrls);
   };
 
@@ -761,323 +922,422 @@ export default function ScrapingPage() {
 
   // Calculate stats
   const totalPages = scrapedData.length;
-  const totalImages = scrapedData.filter(i => i.image).length;
-  const totalWords = scrapedData.reduce((acc, i) => acc + (i.textLength || 0), 0);
-  const mainPages = scrapedData.filter(i => i.main).length;
+  const totalImages = scrapedData.filter((i) => i.image).length;
+  const totalWords = scrapedData.reduce(
+    (acc, i) => acc + (i.textLength || 0),
+    0,
+  );
+  const mainPages = scrapedData.filter((i) => i.main).length;
 
   return (
     <div className="flex flex-col gap-6 py-6 w-full">
-      {isAuthenticated && (loading ? (
+      {isAuthenticated &&
+        (loading ? (
           <div>Loading scraping data...</div>
-      ) : (
-        <>
-          {/* Stats Cards */}
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+        ) : (
+          <>
+            {/* Stats Cards */}
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
               <Card shadow="sm">
-                  <CardBody className="py-4">
-                      <p className="text-small text-default-500 uppercase font-bold">Total Pages</p>
-                      <p className="text-2xl font-bold">{totalPages}</p>
-                  </CardBody>
-              </Card>
-              <Card shadow="sm">
-                  <CardBody className="py-4">
-                      <p className="text-small text-default-500 uppercase font-bold">Images Found</p>
-                      <p className="text-2xl font-bold">{totalImages}</p>
-                  </CardBody>
-              </Card>
-               <Card shadow="sm">
-                  <CardBody className="py-4">
-                      <p className="text-small text-default-500 uppercase font-bold">Main Pages</p>
-                      <p className="text-2xl font-bold">{mainPages}</p>
-                  </CardBody>
-              </Card>
-              <Card shadow="sm">
-                  <CardBody className="py-4">
-                      <p className="text-small text-default-500 uppercase font-bold">Est. Tokens</p>
-                      <p className="text-2xl font-bold">{(totalWords / 4).toFixed(0)}</p>
-                  </CardBody>
-              </Card>
-          </div>
-
-          <div className="flex flex-col gap-4">
-            <h2 className="text-xl font-semibold">Controls</h2>
-            {isSuperAdmin ? (
-              <ActionButtons
-                  scrapedDataLength={scrapedData.length}
-                  errorMessage={errorMessage}
-                  url={url}
-                  handleRetryScraping={handleRetryScraping}
-                  handleOpenRetryModal={handleOpenRetryModal}
-                  handleSmartRescrapeImages={handleSmartRescrapeImages}
-                  handleStopScraping={handleStopScraping}
-                  loading={loading}
-                  retryLoading={retryLoading}
-                  useAI={useAI}
-                  setUseAI={setUseAI}
-                  retryCount={retryCount}
-                  setRetryCount={setRetryCount}
-                  retryDelay={retryDelay}
-                  setRetryDelay={setRetryDelay}
-                  concurrency={concurrency}
-                  setConcurrency={setConcurrency}
-              />
-            ) : (
-              <Card className="bg-content2">
                 <CardBody className="py-4">
-                  <p className="text-sm text-default-500">
-                    Scraping actions are managed by administrators. Contact your admin to re-scrape or update data.
+                  <p className="text-small text-default-500 uppercase font-bold">
+                    {t("scraping.stats.totalPages")}
+                  </p>
+                  <p className="text-2xl font-bold">{totalPages}</p>
+                </CardBody>
+              </Card>
+              <Card shadow="sm">
+                <CardBody className="py-4">
+                  <p className="text-small text-default-500 uppercase font-bold">
+                    {t("scraping.stats.imagesFound")}
+                  </p>
+                  <p className="text-2xl font-bold">{totalImages}</p>
+                </CardBody>
+              </Card>
+              <Card shadow="sm">
+                <CardBody className="py-4">
+                  <p className="text-small text-default-500 uppercase font-bold">
+                    {t("scraping.stats.mainPages")}
+                  </p>
+                  <p className="text-2xl font-bold">{mainPages}</p>
+                </CardBody>
+              </Card>
+              <Card shadow="sm">
+                <CardBody className="py-4">
+                  <p className="text-small text-default-500 uppercase font-bold">
+                    {t("scraping.stats.estTokens")}
+                  </p>
+                  <p className="text-2xl font-bold">
+                    {(totalWords / 4).toFixed(0)}
                   </p>
                 </CardBody>
               </Card>
-            )}
-            
-            <BlacklistManager 
+            </div>
+
+            <div className="flex flex-col gap-4">
+              <h2 className="text-xl font-semibold">
+                {t("scraping.controls.title")}
+              </h2>
+              {isSuperAdmin ? (
+                <ActionButtons
+                  concurrency={concurrency}
+                  errorMessage={errorMessage}
+                  handleOpenRetryModal={handleOpenRetryModal}
+                  handleRetryScraping={handleRetryScraping}
+                  handleSmartRescrapeImages={handleSmartRescrapeImages}
+                  handleStopScraping={handleStopScraping}
+                  loading={loading}
+                  retryCount={retryCount}
+                  retryDelay={retryDelay}
+                  retryLoading={retryLoading}
+                  scrapedDataLength={scrapedData.length}
+                  setConcurrency={setConcurrency}
+                  setRetryCount={setRetryCount}
+                  setRetryDelay={setRetryDelay}
+                  setUseAI={setUseAI}
+                  url={url}
+                  useAI={useAI}
+                />
+              ) : (
+                <Card className="bg-content2">
+                  <CardBody className="py-4">
+                    <p className="text-sm text-default-500">
+                      {t("scraping.adminOnly")}
+                    </p>
+                  </CardBody>
+                </Card>
+              )}
+
+              <BlacklistManager
                 blacklist={blacklist}
                 onUpdate={updateBlacklist}
-            />
-          </div>
-
-          {scrapingProgress && (
-            <div className="w-full mt-4 p-4 border rounded-lg bg-content1 shadow-md">
-              <div className="flex justify-between mb-2">
-                <span className="font-semibold text-primary">Scanning in progress...</span>
-                <span className="text-sm text-default-600 font-mono">
-                  {scrapingProgress.current} / {scrapingProgress.total}
-                </span>
-              </div>
-              <div className="w-full bg-default-100 rounded-full h-3 mb-3 overflow-hidden">
-                <div 
-                  className="bg-primary h-full transition-all duration-300 ease-out" 
-                  style={{ width: `${(scrapingProgress.current / Math.max(scrapingProgress.total, 1)) * 100}%` }}
-                ></div>
-              </div>
-              <p className="text-xs text-default-500 truncate mb-4 font-mono">
-                {scrapingProgress.status === 'completed' ? 'Completed!' : 
-                 scrapingProgress.status === 'failed' ? 'Failed' :
-                 `Current: ${scrapingProgress.currentUrl || 'Initializing...'}`}
-              </p>
-              
-              {scrapingProgress.pageStatuses && (
-                <div className="mt-2 max-h-[300px] overflow-y-auto border rounded-md text-xs bg-white dark:bg-zinc-900">
-                  <table className="w-full">
-                    <thead className="bg-default-100 sticky top-0 z-10">
-                      <tr>
-                        <th className="p-2 text-left font-semibold">URL</th>
-                        <th className="p-2 text-right font-semibold">Status</th>
-                        <th className="p-2 text-right font-semibold">Code</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {scrapingProgress.pageStatuses.slice().reverse().map((page, idx) => (
-                        <tr key={idx} className="border-b border-default-100 hover:bg-default-50">
-                          <td className="p-2 truncate max-w-[300px]" title={page.url}>{page.url}</td>
-                          <td className={`p-2 text-right font-medium ${
-                            page.status === 'success' ? 'text-success' : 
-                            page.status === 'failed' ? 'text-danger' : 'text-warning'
-                          }`}>
-                            {page.status}
-                          </td>
-                          <td className="p-2 text-right font-mono">{page.status_code || '-'}</td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
-              )}
+              />
             </div>
-          )}
 
-          <Divider className="my-2" />
-          
-          <div className="flex flex-col gap-4">
-            <h2 className="text-xl font-semibold">Scraped Content</h2>
-
-          {showAddMorePages && (
-            <Card className="mb-4">
-              <CardBody>
-                <h4 className="text-lg font-semibold mb-2">
-                  Add Additional Pages
-                </h4>
-                <div className="flex gap-2 mb-2">
-                  <Button
-                    size="sm"
-                    onClick={() => {
-                        const newUrls = [...additionalUrls];
-                        newUrls.forEach(item => item.selected = true);
-                        setAdditionalUrls(newUrls);
-                    }}
-                  >
-                    Select All
-                  </Button>
-                  <Button
-                    size="sm"
-                    onClick={() => {
-                        const newUrls = [...additionalUrls];
-                        newUrls.forEach(item => item.selected = false);
-                        setAdditionalUrls(newUrls);
-                    }}
-                  >
-                    Deselect All
-                  </Button>
+            {scrapingProgress && (
+              <div className="w-full mt-4 p-4 border rounded-lg bg-content1 shadow-md">
+                <div className="flex justify-between mb-2">
+                  <span className="font-semibold text-primary">
+                    {t("scraping.status.scanning")}
+                  </span>
+                  <span className="text-sm text-default-600 font-mono">
+                    {scrapingProgress.current} / {scrapingProgress.total}
+                  </span>
                 </div>
-                <div className="max-h-48 overflow-y-auto border rounded-md p-2 flex flex-col gap-2 mb-2">
-                  {additionalUrls.length > 0 ? (
-                    additionalUrls.map((item, index) => (
-                      <Checkbox
-                        key={`${item.url}-${index}`}
-                        isSelected={item.selected}
-                        onValueChange={() => handleToggleAdditionalUrl(item.url)}
-                        size="sm"
-                      >
-                        <span className="text-sm truncate" title={item.url}>{item.url}</span>
-                      </Checkbox>
-                    ))
-                  ) : (
-                    <p className="text-sm text-default-500">
-                      No additional pages found in sitemap
-                    </p>
-                  )}
-                </div>
-                <div className="flex gap-2 mb-2">
-                  <Input
-                    value={newAdditionalUrl}
-                    onChange={(e) => setNewAdditionalUrl(e.target.value)}
-                    placeholder="Add custom URL (include http:// or https://)"
-                    onKeyDown={(e) => e.key === "Enter" && handleAddAdditionalUrl()}
+                <div className="w-full bg-default-100 rounded-full h-3 mb-3 overflow-hidden">
+                  <div
+                    className="bg-primary h-full transition-all duration-300 ease-out"
+                    style={{
+                      width: `${(scrapingProgress.current / Math.max(scrapingProgress.total, 1)) * 100}%`,
+                    }}
                   />
-                  <Button 
-                    onClick={handleAddAdditionalUrl}
-                    isDisabled={!newAdditionalUrl.trim()}
-                  >
-                    Add
-                  </Button>
                 </div>
-                <div className="flex flex-col gap-2">
-                  <div className="flex items-center gap-2 px-1">
-                    <PlaywrightSwitch
-                        isSelected={usePlaywrightForAdditional}
-                        onValueChange={setUsePlaywrightForAdditional}
-                        size="sm"
-                    />
-                  </div>
-                  <div className="flex gap-2">
-                    <Button
-                      color="primary"
-                      onClick={() => handleScrapeAdditionalPages(usePlaywrightForAdditional)}
-                      isLoading={retryLoading === "additional"}
-                      isDisabled={additionalUrls.filter((u) => u.selected).length === 0}
-                    >
-                      Scrape{" "}
-                      {additionalUrls.filter((u) => u.selected).length} Selected Pages
-                    </Button>
-                    <Button
-                      variant="bordered"
-                      onClick={() => {
-                          setShowAddMorePages(false);
-                          setAdditionalUrls([]);
-                      }}
-                      isDisabled={retryLoading === "additional"}
-                    >
-                      Cancel
-                    </Button>
-                  </div>
-                </div>
-              </CardBody>
-            </Card>
-          )}
+                <p className="text-xs text-default-500 truncate mb-4 font-mono">
+                  {scrapingProgress.status === "completed"
+                    ? t("scraping.status.completed")
+                    : scrapingProgress.status === "failed"
+                      ? t("scraping.status.failed")
+                      : scrapingProgress.currentUrl
+                        ? `${t("scraping.status.current")} ${scrapingProgress.currentUrl}`
+                        : t("scraping.status.initializing")}
+                </p>
 
-            <ScrapedPagesTable 
-                data={scrapedData}
-                onToggleSelect={handleToggleSelect}
-                onToggleMain={handleToggleMain}
-                onSelectionChange={(urls, isSelected) => {
-                     setScrapedData(prev => prev.map(item => 
-                        urls.includes(item.url) ? { ...item, selected: isSelected } : item
-                     ));
-                }}
-                onDelete={isSuperAdmin ? (url) => handleBlacklistItems([url]) : undefined}
-                onRescrape={isSuperAdmin ? async (url) => handleRescrapePages([url], { keepImages, useAI, usePlaywright }) : undefined}
-                onUpdateImage={isSuperAdmin ? handleUpdateImage : undefined}
-                headerContent={(
-                    <div className="flex flex-col md:flex-row justify-end gap-3 items-end mb-2">
-                         <div className="flex flex-col gap-2 items-end w-full md:w-auto">
-                            <div className="flex gap-4 items-center flex-wrap justify-end">
-                                <PlaywrightSwitch 
-                                    isSelected={usePlaywright} 
-                                    onValueChange={setUsePlaywright} 
-                                    size="sm" 
-                                    color="warning" 
-                                />
-                                <Switch isSelected={keepImages} onValueChange={setKeepImages} size="sm">
-                                    Keep old images
-                                </Switch>
-                                {!keepImages && (
-                                    <Switch isSelected={useAI} onValueChange={setUseAI} size="sm" color="secondary">
-                                        AI Image Selection
-                                    </Switch>
-                                )}
-                            </div>
-                            <div className="flex gap-3">
-                                {isSuperAdmin && (
-                                <Button 
-                                    color="secondary" 
-                                    variant="flat"
-                                    isLoading={retryLoading === 'finding-pages'}
-                                    onPress={handleShowAddMorePages}
-                                    isDisabled={showAddMorePages}
-                                >
-                                    Add Pages
-                                </Button>
-                                )}
-                                {isSuperAdmin && (
-                                <Button
-                                    color="danger"
-                                    variant="flat"
-                                    onPress={handleBlacklistSelected}
-                                    isLoading={retryLoading === 'scraping'}
-                                    isDisabled={!scrapedData.some(i => i.selected)}
-                                >
-                                    Blacklist Selected
-                                </Button>
-                                )}
-                                {isSuperAdmin && (
-                                <Button 
-                                    color="primary" 
-                                    isDisabled={!scrapedData.some(i => i.selected)}
-                                    isLoading={retryLoading === 'scraping'}
-                                    onPress={handleRescrapeSelected}
-                                >
-                                    Re-scrape Selected
-                                </Button>
-                                )}
-                            </div>
-                        </div>
-                    </div>
+                {scrapingProgress.pageStatuses && (
+                  <div className="mt-2 max-h-[300px] overflow-y-auto border rounded-md text-xs bg-white dark:bg-zinc-900">
+                    <table className="w-full">
+                      <thead className="bg-default-100 sticky top-0 z-10">
+                        <tr>
+                          <th className="p-2 text-left font-semibold">URL</th>
+                          <th className="p-2 text-right font-semibold">
+                            Status
+                          </th>
+                          <th className="p-2 text-right font-semibold">Code</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {scrapingProgress.pageStatuses
+                          .slice()
+                          .reverse()
+                          .map((page, idx) => (
+                            <tr
+                              key={idx}
+                              className="border-b border-default-100 hover:bg-default-50"
+                            >
+                              <td
+                                className="p-2 truncate max-w-[300px]"
+                                title={page.url}
+                              >
+                                {page.url}
+                              </td>
+                              <td
+                                className={`p-2 text-right font-medium ${
+                                  page.status === "success"
+                                    ? "text-success"
+                                    : page.status === "failed"
+                                      ? "text-danger"
+                                      : "text-warning"
+                                }`}
+                              >
+                                {page.status}
+                              </td>
+                              <td className="p-2 text-right font-mono">
+                                {page.status_code || "-"}
+                              </td>
+                            </tr>
+                          ))}
+                      </tbody>
+                    </table>
+                  </div>
                 )}
-            />
-          </div>
-        </>
-      ))}
+              </div>
+            )}
+
+            <Divider className="my-2" />
+
+            <div className="flex flex-col gap-4">
+              <h2 className="text-xl font-semibold">
+                {t("scraping.scrapedContent.title")}
+              </h2>
+
+              {showAddMorePages && (
+                <Card className="mb-4">
+                  <CardBody>
+                    <h4 className="text-lg font-semibold mb-2">
+                      {t("scraping.addPages.title")}
+                    </h4>
+                    <div className="flex gap-2 mb-2">
+                      <Button
+                        size="sm"
+                        onClick={() => {
+                          const newUrls = [...additionalUrls];
+
+                          newUrls.forEach((item) => (item.selected = true));
+                          setAdditionalUrls(newUrls);
+                        }}
+                      >
+                        {t("scraping.addPages.selectAll")}
+                      </Button>
+                      <Button
+                        size="sm"
+                        onClick={() => {
+                          const newUrls = [...additionalUrls];
+
+                          newUrls.forEach((item) => (item.selected = false));
+                          setAdditionalUrls(newUrls);
+                        }}
+                      >
+                        {t("scraping.addPages.deselectAll")}
+                      </Button>
+                    </div>
+                    <div className="max-h-48 overflow-y-auto border rounded-md p-2 flex flex-col gap-2 mb-2">
+                      {additionalUrls.length > 0 ? (
+                        additionalUrls.map((item, index) => (
+                          <Checkbox
+                            key={`${item.url}-${index}`}
+                            isSelected={item.selected}
+                            size="sm"
+                            onValueChange={() =>
+                              handleToggleAdditionalUrl(item.url)
+                            }
+                          >
+                            <span className="text-sm truncate" title={item.url}>
+                              {item.url}
+                            </span>
+                          </Checkbox>
+                        ))
+                      ) : (
+                        <p className="text-sm text-default-500">
+                          {t("scraping.addPages.noPagesFound")}
+                        </p>
+                      )}
+                    </div>
+                    <div className="flex gap-2 mb-2">
+                      <Input
+                        placeholder={t("scraping.addPages.placeholder")}
+                        value={newAdditionalUrl}
+                        onChange={(e) => setNewAdditionalUrl(e.target.value)}
+                        onKeyDown={(e) =>
+                          e.key === "Enter" && handleAddAdditionalUrl()
+                        }
+                      />
+                      <Button
+                        isDisabled={!newAdditionalUrl.trim()}
+                        onClick={handleAddAdditionalUrl}
+                      >
+                        {t("scraping.addPages.add")}
+                      </Button>
+                    </div>
+                    <div className="flex flex-col gap-2">
+                      <div className="flex items-center gap-2 px-1">
+                        <PlaywrightSwitch
+                          isSelected={usePlaywrightForAdditional}
+                          size="sm"
+                          onValueChange={setUsePlaywrightForAdditional}
+                        />
+                      </div>
+                      <div className="flex gap-2">
+                        <Button
+                          color="primary"
+                          isDisabled={
+                            additionalUrls.filter((u) => u.selected).length ===
+                            0
+                          }
+                          isLoading={retryLoading === "additional"}
+                          onClick={() =>
+                            handleScrapeAdditionalPages(
+                              usePlaywrightForAdditional,
+                            )
+                          }
+                        >
+                          {t("scraping.addPages.scrapeSelected")}
+                        </Button>
+                        <Button
+                          isDisabled={retryLoading === "additional"}
+                          variant="bordered"
+                          onClick={() => {
+                            setShowAddMorePages(false);
+                            setAdditionalUrls([]);
+                          }}
+                        >
+                          {t("scraping.addPages.cancel")}
+                        </Button>
+                      </div>
+                    </div>
+                  </CardBody>
+                </Card>
+              )}
+
+              <ScrapedPagesTable
+                data={scrapedData}
+                headerContent={
+                  <div className="flex flex-col md:flex-row justify-end gap-3 items-end mb-2">
+                    <div className="flex flex-col gap-2 items-end w-full md:w-auto">
+                      {isSuperAdmin && (
+                        <div className="flex gap-4 items-center flex-wrap justify-end">
+                          <PlaywrightSwitch
+                            color="warning"
+                            isSelected={usePlaywright}
+                            size="sm"
+                            onValueChange={setUsePlaywright}
+                          />
+                          <Switch
+                            isSelected={keepImages}
+                            size="sm"
+                            onValueChange={setKeepImages}
+                          >
+                            {t("scraping.controls.keepOldImages")}
+                          </Switch>
+                          {!keepImages && (
+                            <Switch
+                              color="secondary"
+                              isSelected={useAI}
+                              size="sm"
+                              onValueChange={setUseAI}
+                            >
+                              {t("scraping.controls.aiImageSelection")}
+                            </Switch>
+                          )}
+                        </div>
+                      )}
+                      <div className="flex gap-3">
+                        {isSuperAdmin && (
+                          <Button
+                            color="secondary"
+                            isDisabled={showAddMorePages}
+                            isLoading={retryLoading === "finding-pages"}
+                            variant="flat"
+                            onPress={handleShowAddMorePages}
+                          >
+                            {t("scraping.controls.addPages")}
+                          </Button>
+                        )}
+                        {isSuperAdmin && (
+                          <Button
+                            color="danger"
+                            isDisabled={!scrapedData.some((i) => i.selected)}
+                            isLoading={retryLoading === "scraping"}
+                            variant="flat"
+                            onPress={handleBlacklistSelected}
+                          >
+                            {t("scraping.controls.blacklistSelected")}
+                          </Button>
+                        )}
+                        {isSuperAdmin && (
+                          <Button
+                            color="primary"
+                            isDisabled={!scrapedData.some((i) => i.selected)}
+                            isLoading={retryLoading === "scraping"}
+                            onPress={handleRescrapeSelected}
+                          >
+                            {t("scraping.controls.rescrapeSelected")}
+                          </Button>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                }
+                onDelete={
+                  isSuperAdmin
+                    ? (url) => handleBlacklistItems([url])
+                    : undefined
+                }
+                onRescrape={
+                  isSuperAdmin
+                    ? async (url) =>
+                        handleRescrapePages([url], {
+                          keepImages,
+                          useAI,
+                          usePlaywright,
+                        })
+                    : undefined
+                }
+                onSelectionChange={(urls, isSelected) => {
+                  setScrapedData((prev) =>
+                    prev.map((item) =>
+                      urls.includes(item.url)
+                        ? { ...item, selected: isSelected }
+                        : item,
+                    ),
+                  );
+                }}
+                onToggleMain={handleToggleMain}
+                onToggleSelect={handleToggleSelect}
+                onUpdateImage={isSuperAdmin ? handleUpdateImage : undefined}
+              />
+            </div>
+          </>
+        ))}
 
       <Modal isOpen={blacklistModal.isOpen} onClose={blacklistModal.onClose}>
         <ModalContent>
           {(onClose) => (
             <>
-              <ModalHeader>Confirm Blacklist</ModalHeader>
+              <ModalHeader>{t("scraping.modals.blacklist.title")}</ModalHeader>
               <ModalBody>
-                <p>Are you sure you want to blacklist {itemsToBlacklist.length} item(s)?</p>
+                <p>
+                  {t("scraping.modals.blacklist.body").replace(
+                    "{count}",
+                    itemsToBlacklist.length.toString(),
+                  )}
+                </p>
                 <p className="text-small text-default-500">
-                   This will remove them from the list and prevent them from being scraped again.
+                  {t("scraping.modals.blacklist.warning")}
                 </p>
                 <div className="max-h-32 overflow-y-auto bg-default-100 p-2 rounded-md">
-                     {itemsToBlacklist.map(item => (
-                         <div key={item} className="text-xs truncate">{item}</div>
-                     ))}
+                  {itemsToBlacklist.map((item) => (
+                    <div key={item} className="text-xs truncate">
+                      {item}
+                    </div>
+                  ))}
                 </div>
               </ModalBody>
               <ModalFooter>
-                <Button variant="light" onPress={onClose}>Cancel</Button>
-                <Button color="danger" onPress={confirmBlacklistItems}>Blacklist & Delete</Button>
+                <Button variant="light" onPress={onClose}>
+                  {t("scraping.modals.cancel")}
+                </Button>
+                <Button color="danger" onPress={confirmBlacklistItems}>
+                  {t("scraping.modals.blacklist.confirm")}
+                </Button>
               </ModalFooter>
             </>
           )}
@@ -1088,16 +1348,20 @@ export default function ScrapingPage() {
         <ModalContent>
           {(onClose) => (
             <>
-              <ModalHeader>Confirm Full Rescrape</ModalHeader>
+              <ModalHeader>{t("scraping.modals.rescrape.title")}</ModalHeader>
               <ModalBody>
-                <p>Are you sure you want to re-scrape the entire site?</p>
+                <p>{t("scraping.modals.rescrape.body")}</p>
                 <p className="text-small text-default-500">
-                    This will update all pages. If AI extraction is enabled, it may consume a significant amount of credits/time.
+                  {t("scraping.modals.rescrape.warning")}
                 </p>
               </ModalBody>
               <ModalFooter>
-                <Button variant="light" onPress={onClose}>Cancel</Button>
-                <Button color="primary" onPress={confirmRescrape}>Rescrape All</Button>
+                <Button variant="light" onPress={onClose}>
+                  {t("scraping.modals.cancel")}
+                </Button>
+                <Button color="primary" onPress={confirmRescrape}>
+                  {t("scraping.modals.rescrape.confirm")}
+                </Button>
               </ModalFooter>
             </>
           )}

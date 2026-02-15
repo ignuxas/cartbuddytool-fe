@@ -7,9 +7,10 @@ import { HeroUIProvider } from "@heroui/system";
 import { useRouter } from "next/navigation";
 import { ThemeProvider as NextThemesProvider } from "next-themes";
 import { ToastProvider } from "@heroui/toast";
+import { SWRConfig } from "swr";
+
 import { AuthProvider } from "./contexts/AuthContext";
 import { LanguageProvider } from "./contexts/LanguageContext";
-import { SWRConfig } from "swr";
 import { swrConfig } from "./utils/swr";
 
 export interface ProvidersProps {
@@ -33,9 +34,7 @@ export function Providers({ children, themeProps }: ProvidersProps) {
       <HeroUIProvider navigate={router.push}>
         <NextThemesProvider {...themeProps}>
           <LanguageProvider>
-            <AuthProvider>
-              {children}
-            </AuthProvider>
+            <AuthProvider>{children}</AuthProvider>
           </LanguageProvider>
           <ToastProvider placement="top-right" />
         </NextThemesProvider>

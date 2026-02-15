@@ -2,6 +2,7 @@
 
 import { usePathname } from "next/navigation";
 import { Link } from "@heroui/link";
+
 import { Navbar } from "@/components/navbar";
 import { useLanguage } from "@/app/contexts/LanguageContext";
 
@@ -29,7 +30,7 @@ export function LayoutContent({ children }: { children: React.ReactNode }) {
           href="https://cartbuddy.ai/"
           title="heroui.com homepage"
         >
-          <span className="text-default-600">{t('common.builtFor')}</span>
+          <span className="text-default-600">{t("common.builtFor")}</span>
           <p className="text-primary">CartBuddy.ai</p>
         </Link>
       </footer>

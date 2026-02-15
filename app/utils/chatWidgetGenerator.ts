@@ -1,7 +1,7 @@
 interface ChatWidgetConfig {
   webhookUrl: string;
   siteName: string;
-  baseUrl?: string; 
+  baseUrl?: string;
   primaryColor?: string;
   secondaryColor?: string;
   backgroundColor?: string;
@@ -19,56 +19,56 @@ interface ChatWidgetConfig {
 }
 
 export function getChatWidgetScript(config: ChatWidgetConfig): string {
-    // defaults
-    const {
-        primaryColor = '#3b82f6',
-        secondaryColor = '#1d4ed8',
-        backgroundColor = '#ffffff',
-        textColor = '#ffffff',
-        title = 'Assistant',
-        welcomeMessage = "Welcome! I'm your AI assistant. Need help finding information?",
-        suggestions = [
-            'What can you help me with?',
-            'Tell me about this website',
-            'How does this work?',
-            'Show me popular content',
-            'Contact information'
-        ],
-        bubbleGreetingText = 'Welcome! How can I assist you today?',
-        bubbleButtonText = 'Chat with AI assistant',
-        inputPlaceholder = 'Send message...',
-        footerText = 'Ask me anything about this website',
-        viewProductText = 'View Product',
-        visitPageText = 'Visit Page',
-        webhookUrl,
-        siteName,
-        baseUrl = '',
-        botIcon
-    } = config;
+  // defaults
+  const {
+    primaryColor = "#3b82f6",
+    secondaryColor = "#1d4ed8",
+    backgroundColor = "#ffffff",
+    textColor = "#ffffff",
+    title = "Assistant",
+    welcomeMessage = "Welcome! I'm your AI assistant. Need help finding information?",
+    suggestions = [
+      "What can you help me with?",
+      "Tell me about this website",
+      "How does this work?",
+      "Show me popular content",
+      "Contact information",
+    ],
+    bubbleGreetingText = "Welcome! How can I assist you today?",
+    bubbleButtonText = "Chat with AI assistant",
+    inputPlaceholder = "Send message...",
+    footerText = "Ask me anything about this website",
+    viewProductText = "View Product",
+    visitPageText = "Visit Page",
+    webhookUrl,
+    siteName,
+    baseUrl = "",
+    botIcon,
+  } = config;
 
-    // We map to the structure expected by widget.js logic
-    const settings = {
-        primary_color: primaryColor,
-        secondary_color: secondaryColor,
-        background_color: backgroundColor,
-        text_color: textColor,
-        title,
-        welcome_message: welcomeMessage,
-        suggestions,
-        bubble_greeting_text: bubbleGreetingText,
-        bubble_button_text: bubbleButtonText,
-        input_placeholder: inputPlaceholder,
-        footer_text: footerText,
-        view_product_text: viewProductText,
-        visit_page_text: visitPageText,
-        webhook_url: webhookUrl,
-        max_message_length: 1000,
-        bot_icon: botIcon
-    };
+  // We map to the structure expected by widget.js logic
+  const settings = {
+    primary_color: primaryColor,
+    secondary_color: secondaryColor,
+    background_color: backgroundColor,
+    text_color: textColor,
+    title,
+    welcome_message: welcomeMessage,
+    suggestions,
+    bubble_greeting_text: bubbleGreetingText,
+    bubble_button_text: bubbleButtonText,
+    input_placeholder: inputPlaceholder,
+    footer_text: footerText,
+    view_product_text: viewProductText,
+    visit_page_text: visitPageText,
+    webhook_url: webhookUrl,
+    max_message_length: 1000,
+    bot_icon: botIcon,
+  };
 
-    const settingsJson = JSON.stringify(settings);
+  const settingsJson = JSON.stringify(settings);
 
-    return `<script>
+  return `<script>
 (function() {
     const settings = ${settingsJson};
     const domain = "${siteName}";

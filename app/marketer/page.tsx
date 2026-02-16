@@ -58,8 +58,14 @@ interface Lead {
   email_sent: boolean;
   email_sent_at: string | null;
   tags: string[];
+  last_updated_by: string | null;
   created_at: string;
   updated_at: string;
+}
+
+interface User {
+  id: string;
+  email: string;
 }
 
 interface Stats {
@@ -101,6 +107,8 @@ const STATUS_CONFIG: Record<
   email_ready: { label: "Email Ready", color: "success" },
   email_error: { label: "Error", color: "danger" },
   sent: { label: "Sent", color: "primary" },
+  sold: { label: "Sold", color: "success" },
+  in_talks: { label: "In Talks", color: "secondary" },
 };
 
 // ── Component ────────────────────────────────────────────────────────────
@@ -117,6 +125,7 @@ export default function MarketerPage() {
 
   // ── Data state ──
   const [leads, setLeads] = useState<Lead[]>([]);
+  const [users, setUsers] = useState<User[]>([]);
   const [stats, setStats] = useState<Stats | null>(null);
   const [loading, setLoading] = useState(true);
   const [page, setPage] = useState(1);
@@ -127,6 +136,7 @@ export default function MarketerPage() {
   // ── Filters ──
   const [searchQuery, setSearchQuery] = useState("");
   const [statusFilter, setStatusFilter] = useState("");
+  const [filterLastUpdatedBy, setFilterLastUpdatedBy] = useState<string>("");
   const [scrapedFilter, setScrapedFilter] = useState("");
   const [emailFilter, setEmailFilter] = useState("");
   const [sortBy, setSortBy] = useState("created_at");
@@ -190,6 +200,8 @@ export default function MarketerPage() {
         });
         if (searchQuery) params.set("search", searchQuery);
         if (statusFilter) params.set("status", statusFilter);
+        if (filterLastUpdatedBy)
+          params.set("last_updated_by", filterLastUpdatedBy);
         if (scrapedFilter) params.set("scraped", scrapedFilter);
         if (emailFilter) params.set("has_email_generated", emailFilter);
 
@@ -224,8 +236,25 @@ export default function MarketerPage() {
       statusFilter,
       scrapedFilter,
       emailFilter,
+      filterLastUpdatedBy,
     ],
   );
+
+  // ── Fetch users ──
+  const fetchUsers = useCallback(async () => {
+    if (!accessToken) return;
+    try {
+      const res = await fetch(`${config.serverUrl}/api/users/`, {
+        headers: getAuthHeaders(accessToken),
+      });
+      if (res.ok) {
+        const data = await res.json();
+        // The API returns { users: [...] }
+        const usersList = Array.isArray(data.users) ? data.users : [];
+        setUsers(usersList);
+      }
+    } catch (_) {}
+  }, [accessToken]);
 
   // ── Fetch stats ──
   const fetchStats = useCallback(async () => {
@@ -289,6 +318,7 @@ export default function MarketerPage() {
   useEffect(() => {
     if (!authLoading && isAuthenticated && isSuperAdmin) {
       fetchLeads();
+      fetchUsers();
       fetchStats();
       fetchSettings();
       handleRefreshScrape(true).catch(() => {});
@@ -300,6 +330,7 @@ export default function MarketerPage() {
     fetchLeads,
     fetchStats,
     fetchSettings,
+    fetchUsers,
     handleRefreshScrape,
   ]);
 
@@ -378,7 +409,7 @@ export default function MarketerPage() {
       if (!res.ok) throw new Error(data.error || "Import failed");
       addToast({
         title: "Import Complete",
-        description: `${data.created} created, ${data.skipped} skipped`,
+        description: `${data.created} created, ${data.updated || 0} updated, ${data.skipped} skipped`,
         color: "success",
       });
       if (data.errors && data.errors.length > 0) {
@@ -548,6 +579,32 @@ export default function MarketerPage() {
       });
       setEditModalOpen(false);
       fetchLeads();
+    } catch (e: any) {
+      addToast({ title: "Error", description: e.message, color: "danger" });
+    }
+  };
+
+  const handleStatusUpdate = async (leadId: number, status: string) => {
+    if (!accessToken) return;
+    try {
+      const res = await fetch(
+        `${config.serverUrl}/api/marketer/leads/update/`,
+        {
+          method: "PUT",
+          headers: getAuthHeaders(accessToken),
+          body: JSON.stringify({
+            id: leadId,
+            status,
+          }),
+        },
+      );
+      if (!res.ok) throw new Error("Status update failed");
+      addToast({
+        title: "Updated",
+        description: `Status changed to ${status}`,
+        color: "success",
+      });
+      fetchLeads(); // Refresh to get updated stats and last_updated_by
     } catch (e: any) {
       addToast({ title: "Error", description: e.message, color: "danger" });
     }
@@ -787,7 +844,10 @@ export default function MarketerPage() {
           >
             <SelectItem key="">All</SelectItem>
             <SelectItem key="new">New</SelectItem>
+            <SelectItem key="in_talks">In Talks</SelectItem>
+            <SelectItem key="sold">Sold</SelectItem>
             <SelectItem key="generating">Generating</SelectItem>
+            <SelectItem key="">All</SelectItem>
             <SelectItem key="email_ready">Email Ready</SelectItem>
             <SelectItem key="email_error">Error</SelectItem>
             <SelectItem key="sent">Sent</SelectItem>
@@ -809,6 +869,29 @@ export default function MarketerPage() {
             <SelectItem key="">All</SelectItem>
             <SelectItem key="true">Scraped</SelectItem>
             <SelectItem key="false">Not Scraped</SelectItem>
+          </Select>
+          <Select
+            className="w-40"
+            label="Last Updated By"
+            placeholder="All"
+            selectedKeys={filterLastUpdatedBy ? [filterLastUpdatedBy] : []}
+            size="sm"
+            variant="bordered"
+            onSelectionChange={(keys: any) => {
+              const val = (Array.from(keys)[0] as string) || "";
+              setFilterLastUpdatedBy(val);
+              setPage(1);
+            }}
+          >
+            <SelectItem key="">All</SelectItem>
+            {/* <SelectItem key="unassigned">Unassigned</SelectItem> */}
+            {
+              users.map((u) => (
+                <SelectItem key={u.id} textValue={u.email}>
+                  {u.email}
+                </SelectItem>
+              )) as any
+            }
           </Select>
           <Select
             className="w-36"
@@ -921,7 +1004,7 @@ export default function MarketerPage() {
                     );
                   }}
                 >
-                  WEBSITE{" "}
+                  LEAD INFO{" "}
                   {sortBy === "website" && (sortDir === "asc" ? "↑" : "↓")}
                 </button>
               </TableColumn>
@@ -940,38 +1023,21 @@ export default function MarketerPage() {
                   {sortBy === "status" && (sortDir === "asc" ? "↑" : "↓")}
                 </button>
               </TableColumn>
-              <TableColumn>SCRAPED</TableColumn>
+              <TableColumn>FINANCIALS</TableColumn>
               <TableColumn>
                 <button
                   className="flex items-center gap-1 font-semibold"
                   onClick={() => {
-                    setSortBy("net_profit");
+                    setSortBy("updated_at");
                     setSortDir(
-                      sortBy === "net_profit" && sortDir === "asc"
+                      sortBy === "updated_at" && sortDir === "asc"
                         ? "desc"
                         : "asc",
                     );
                   }}
                 >
-                  PROFIT{" "}
-                  {sortBy === "net_profit" && (sortDir === "asc" ? "↑" : "↓")}
-                </button>
-              </TableColumn>
-              <TableColumn>
-                <button
-                  className="flex items-center gap-1 font-semibold"
-                  onClick={() => {
-                    setSortBy("sales_revenue");
-                    setSortDir(
-                      sortBy === "sales_revenue" && sortDir === "asc"
-                        ? "desc"
-                        : "asc",
-                    );
-                  }}
-                >
-                  REVENUE{" "}
-                  {sortBy === "sales_revenue" &&
-                    (sortDir === "asc" ? "↑" : "↓")}
+                  LAST UPDATE{" "}
+                  {sortBy === "updated_at" && (sortDir === "asc" ? "↑" : "↓")}
                 </button>
               </TableColumn>
               <TableColumn>NOTES</TableColumn>
@@ -982,6 +1048,13 @@ export default function MarketerPage() {
                 const statusConf =
                   STATUS_CONFIG[lead.status] || STATUS_CONFIG.new;
                 const hasEmail = !!lead.generated_email_body;
+                const lastUpdater = lead.last_updated_by
+                  ? users.find((u) => u.id === lead.last_updated_by)
+                  : null;
+                const updaterName = lastUpdater
+                  ? lastUpdater.email.split("@")[0] || lastUpdater.email
+                  : "Unknown";
+
                 return (
                   <TableRow
                     key={lead.id}
@@ -999,63 +1072,126 @@ export default function MarketerPage() {
                       />
                     </TableCell>
                     <TableCell>
-                      <div className="flex flex-col">
+                      <div className="flex flex-col gap-1">
                         <a
-                          className="text-primary hover:underline font-medium text-sm"
+                          className="text-primary hover:underline font-medium text-sm truncate max-w-[200px]"
                           href={`https://${lead.website}`}
                           rel="noopener noreferrer"
                           target="_blank"
+                          title={lead.website}
                         >
                           {lead.website}
                         </a>
-                        {lead.detected_language && (
-                          <span className="text-xs text-default-400 mt-0.5">
-                            🌐 {lead.detected_language.toUpperCase()}
-                          </span>
+                        <div className="flex gap-1 items-center">
+                          {lead.is_scraped ? (
+                            <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-green-950/50 text-green-400 border border-green-900/50">
+                              ✓ Scraped
+                            </span>
+                          ) : (
+                            <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-default-100/10 text-default-400 border border-default-200/20">
+                              Not scraped
+                            </span>
+                          )}
+                          {lead.detected_language && (
+                            <span className="text-[10px] text-default-400 uppercase border border-default-200 px-1 rounded">
+                              {lead.detected_language}
+                            </span>
+                          )}
+                        </div>
+                      </div>
+                    </TableCell>
+                    <TableCell>
+                      <div className="flex flex-col text-xs gap-0.5 max-w-[150px]">
+                        {lead.email ? (
+                          <div
+                            className="flex items-center gap-1 overflow-hidden"
+                            title={lead.email}
+                          >
+                            <span>📧</span>
+                            <span className="truncate">{lead.email}</span>
+                          </div>
+                        ) : (
+                          <span className="text-default-300">No email</span>
+                        )}
+                        {lead.phone && (
+                          <div
+                            className="flex items-center gap-1"
+                            title={lead.phone}
+                          >
+                            <span>📞</span>
+                            <span>{lead.phone}</span>
+                          </div>
                         )}
                       </div>
                     </TableCell>
                     <TableCell>
-                      <div className="flex flex-col text-sm">
-                        {lead.email && <span>📧 {lead.email}</span>}
-                        {lead.phone && <span>📞 {lead.phone}</span>}
+                      <div className="flex flex-col gap-1 items-start">
+                        <Dropdown>
+                          <DropdownTrigger>
+                            <Chip
+                              className="cursor-pointer h-6"
+                              color={statusConf.color}
+                              size="sm"
+                              variant="flat"
+                            >
+                              {statusConf.label} ▾
+                            </Chip>
+                          </DropdownTrigger>
+                          <DropdownMenu
+                            aria-label="Update status"
+                            onAction={(key) =>
+                              handleStatusUpdate(lead.id, key as string)
+                            }
+                          >
+                            {Object.entries(STATUS_CONFIG).map(([k, c]) => (
+                              <DropdownItem key={k} color={c.color}>
+                                {c.label}
+                              </DropdownItem>
+                            ))}
+                          </DropdownMenu>
+                        </Dropdown>
+
+                        {lead.email_sent ? (
+                          <span className="text-[10px] text-primary font-medium px-1">
+                            ✓ Sent
+                          </span>
+                        ) : hasEmail ? (
+                          <span className="text-[10px] text-success font-medium px-1">
+                            Ready
+                          </span>
+                        ) : null}
                       </div>
                     </TableCell>
                     <TableCell>
-                      <Chip color={statusConf.color} size="sm" variant="flat">
-                        {statusConf.label}
-                      </Chip>
-                      {lead.email_sent && (
-                        <Chip
-                          className="ml-1"
-                          color="primary"
-                          size="sm"
-                          variant="dot"
-                        >
-                          Sent
-                        </Chip>
-                      )}
+                      <div className="flex flex-col text-xs">
+                        <div className="flex justify-between gap-2 min-w-[80px]">
+                          <span className="text-default-400">Profit:</span>
+                          <span className="font-medium">
+                            {formatMoney(lead.net_profit)}
+                          </span>
+                        </div>
+                        <div className="flex justify-between gap-2 min-w-[80px]">
+                          <span className="text-default-400">Rev:</span>
+                          <span className="font-medium">
+                            {formatMoney(lead.sales_revenue)}
+                          </span>
+                        </div>
+                      </div>
                     </TableCell>
                     <TableCell>
-                      {lead.is_scraped ? (
-                        <Chip color="success" size="sm" variant="flat">
-                          ✓ Scraped
-                        </Chip>
-                      ) : (
-                        <Chip color="default" size="sm" variant="flat">
-                          Not scraped
-                        </Chip>
-                      )}
-                    </TableCell>
-                    <TableCell>
-                      <span className="text-sm">
-                        {formatMoney(lead.net_profit)}
-                      </span>
-                    </TableCell>
-                    <TableCell>
-                      <span className="text-sm">
-                        {formatMoney(lead.sales_revenue)}
-                      </span>
+                      <div className="flex flex-col text-[10px] leading-tight text-default-500">
+                        <span className="whitespace-nowrap">
+                          {formatDate(lead.updated_at)}
+                        </span>
+                        {lastUpdater && (
+                          <span
+                            className="text-default-400 truncate max-w-[80px]"
+                            title={lastUpdater.email}
+                          >
+                            by {updaterName}
+                          </span>
+                        )}
+                      </div>
                     </TableCell>
                     <TableCell>
                       <span className="text-sm text-default-500 max-w-[150px] truncate inline-block">

@@ -1,7 +1,7 @@
 "use client";
 
-import { useEffect, useState, useCallback, useMemo, useRef } from "react";
-import { Card, CardBody, CardHeader } from "@heroui/card";
+import { useEffect, useState, useCallback, useRef } from "react";
+import { Card, CardBody } from "@heroui/card";
 import { Button } from "@heroui/button";
 import { Chip } from "@heroui/chip";
 import { Input, Textarea } from "@heroui/input";
@@ -131,7 +131,7 @@ export default function MarketerPage() {
   const [page, setPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
   const [total, setTotal] = useState(0);
-  const [perPage, setPerPage] = useState(25);
+  const [perPage, _setPerPage] = useState(25);
 
   // ── Filters ──
   const [searchQuery, setSearchQuery] = useState("");
@@ -171,6 +171,7 @@ export default function MarketerPage() {
   // ── Import state ──
   const [importFile, setImportFile] = useState<File | null>(null);
   const [importing, setImporting] = useState(false);
+  const [refreshing, setRefreshing] = useState(false);
 
   // ── Selected ──
   const [selectedIds, setSelectedIds] = useState<Set<number>>(new Set());
@@ -198,6 +199,7 @@ export default function MarketerPage() {
           sort_by: sortBy,
           sort_dir: sortDir,
         });
+
         if (searchQuery) params.set("search", searchQuery);
         if (statusFilter) params.set("status", statusFilter);
         if (filterLastUpdatedBy)
@@ -209,8 +211,10 @@ export default function MarketerPage() {
           `${config.serverUrl}/api/marketer/leads/?${params}`,
           { headers: getAuthHeaders(accessToken) },
         );
+
         if (!res.ok) throw new Error("Failed to fetch leads");
         const data = await res.json();
+
         setLeads(data.leads || []);
         setTotal(data.total || 0);
         setTotalPages(data.total_pages || 1);
@@ -219,6 +223,7 @@ export default function MarketerPage() {
         const anyGenerating = (data.leads || []).some(
           (l: Lead) => l.status === "generating",
         );
+
         setPolling(anyGenerating);
       } catch (e: any) {
         addToast({ title: "Error", description: e.message, color: "danger" });
@@ -247,10 +252,12 @@ export default function MarketerPage() {
       const res = await fetch(`${config.serverUrl}/api/users/`, {
         headers: getAuthHeaders(accessToken),
       });
+
       if (res.ok) {
         const data = await res.json();
         // The API returns { users: [...] }
         const usersList = Array.isArray(data.users) ? data.users : [];
+
         setUsers(usersList);
       }
     } catch (_) {}
@@ -263,8 +270,10 @@ export default function MarketerPage() {
       const res = await fetch(`${config.serverUrl}/api/marketer/stats/`, {
         headers: getAuthHeaders(accessToken),
       });
+
       if (res.ok) {
         const data = await res.json();
+
         setStats(data);
       }
     } catch (_) {}
@@ -277,8 +286,10 @@ export default function MarketerPage() {
       const res = await fetch(`${config.serverUrl}/api/marketer/settings/`, {
         headers: getAuthHeaders(accessToken),
       });
+
       if (res.ok) {
         const data = await res.json();
+
         if (data.settings) setSettings(data.settings);
       }
     } catch (_) {}
@@ -287,6 +298,7 @@ export default function MarketerPage() {
   const handleRefreshScrape = useCallback(
     async (silent = false) => {
       if (!accessToken) return;
+      if (!silent) setRefreshing(true);
       try {
         const res = await fetch(
           `${config.serverUrl}/api/marketer/leads/refresh-scrape/`,
@@ -310,29 +322,41 @@ export default function MarketerPage() {
       } catch (e: any) {
         if (!silent)
           addToast({ title: "Error", description: e.message, color: "danger" });
+      } finally {
+        if (!silent) setRefreshing(false);
       }
     },
     [accessToken, fetchLeads, fetchStats],
   );
 
+  // ── Initial load: refresh scrape status once on mount ──
+  const hasInitialRefreshed = useRef(false);
+
   useEffect(() => {
-    if (!authLoading && isAuthenticated && isSuperAdmin) {
-      fetchLeads();
-      fetchUsers();
-      fetchStats();
-      fetchSettings();
-      handleRefreshScrape(true).catch(() => {});
-    }
+    if (authLoading || !isAuthenticated || !isSuperAdmin || !accessToken)
+      return;
+    if (hasInitialRefreshed.current) return;
+    hasInitialRefreshed.current = true;
+    handleRefreshScrape(true).catch(() => {});
+    fetchUsers();
+    fetchSettings();
   }, [
     authLoading,
     isAuthenticated,
     isSuperAdmin,
-    fetchLeads,
-    fetchStats,
-    fetchSettings,
-    fetchUsers,
+    accessToken,
     handleRefreshScrape,
+    fetchUsers,
+    fetchSettings,
   ]);
+
+  // ── Re-fetch leads & stats when pagination / filters change ──
+  useEffect(() => {
+    if (!authLoading && isAuthenticated && isSuperAdmin) {
+      fetchLeads();
+      fetchStats();
+    }
+  }, [authLoading, isAuthenticated, isSuperAdmin, fetchLeads, fetchStats]);
 
   // ── Polling for generating leads ──
   useEffect(() => {
@@ -341,6 +365,7 @@ export default function MarketerPage() {
       fetchLeads(true);
       fetchStats();
     }, 4000);
+
     return () => clearInterval(interval);
   }, [polling, fetchLeads, fetchStats]);
 
@@ -365,6 +390,7 @@ export default function MarketerPage() {
         },
       );
       const data = await res.json();
+
       if (!res.ok) throw new Error(data.error || "Failed to create lead");
       addToast({
         title: "Success",
@@ -392,9 +418,11 @@ export default function MarketerPage() {
     setImporting(true);
     try {
       const formData = new FormData();
+
       formData.append("file", importFile);
 
       const headers: Record<string, string> = {};
+
       if (accessToken) headers["Authorization"] = `Bearer ${accessToken}`;
 
       const res = await fetch(
@@ -406,6 +434,7 @@ export default function MarketerPage() {
         },
       );
       const data = await res.json();
+
       if (!res.ok) throw new Error(data.error || "Import failed");
       addToast({
         title: "Import Complete",
@@ -442,6 +471,7 @@ export default function MarketerPage() {
           body: JSON.stringify({ ids }),
         },
       );
+
       if (!res.ok) throw new Error("Delete failed");
       addToast({
         title: "Deleted",
@@ -468,6 +498,7 @@ export default function MarketerPage() {
         },
       );
       const data = await res.json();
+
       if (!res.ok) throw new Error(data.error || "Failed");
       addToast({
         title: "Generating",
@@ -495,6 +526,7 @@ export default function MarketerPage() {
           body: JSON.stringify({ id }),
         },
       );
+
       if (!res.ok) throw new Error("Failed");
       addToast({
         title: "Regenerating",
@@ -518,6 +550,7 @@ export default function MarketerPage() {
           body: JSON.stringify({ ids }),
         },
       );
+
       if (!res.ok) throw new Error("Failed");
       addToast({
         title: "Updated",
@@ -539,6 +572,7 @@ export default function MarketerPage() {
         headers: getAuthHeaders(accessToken),
         body: JSON.stringify(settings),
       });
+
       if (!res.ok) throw new Error("Failed to save settings");
       addToast({
         title: "Saved",
@@ -571,6 +605,7 @@ export default function MarketerPage() {
           }),
         },
       );
+
       if (!res.ok) throw new Error("Update failed");
       addToast({
         title: "Updated",
@@ -598,6 +633,7 @@ export default function MarketerPage() {
           }),
         },
       );
+
       if (!res.ok) throw new Error("Status update failed");
       addToast({
         title: "Updated",
@@ -619,10 +655,12 @@ export default function MarketerPage() {
           headers: getAuthHeaders(accessToken),
         },
       );
+
       if (!res.ok) throw new Error("Export failed");
       const blob = await res.blob();
       const url = URL.createObjectURL(blob);
       const a = document.createElement("a");
+
       a.href = url;
       a.download = "marketer_leads.csv";
       a.click();
@@ -635,6 +673,7 @@ export default function MarketerPage() {
   const handleScrape = (website: string) => {
     // Navigate to the new project page with the website pre-filled
     const fullUrl = website.startsWith("http") ? website : `https://${website}`;
+
     router.push(`/new?url=${encodeURIComponent(fullUrl)}`);
   };
 
@@ -644,6 +683,7 @@ export default function MarketerPage() {
 
   const copyEmail = (lead: Lead) => {
     const text = `Subject: ${lead.generated_email_subject}\n\n${lead.generated_email_body}`;
+
     navigator.clipboard.writeText(text);
     addToast({
       title: "Copied",
@@ -670,14 +710,17 @@ export default function MarketerPage() {
 
   const formatMoney = (val: number | null) => {
     if (val === null || val === undefined) return "—";
+
     return `$${val.toLocaleString()}`;
   };
 
   const toggleSelect = (id: number) => {
     setSelectedIds((prev) => {
       const next = new Set(prev);
+
       if (next.has(id)) next.delete(id);
       else next.add(id);
+
       return next;
     });
   };
@@ -879,6 +922,7 @@ export default function MarketerPage() {
             variant="bordered"
             onSelectionChange={(keys: any) => {
               const val = (Array.from(keys)[0] as string) || "";
+
               setFilterLastUpdatedBy(val);
               setPage(1);
             }}
@@ -944,9 +988,35 @@ export default function MarketerPage() {
               </Button>
             </>
           )}
-          <Tooltip content="Refresh scrape status for all leads">
+          <Tooltip content="Refresh list">
             <Button
               isIconOnly
+              size="sm"
+              variant="flat"
+              onPress={() => {
+                fetchLeads();
+                fetchStats();
+              }}
+            >
+              <svg
+                className="w-4 h-4"
+                fill="none"
+                stroke="currentColor"
+                viewBox="0 0 24 24"
+              >
+                <path
+                  d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={2}
+                />
+              </svg>
+            </Button>
+          </Tooltip>
+          <Tooltip content="Check for new scrapes (all leads)">
+            <Button
+              isIconOnly
+              isLoading={refreshing}
               size="sm"
               variant="flat"
               onPress={() => handleRefreshScrape(false)}
@@ -958,7 +1028,7 @@ export default function MarketerPage() {
                 viewBox="0 0 24 24"
               >
                 <path
-                  d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"
+                  d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"
                   strokeLinecap="round"
                   strokeLinejoin="round"
                   strokeWidth={2}
@@ -1753,6 +1823,7 @@ export default function MarketerPage() {
                   variant="bordered"
                   onSelectionChange={(keys: any) => {
                     const val = Array.from(keys)[0] as string;
+
                     setEditLead((p) => (p ? { ...p, status: val } : p));
                   }}
                 >
@@ -1779,8 +1850,8 @@ export default function MarketerPage() {
       {/* ── Settings Modal ── */}
       <Modal
         isOpen={settingsOpen}
-        size="4xl"
         scrollBehavior="inside"
+        size="4xl"
         onClose={() => setSettingsOpen(false)}
       >
         <ModalContent>
@@ -1797,18 +1868,18 @@ export default function MarketerPage() {
                 }
               />
               <Textarea
-                description="Full custom prompt template for the AI copywriter. Use placeholders {website}, {email}, {notes_section}, {revenue_section}, {site_context}, {demo_link_section}, {demo_instruction}, {intro_instruction}, {footer_instruction}."
-                label="Custom Prompt Template"
-                // minRows={15} // HeroUI Textarea doesn't support minRows prop correctly sometimes, using class height instead
-                placeholder="Paste your full prompt here..."
-                value={settings.custom_prompt_instructions || ""}
-                variant="bordered"
                 disableAnimation
                 disableAutosize
                 classNames={{
                   base: "max-w-full",
                   input: "min-h-[400px]",
                 }}
+                description="Full custom prompt template for the AI copywriter. Use placeholders {website}, {email}, {notes_section}, {revenue_section}, {site_context}, {demo_link_section}, {demo_instruction}, {intro_instruction}, {footer_instruction}."
+                label="Custom Prompt Template"
+                // minRows={15} // HeroUI Textarea doesn't support minRows prop correctly sometimes, using class height instead
+                placeholder="Paste your full prompt here..."
+                value={settings.custom_prompt_instructions || ""}
+                variant="bordered"
                 onValueChange={(v) =>
                   setSettings((p) => ({ ...p, custom_prompt_instructions: v }))
                 }

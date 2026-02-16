@@ -6,8 +6,10 @@ import { Textarea } from "@heroui/input";
 import { Card, CardBody } from "@heroui/card";
 import { Tooltip } from "@heroui/tooltip";
 import { addToast } from "@heroui/toast";
-import { config } from "@/lib/config";
 import { useRouter } from "next/navigation";
+
+import { config } from "@/lib/config";
+import { useLanguage } from "@/app/contexts/LanguageContext";
 
 interface ScrapedDataItem {
   url: string;
@@ -25,6 +27,11 @@ interface WorkflowResult {
   webhook_url?: string;
 }
 
+interface RefineAiQuota {
+  remaining: number;
+  limit: number;
+}
+
 interface ResultsDisplayProps {
   sheetId: string | null;
   prompt: string;
@@ -35,13 +42,18 @@ interface ResultsDisplayProps {
   loading: boolean;
   retryLoading: string | null;
   handleRegeneratePrompt: () => void;
-  handleImprovePrompt: (currentPrompt: string, improvements: string) => Promise<void>;
+  handleImprovePrompt: (
+    currentPrompt: string,
+    improvements: string,
+  ) => Promise<void>;
   handleSavePromptToWorkflow?: () => void;
   setPrompt: (prompt: string) => void;
   promptModified?: boolean;
+  isSuperAdmin?: boolean;
+  refineAiQuota?: RefineAiQuota | null;
 }
 
-const EditIcon = (props: any) => (
+const _EditIcon = (props: any) => (
   <svg
     aria-hidden="true"
     fill="none"
@@ -80,12 +92,16 @@ const EditIcon = (props: any) => (
 );
 
 // Enhanced error logging for component
-const logComponentError = (context: string, error: any, additionalData?: any) => {
+const logComponentError = (
+  context: string,
+  error: any,
+  additionalData?: any,
+) => {
   console.error(`[ResultsDisplay:${context}] Error:`, {
     message: error.message,
     stack: error.stack,
     timestamp: new Date().toISOString(),
-    additionalData
+    additionalData,
   });
 };
 
@@ -101,20 +117,24 @@ export default function ResultsDisplay({
   setPrompt,
   url,
   promptModified,
+  isSuperAdmin = true,
+  refineAiQuota,
 }: ResultsDisplayProps) {
-
-  const [improvementInstructions, setImprovementInstructions] = React.useState("");
+  const [improvementInstructions, setImprovementInstructions] =
+    React.useState("");
   const [showRefinementTools, setShowRefinementTools] = React.useState(false);
   const [showSecret, setShowSecret] = React.useState(false);
-  const [embedCodeWithSettings, setEmbedCodeWithSettings] = React.useState<string>("");
+  const [_embedCodeWithSettings, _setEmbedCodeWithSettings] =
+    React.useState<string>("");
   const router = useRouter();
-
+  const { t } = useLanguage();
 
   // Load embed code with widget settings when workflow result is available
   React.useEffect(() => {
     const loadEmbedCode = async () => {
       if (!workflowResult?.webhook_url) {
-        setEmbedCodeWithSettings("");
+        _setEmbedCodeWithSettings("");
+
         return;
       }
 
@@ -122,7 +142,7 @@ export default function ResultsDisplay({
         try {
           return new URL(url).hostname;
         } catch {
-          return 'Website';
+          return "Website";
         }
       })();
 
@@ -130,13 +150,13 @@ export default function ResultsDisplay({
       // The script will fetch settings and webhook URL automatically based on the domain
       const code = `<script src="${config.serverUrl}/api/widget.js" data-domain="${siteName}" defer></script>`;
 
-      setEmbedCodeWithSettings(code);
+      _setEmbedCodeWithSettings(code);
     };
 
     loadEmbedCode();
   }, [workflowResult, url]);
 
-  const handleCopyEmbedCode = async () => {
+  const _handleCopyEmbedCode = async () => {
     try {
       if (!workflowResult?.webhook_url) {
         throw new Error("No webhook URL available");
@@ -146,83 +166,84 @@ export default function ResultsDisplay({
         try {
           return new URL(url).hostname;
         } catch {
-          return 'Your Website';
+          return "Your Website";
         }
       })();
 
       // Generate the simple embed code
       const embedCode = `<script src="${config.serverUrl}/api/widget.js" data-domain="${siteName}" defer></script>`;
-      
+
       await navigator.clipboard.writeText(embedCode);
       addToast({
-        title: "Success",
-        description: "Copied to clipboard!",
+        title: t("common.success"),
+        description: t("project.clipboardSuccess"),
         color: "success",
       });
     } catch (error: any) {
       logComponentError("copyEmbedCode", error, { workflowResult });
       addToast({
-        title: "Error",
-        description: "Failed to copy to clipboard.",
+        title: t("common.error"),
+        description: t("project.clipboardFailed"),
         color: "danger",
       });
     }
   };
 
-  const handleTestChat = () => {
+  const _handleTestChat = () => {
     try {
       if (!workflowResult?.webhook_url) {
         throw new Error("No webhook URL available");
       }
-      window.open(workflowResult.webhook_url, '_blank');
+      window.open(workflowResult.webhook_url, "_blank");
     } catch (error: any) {
       logComponentError("testChat", error, { workflowResult });
       console.error("Failed to open chat:", error.message);
       addToast({
-        title: "Error",
-        description: "Failed to open chat.",
+        title: t("common.error"),
+        description: t("project.openChatFailed"),
         color: "danger",
       });
     }
   };
 
-  const handleViewWorkflow = () => {
+  const _handleViewWorkflow = () => {
     try {
       if (!workflowResult?.workflow_url) {
         throw new Error("No workflow URL available");
       }
-      window.open(workflowResult.workflow_url, '_blank');
+      window.open(workflowResult.workflow_url, "_blank");
     } catch (error: any) {
       logComponentError("viewWorkflow", error, { workflowResult });
       console.error("Failed to open workflow:", error.message);
       addToast({
-        title: "Error",
-        description: "Failed to open workflow.",
+        title: t("common.error"),
+        description: t("project.openWorkflowFailed"),
         color: "danger",
       });
     }
   };
 
-  const handleOpenDemo = () => {
+  const _handleOpenDemo = () => {
     try {
       if (!workflowResult?.webhook_url) {
         throw new Error("No webhook URL available");
       }
       const domain = new URL(url).hostname;
       const demoUrl = `/demo?domain=${encodeURIComponent(domain)}&webhook=${encodeURIComponent(workflowResult.webhook_url)}`;
+
       router.push(demoUrl);
     } catch (error: any) {
       logComponentError("openDemo", error, { workflowResult, url });
       console.error("Failed to open demo:", error.message);
       addToast({
-        title: "Error",
-        description: "Failed to open demo.",
+        title: t("common.error"),
+        description: t("project.openDemoFailed"),
         color: "danger",
       });
     }
   };
 
-  const handleCopyDemoLink = () => {
+  const _handleCopyDemoLink = () => {
     try {
       if (!workflowResult?.webhook_url) {
         throw new Error("No webhook URL available");
@@ -230,19 +251,19 @@ export default function ResultsDisplay({
       const domain = new URL(url).hostname;
       const baseUrl = window.location.origin;
       const demoUrl = `${baseUrl}/demo?domain=${encodeURIComponent(domain)}&webhook=${encodeURIComponent(workflowResult.webhook_url)}`;
-      
+
       navigator.clipboard.writeText(demoUrl);
       addToast({
-        title: "Success",
-        description: "Demo link copied to clipboard! Share it with your clients.",
+        title: t("common.success"),
+        description: t("project.demoLinkCopied"),
         color: "success",
       });
     } catch (error: any) {
       logComponentError("copyDemoLink", error, { workflowResult, url });
       console.error("Failed to copy demo link:", error.message);
       addToast({
-        title: "Error",
-        description: "Failed to copy demo link.",
+        title: t("common.error"),
+        description: t("project.copyDemoLinkFailed"),
         color: "danger",
       });
     }
@@ -255,207 +276,310 @@ export default function ResultsDisplay({
   return (
     <div className="w-full flex flex-col gap-4">
       <div className="mt-8">
-        <h3 className="text-xl font-bold mb-4">AI Assistant Settings</h3>
+        <h3 className="text-xl font-bold mb-4">{t("project.aiSettings")}</h3>
         <Card className="mb-4">
           <CardBody>
-             <div className="space-y-4">
-                <div>
-                   <label className="block text-sm font-medium mb-2">Custom Instructions (Prompt)</label>
-                   <p className="text-xs text-default-500 mb-2">
-                     The system prompt defines how the AI assistant behaves. You can edit this directly or use AI tools below to refine it.
-                   </p>
-                   <Textarea
-                      minRows={5}
-                      maxRows={15}
-                      value={prompt}
-                      onChange={(e) => setPrompt(e.target.value)}
-                      placeholder="e.g. You are a helpful assistant for a hiking gear shop..."
-                      className="mb-2"
-                   />
-                   
-                   <div className="flex flex-col md:flex-row justify-between items-center gap-4 mb-6">
-                        <div className="text-xs text-default-500 font-mono">
-                            {promptModified ? (
-                                <span className="text-warning-600 flex items-center gap-1">
-                                    <span className="w-2 h-2 rounded-full bg-warning-500"></span>
-                                    Unsaved changes
-                                </span>
-                            ) : (
-                                <span className="text-success-600 flex items-center gap-1">
-                                    <span className="w-2 h-2 rounded-full bg-success-500"></span>
-                                    System prompt saved
-                                </span>
-                            )}
-                        </div>
-                        <div className="flex gap-2">
-                             <Tooltip content={!prompt ? "Generate a system prompt based on the scraped content." : "Revert to the original prompt generated from website content. This will discard all manual changes."} placement="top">
-                                 <Button
-                                    size="sm"
-                                    variant={!prompt ? "solid" : "light"}
-                                    color={!prompt ? "primary" : "default"}
-                                    onClick={() => {
-                                        if (!prompt || confirm("Are you sure? This will discard your current prompt and regenerate it from scraped content.")) {
-                                            handleRegeneratePrompt();
-                                        }
-                                    }}
-                                    isLoading={retryLoading === "prompt"}
-                                    className={!prompt ? "" : "text-default-500 hover:text-default-900"}
-                                 >
-                                   {!prompt ? "Generate instructions" : "Reset to Default"}
-                                 </Button>
-                             </Tooltip>
-                             <Button
-                                size="sm"
-                                variant={showRefinementTools ? "flat" : "ghost"}
-                                color="primary"
-                                onClick={() => setShowRefinementTools(!showRefinementTools)}
-                                startContent={<span>✨</span>}
-                             >
-                               {showRefinementTools ? "Close AI Tools" : "Refine with AI"}
-                             </Button>
-                        </div>
-                   </div>
+            <div className="space-y-4">
+              <div>
+                <label className="block text-sm font-medium mb-2">
+                  {t("project.customInstructions")}
+                </label>
+                <p className="text-xs text-default-500 mb-2">
+                  {t("project.customInstructionsDesc")}
+                </p>
+                <Textarea
+                  className="mb-2"
+                  description={`${(prompt || "").length} / 8000 characters`}
+                  maxLength={8000}
+                  maxRows={15}
+                  minRows={5}
+                  placeholder="e.g. You are a helpful assistant for a hiking gear shop..."
+                  value={prompt}
+                  onChange={(e) => {
+                    if (e.target.value.length <= 8000) {
+                      setPrompt(e.target.value);
+                    }
+                  }}
+                />
 
-                   {showRefinementTools && (
-                       <div className="p-4 rounded-xl border border-default-200 bg-content2/50 animate-appearance-in mb-6">
-                          <label className="block text-sm font-semibold mb-3 text-default-700">
-                            How should the AI improve this prompt?
-                          </label>
-                          <div className="flex flex-col gap-3">
-                              <Textarea
-                                  placeholder="e.g. 'Make the tone more professional', 'Focus on selling hiking boots', 'Be shorter'..."
-                                  minRows={2}
-                                  value={improvementInstructions}
-                                  onValueChange={setImprovementInstructions}
-                                  variant="bordered"
-                                  className="bg-transparent"
-                                  classNames={{
-                                    inputWrapper: "bg-background shadow-none"
-                                  }}
-                              />
-                              <div className="flex justify-between items-center gap-2 pt-1">
-                                 <p className="text-xs text-default-400">
-                                   Consumes 1 AI quota per request.
-                                 </p>
-                                 <Button
-                                    size="sm"
-                                    color="primary"
-                                    variant="solid"
-                                    isDisabled={!improvementInstructions.trim()}
-                                    isLoading={retryLoading === "improve-prompt"}
-                                    onClick={async () => {
-                                        await handleImprovePrompt(prompt, improvementInstructions);
-                                        setImprovementInstructions(""); // Clear after success
-                                    }}
-                                 >
-                                   Generate Improvements
-                                 </Button>
-                              </div>
-                          </div>
-                       </div>
-                   )}
+                <div className="flex flex-col md:flex-row justify-between items-center gap-4 mb-6">
+                  <div className="text-xs text-default-500 font-mono">
+                    {promptModified ? (
+                      <span className="text-warning-600 flex items-center gap-1">
+                        <span className="w-2 h-2 rounded-full bg-warning-500" />
+                        {t("project.unsavedChanges")}
+                      </span>
+                    ) : (
+                      <span className="text-success-600 flex items-center gap-1">
+                        <span className="w-2 h-2 rounded-full bg-success-500" />
+                        {t("project.savedToWorkflow")}
+                      </span>
+                    )}
+                  </div>
+                  <div className="flex gap-2">
+                    <Tooltip
+                      content={
+                        !prompt
+                          ? t("project.regeneratePromptTooltip")
+                          : t("project.resetPromptTooltip")
+                      }
+                      placement="top"
+                    >
+                      <Button
+                        className={
+                          !prompt
+                            ? ""
+                            : "text-default-500 hover:text-default-900"
+                        }
+                        color={!prompt ? "primary" : "default"}
+                        isLoading={retryLoading === "prompt"}
+                        size="sm"
+                        variant={!prompt ? "solid" : "light"}
+                        onClick={() => {
+                          if (
+                            !prompt ||
+                            confirm(t("project.resetPromptConfirm"))
+                          ) {
+                            handleRegeneratePrompt();
+                          }
+                        }}
+                      >
+                        {!prompt
+                          ? t("project.generateInstructions")
+                          : t("project.resetToDefault")}
+                      </Button>
+                    </Tooltip>
+                    <Tooltip
+                      content={
+                        !isSuperAdmin &&
+                        refineAiQuota &&
+                        refineAiQuota.remaining <= 0
+                          ? t("project.quotaExhausted")
+                          : t("project.useAiRefinement")
+                      }
+                      placement="top"
+                    >
+                      <Button
+                        color="primary"
+                        isDisabled={
+                          !isSuperAdmin &&
+                          refineAiQuota !== undefined &&
+                          refineAiQuota !== null &&
+                          refineAiQuota.remaining <= 0
+                        }
+                        size="sm"
+                        startContent={<span>✨</span>}
+                        variant={showRefinementTools ? "flat" : "ghost"}
+                        onClick={() =>
+                          setShowRefinementTools(!showRefinementTools)
+                        }
+                      >
+                        {showRefinementTools
+                          ? t("project.closeAiTools")
+                          : t("project.refineWithAi")}
+                      </Button>
+                    </Tooltip>
+                  </div>
                 </div>
-                
-                <div className="flex justify-end pt-2 border-t border-divider">
-                   {handleSavePromptToWorkflow && (
-                       <Button
+
+                {showRefinementTools && (
+                  <div className="p-4 rounded-xl border border-default-200 bg-content2/50 animate-appearance-in mb-6">
+                    <label className="block text-sm font-semibold mb-3 text-default-700">
+                      {t("project.aiImproveLabel")}
+                    </label>
+                    <div className="flex flex-col gap-3">
+                      <Textarea
+                        className="bg-transparent"
+                        classNames={{
+                          inputWrapper: "bg-background shadow-none",
+                        }}
+                        minRows={2}
+                        placeholder={t("project.aiImprovePlaceholder")}
+                        value={improvementInstructions}
+                        variant="bordered"
+                        onValueChange={setImprovementInstructions}
+                      />
+                      <div className="flex justify-between items-center gap-2 pt-1">
+                        <p className="text-xs text-default-400">
+                          {isSuperAdmin ? (
+                            t("project.quotaDisclaimer")
+                          ) : refineAiQuota ? (
+                            <span
+                              className={
+                                refineAiQuota.remaining <= 0
+                                  ? "text-danger"
+                                  : refineAiQuota.remaining <= 3
+                                    ? "text-warning"
+                                    : ""
+                              }
+                            >
+                              {refineAiQuota.remaining} / {refineAiQuota.limit}{" "}
+                              {t("project.refinementsRemaining")}
+                            </span>
+                          ) : (
+                            t("project.quotaDisclaimer")
+                          )}
+                        </p>
+                        <Button
                           color="primary"
-                          size="lg"
-                          onClick={handleSavePromptToWorkflow}
-                          isLoading={retryLoading === "save-prompt"}
-                          isDisabled={!promptModified}
-                          className="font-bold px-8"
-                       >
-                         Save Settings
-                       </Button>
-                   )}
-                </div>
-             </div>
+                          isDisabled={
+                            !improvementInstructions.trim() ||
+                            (!isSuperAdmin &&
+                              refineAiQuota !== undefined &&
+                              refineAiQuota !== null &&
+                              refineAiQuota.remaining <= 0)
+                          }
+                          isLoading={retryLoading === "improve-prompt"}
+                          size="sm"
+                          variant="solid"
+                          onClick={async () => {
+                            await handleImprovePrompt(
+                              prompt,
+                              improvementInstructions,
+                            );
+                            setImprovementInstructions(""); // Clear after success
+                          }}
+                        >
+                          {t("project.generateImprovements")}
+                        </Button>
+                      </div>
+                    </div>
+                  </div>
+                )}
+              </div>
+
+              <div className="flex justify-end pt-2 border-t border-divider">
+                {handleSavePromptToWorkflow && (
+                  <Button
+                    className="font-bold px-8"
+                    color="primary"
+                    isDisabled={!promptModified}
+                    isLoading={retryLoading === "save-prompt"}
+                    size="lg"
+                    onClick={handleSavePromptToWorkflow}
+                  >
+                    {t("project.manualSave")}
+                  </Button>
+                )}
+              </div>
+            </div>
           </CardBody>
         </Card>
-        
-        <h3 className="text-xl font-bold mb-4">Integration & Demo</h3>
+
+        <h3 className="text-xl font-bold mb-4">
+          {t("project.integrationAndDemo")}
+        </h3>
         <Card className="mb-4">
-            <CardBody>
-              <div className="space-y-4">
-                  <div>
-                    <h4 className="text-lg font-semibold mb-2">💬 Live Chat Widget</h4>
-                    <div className="bg-green-800 rounded-lg p-4 mb-4">
-                      <div className="flex items-center gap-2 mb-2">
-                        <div className="w-3 h-3 bg-green-500 rounded-full animate-pulse"></div>
-                        <span className="text-green-400 font-medium">Chat widget is ready!</span>
-                      </div>
-                      <p className="text-sm text-green-400">
-                        Use the buttons below to test the assistant in a live environment.
-                      </p>
-                    </div>
-
-                    <div className="mb-4">
-                      <Button
-                        color="success"
-                        variant="shadow"
-                        size="lg"
-                        onClick={() => {
-                            try {
-                                const domain = new URL(url).hostname;
-                                router.push(`/demo?domain=${encodeURIComponent(domain)}`);
-                            } catch {
-                                addToast({title: "Error", description: "Invalid URL", color: "danger"});
-                            }
-                        }}
-                        className="w-full font-semibold mb-2"
-                        startContent={<span>🚀</span>}
-                      >
-                        View Live Demo on Your Website
-                      </Button>
-                    </div>
-
-                    <h4 className="text-lg font-semibold mb-2">📋 Embed Code</h4>
-                    <div className="bg-gray-900 text-gray-100 p-4 rounded-lg text-sm font-mono overflow-x-auto">
-                      <pre>{`<script src="${config.serverUrl}/api/widget.js" data-domain="${(() => { try { return new URL(url).hostname; } catch { return 'website'; } })()}" defer></script>`}</pre>
-                    </div>
-                    <div className="flex gap-2 mt-2">
-                      <Button
-                        size="sm"
-                        variant="bordered"
-                        onClick={() => {
-                            try {
-                                const siteName = new URL(url).hostname;
-                                const code = `<script src="${config.serverUrl}/api/widget.js" data-domain="${siteName}" defer></script>`;
-                                navigator.clipboard.writeText(code);
-                                addToast({title: "Copied!", color: "success"});
-                            } catch {
-                                addToast({title: "Error", description: "Failed to generate code", color: "danger"});
-                            }
-                        }}
-                      >
-                        📋 Copy Embed Code
-                      </Button>
-                    </div>
+          <CardBody>
+            <div className="space-y-4">
+              <div>
+                <h4 className="text-lg font-semibold mb-2">
+                  {t("project.liveChatWidget")}
+                </h4>
+                <div className="bg-green-800 rounded-lg p-4 mb-4">
+                  <div className="flex items-center gap-2 mb-2">
+                    <div className="w-3 h-3 bg-green-500 rounded-full animate-pulse" />
+                    <span className="text-green-400 font-medium">
+                      {t("project.chatWidgetReady")}
+                    </span>
                   </div>
-                  
-                  {webhookSecret && (
-                  <div className="mt-4 p-4 border border-yellow-200 bg-yellow-50 rounded-lg">
-                      <h4 className="text-sm font-semibold text-yellow-800 mb-2">🔒 Webhook Security</h4>
-                      <div className="flex items-center gap-2">
-                          <code className="bg-white px-2 py-1 rounded border text-xs flex-1 break-all font-mono select-all text-black">
-                              {showSecret ? webhookSecret : "•".repeat(webhookSecret ? webhookSecret.length : 12)}
-                          </code>
-                          <Button 
-                              size="sm" 
-                              variant="flat" 
-                              onClick={() => setShowSecret(!showSecret)}
-                          >
-                              {showSecret ? "Hide" : "Show"}
-                          </Button>
-                      </div>
-                  </div>
-                  )}
+                  <p className="text-sm text-green-400">
+                    {t("project.testEnvironmentDesc")}
+                  </p>
+                </div>
+
+                <div className="mb-4">
+                  <Button
+                    className="w-full font-semibold mb-2"
+                    color="success"
+                    size="lg"
+                    startContent={<span>🚀</span>}
+                    variant="shadow"
+                    onClick={() => {
+                      try {
+                        const domain = new URL(url).hostname;
+
+                        router.push(
+                          `/demo?domain=${encodeURIComponent(domain)}`,
+                        );
+                      } catch {
+                        addToast({
+                          title: t("common.error"),
+                          description: t("project.invalidUrl"),
+                          color: "danger",
+                        });
+                      }
+                    }}
+                  >
+                    {t("project.viewWidgetLiveDemo")}
+                  </Button>
+                </div>
+
+                <h4 className="text-lg font-semibold mb-2">
+                  {t("project.embedCode")}
+                </h4>
+                <div className="bg-gray-900 text-gray-100 p-4 rounded-lg text-sm font-mono overflow-x-auto">
+                  <pre>{`<script src="${config.serverUrl}/api/widget.js" data-domain="${(() => {
+                    try {
+                      return new URL(url).hostname;
+                    } catch {
+                      return "website";
+                    }
+                  })()}" defer></script>`}</pre>
+                </div>
+                <div className="flex gap-2 mt-2">
+                  <Button
+                    size="sm"
+                    variant="bordered"
+                    onClick={() => {
+                      try {
+                        const siteName = new URL(url).hostname;
+                        const code = `<script src="${config.serverUrl}/api/widget.js" data-domain="${siteName}" defer></script>`;
+
+                        navigator.clipboard.writeText(code);
+                        addToast({
+                          title: t("project.copied"),
+                          color: "success",
+                        });
+                      } catch {
+                        addToast({
+                          title: t("common.error"),
+                          description: t("project.failedToGenerateCode"),
+                          color: "danger",
+                        });
+                      }
+                    }}
+                  >
+                    {t("project.copyEmbedCode")}
+                  </Button>
+                </div>
               </div>
-            </CardBody>
+
+              {webhookSecret && (
+                <div className="mt-4 p-4 border border-yellow-200 bg-yellow-50 rounded-lg">
+                  <h4 className="text-sm font-semibold text-yellow-800 mb-2">
+                    {t("project.webhookSecurity")}
+                  </h4>
+                  <div className="flex items-center gap-2">
+                    <code className="bg-white px-2 py-1 rounded border text-xs flex-1 break-all font-mono select-all text-black">
+                      {showSecret
+                        ? webhookSecret
+                        : "•".repeat(webhookSecret ? webhookSecret.length : 12)}
+                    </code>
+                    <Button
+                      size="sm"
+                      variant="flat"
+                      onClick={() => setShowSecret(!showSecret)}
+                    >
+                      {showSecret ? t("project.hide") : t("project.show")}
+                    </Button>
+                  </div>
+                </div>
+              )}
+            </div>
+          </CardBody>
         </Card>
       </div>
-
     </div>
   );
 }

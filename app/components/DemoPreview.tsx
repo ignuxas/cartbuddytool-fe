@@ -1,86 +1,76 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect } from "react";
 import { Button } from "@heroui/button";
 import { Spinner } from "@heroui/spinner";
 
 interface DemoPreviewProps {
-  htmlContent: string;
+  screenshotUrl: string;
+  widgetScriptUrl: string;
+  widgetDomain: string;
+  widgetWebhookUrl: string;
   loading: boolean;
   error: string | null;
 }
 
 export default function DemoPreview({
-  htmlContent,
+  screenshotUrl,
+  widgetScriptUrl,
+  widgetDomain,
+  widgetWebhookUrl,
   loading,
   error,
 }: DemoPreviewProps) {
-  const iframeRef = useRef<HTMLIFrameElement>(null);
-  const [iframeLoaded, setIframeLoaded] = useState(false);
-
-  // Write HTML to iframe once it's rendered and we have content
+  // Inject the widget script directly into the page DOM
   useEffect(() => {
-    if (htmlContent && iframeRef.current && !loading) {
-      try {
-        console.log("Iframe ref available, writing HTML to iframe");
-        const iframeDoc =
-          iframeRef.current.contentDocument ||
-          iframeRef.current.contentWindow?.document;
-        if (iframeDoc) {
-          console.log("Writing HTML to iframe, length:", htmlContent.length);
-          iframeDoc.open();
-          iframeDoc.write(htmlContent);
-          iframeDoc.close();
-          console.log("HTML successfully written to iframe");
-        } else {
-          console.error("Could not access iframe document");
-        }
-      } catch (err) {
-        console.error("Error writing to iframe:", err);
-      }
+    if (loading || error || !widgetScriptUrl || !widgetDomain) return;
+
+    // Remove any previously injected widget script
+    const existingScript = document.getElementById("cartbuddy-demo-widget");
+
+    if (existingScript) {
+      existingScript.remove();
     }
-  }, [htmlContent, loading]);
 
-  const handleIframeLoad = () => {
-    console.log("Iframe loaded successfully");
-    setIframeLoaded(true);
-  };
+    // Also remove the widget container if it was previously injected
+    const existingWidget = document.getElementById(
+      "cartbuddy-widget-container",
+    );
 
-  const handleIframeError = () => {
-    console.error("Iframe failed to load");
-  };
+    if (existingWidget) {
+      existingWidget.remove();
+    }
 
-  // Suppress CORS errors from the iframe's internal scripts
-  useEffect(() => {
-    const originalConsoleError = console.error;
-    console.error = (...args) => {
-      const message = args[0]?.toString() || "";
-      // Suppress CORS-related errors that come from the iframe's scripts
-      if (
-        message.includes("CORS") ||
-        message.includes("Access-Control-Allow-Origin") ||
-        message.includes("blocked by CORS policy")
-      ) {
-        console.warn(
-          "[Demo] CORS error suppressed (expected in demo mode):",
-          args[0]?.substring?.(0, 100) || args[0]
-        );
-        return;
-      }
-      originalConsoleError.apply(console, args);
-    };
+    // Create and inject script tag directly into the page
+    const script = document.createElement("script");
+
+    script.id = "cartbuddy-demo-widget";
+    script.src = widgetScriptUrl;
+    script.setAttribute("data-domain", widgetDomain);
+    if (widgetWebhookUrl) {
+      script.setAttribute("data-webhook-url", widgetWebhookUrl);
+    }
+    script.defer = true;
+    document.body.appendChild(script);
 
     return () => {
-      console.error = originalConsoleError;
+      // Cleanup on unmount
+      const scriptEl = document.getElementById("cartbuddy-demo-widget");
+
+      if (scriptEl) scriptEl.remove();
+
+      const widgetEl = document.getElementById("cartbuddy-widget-container");
+
+      if (widgetEl) widgetEl.remove();
     };
-  }, []);
+  }, [loading, error, widgetScriptUrl, widgetDomain, widgetWebhookUrl]);
 
   return (
-    <div className="flex-1 relative bg-white rounded-lg shadow-lg overflow-hidden border border-gray-200 h-full min-h-[600px]">
+    <div className="flex-1 relative bg-gray-100 overflow-auto h-full min-h-[600px]">
       {loading && (
         <div className="absolute inset-0 flex items-center justify-center bg-gray-50 z-10">
           <div className="text-center">
-            <Spinner size="lg" color="primary" />
+            <Spinner color="primary" size="lg" />
             <p className="mt-4 text-gray-600">Loading website preview...</p>
           </div>
         </div>
@@ -105,14 +95,13 @@ export default function DemoPreview({
         </div>
       )}
 
-      <iframe
-        ref={iframeRef}
-        className="w-full h-full border-0"
-        title="Website Preview"
-        sandbox="allow-same-origin allow-scripts allow-forms allow-popups allow-modals allow-presentation"
-        onLoad={handleIframeLoad}
-        onError={handleIframeError}
-      />
+      {!loading && !error && screenshotUrl && (
+        <img
+          alt="Website Preview"
+          className="w-full h-auto block"
+          src={screenshotUrl}
+        />
+      )}
     </div>
   );
 }

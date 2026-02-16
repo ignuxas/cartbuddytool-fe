@@ -32,7 +32,10 @@ interface ScrapingHistoryModalProps {
   isOpen: boolean;
   onClose: () => void;
   scrapedData: ScrapedDataItem[];
-  onRescrape: (urls: string[], options?: { keepImages: boolean; useAI: boolean }) => void;
+  onRescrape: (
+    urls: string[],
+    options?: { keepImages: boolean; useAI: boolean },
+  ) => void;
   isLoading: boolean;
   onFindMorePages?: () => void;
 }
@@ -88,9 +91,10 @@ export default function ScrapingHistoryModal({
     let filtered = [...scrapedData];
 
     if (hasSearchFilter) {
-      filtered = filtered.filter((item) =>
-        item.url.toLowerCase().includes(filterValue.toLowerCase()) ||
-        item.title.toLowerCase().includes(filterValue.toLowerCase())
+      filtered = filtered.filter(
+        (item) =>
+          item.url.toLowerCase().includes(filterValue.toLowerCase()) ||
+          item.title.toLowerCase().includes(filterValue.toLowerCase()),
       );
     }
 
@@ -109,25 +113,26 @@ export default function ScrapingHistoryModal({
 
   const handleRescrapeSelected = () => {
     let selectedUrls: string[] = [];
+
     if (selectedKeys === "all") {
-        selectedUrls = filteredItems.map(i => i.url);
+      selectedUrls = filteredItems.map((i) => i.url);
     } else {
-        selectedUrls = Array.from(selectedKeys as Set<string>);
+      selectedUrls = Array.from(selectedKeys as Set<string>);
     }
     onRescrape(selectedUrls, { keepImages, useAI });
     setSelectedKeys(new Set([]));
   };
 
   const handleRescrapeSingle = (url: string) => {
-      onRescrape([url], { keepImages, useAI });
+    onRescrape([url], { keepImages, useAI });
   };
 
   return (
-    <Modal 
-      isOpen={isOpen} 
-      onClose={onClose}
-      size="full"
+    <Modal
+      isOpen={isOpen}
       scrollBehavior="inside"
+      size="full"
+      onClose={onClose}
     >
       <ModalContent>
         {(onClose) => (
@@ -135,13 +140,14 @@ export default function ScrapingHistoryModal({
             <ModalHeader className="flex flex-col gap-1">
               Scraping History & Retry
               <p className="text-sm font-normal text-default-500">
-                Select pages to re-scrape. This will overwrite existing data for these pages.
+                Select pages to re-scrape. This will overwrite existing data for
+                these pages.
               </p>
             </ModalHeader>
             <ModalBody>
               <div className="flex flex-col gap-4">
                 <div className="flex justify-between gap-3 items-end">
-                    <Input
+                  <Input
                     isClearable
                     className="w-full sm:max-w-[44%]"
                     placeholder="Search by URL or Title..."
@@ -149,135 +155,249 @@ export default function ScrapingHistoryModal({
                     value={filterValue}
                     onClear={() => setFilterValue("")}
                     onValueChange={setFilterValue}
-                    />
-                    <div className="flex flex-col gap-2 items-end">
-                        <div className="flex gap-4">
-                            <Switch isSelected={keepImages} onValueChange={setKeepImages} size="sm">
-                                Keep old images
-                            </Switch>
-                            {!keepImages && (
-                                <Switch isSelected={useAI} onValueChange={setUseAI} size="sm" color="secondary">
-                                    AI Image Selection
-                                </Switch>
-                            )}
-                        </div>
-                        <div className="flex gap-3">
-                            {onFindMorePages && (
-                                <Button 
-                                    color="secondary" 
-                                    variant="flat"
-                                    isLoading={isLoading}
-                                    onPress={onFindMorePages}
-                                >
-                                    Find New Pages
-                                </Button>
-                            )}
-                            <Button 
-                                color="primary" 
-                                isDisabled={selectedKeys !== "all" && selectedKeys.size === 0}
-                                isLoading={isLoading}
-                                onPress={handleRescrapeSelected}
-                            >
-                                Re-scrape Selected
-                            </Button>
-                        </div>
+                  />
+                  <div className="flex flex-col gap-2 items-end">
+                    <div className="flex gap-4">
+                      <Switch
+                        isSelected={keepImages}
+                        size="sm"
+                        onValueChange={setKeepImages}
+                      >
+                        Keep old images
+                      </Switch>
+                      {!keepImages && (
+                        <Switch
+                          color="secondary"
+                          isSelected={useAI}
+                          size="sm"
+                          onValueChange={setUseAI}
+                        >
+                          AI Image Selection
+                        </Switch>
+                      )}
                     </div>
+                    <div className="flex gap-3">
+                      {onFindMorePages && (
+                        <Button
+                          color="secondary"
+                          isLoading={isLoading}
+                          variant="flat"
+                          onPress={onFindMorePages}
+                        >
+                          Find New Pages
+                        </Button>
+                      )}
+                      <Button
+                        color="primary"
+                        isDisabled={
+                          selectedKeys !== "all" && selectedKeys.size === 0
+                        }
+                        isLoading={isLoading}
+                        onPress={handleRescrapeSelected}
+                      >
+                        Re-scrape Selected
+                      </Button>
+                    </div>
+                  </div>
                 </div>
               </div>
-              
+
               <div className="border rounded-lg overflow-hidden mt-4">
-                  <div className="grid grid-cols-12 gap-4 p-3 bg-default-100 font-medium text-small text-default-500 border-b">
-                      <div className="col-span-1 flex items-center justify-center">
-                        <Checkbox 
-                            isSelected={selectedKeys === "all" || (selectedKeys instanceof Set && selectedKeys.size === filteredItems.length && filteredItems.length > 0)}
+                <div className="grid grid-cols-12 gap-4 p-3 bg-default-100 font-medium text-small text-default-500 border-b">
+                  <div className="col-span-1 flex items-center justify-center">
+                    <Checkbox
+                      isSelected={
+                        selectedKeys === "all" ||
+                        (selectedKeys instanceof Set &&
+                          selectedKeys.size === filteredItems.length &&
+                          filteredItems.length > 0)
+                      }
+                      onValueChange={(isSelected) => {
+                        if (isSelected) {
+                          setSelectedKeys("all");
+                        } else {
+                          setSelectedKeys(new Set([]));
+                        }
+                      }}
+                    />
+                  </div>
+                  <div
+                    className="col-span-5 cursor-pointer hover:text-foreground flex items-center gap-1"
+                    role="button"
+                    tabIndex={0}
+                    onClick={() =>
+                      setSortDescriptor({
+                        column: "url",
+                        direction:
+                          sortDescriptor.column === "url" &&
+                          sortDescriptor.direction === "ascending"
+                            ? "descending"
+                            : "ascending",
+                      })
+                    }
+                    onKeyDown={(e) => {
+                      if (e.key === "Enter" || e.key === " ") {
+                        e.preventDefault();
+                        setSortDescriptor({
+                          column: "url",
+                          direction:
+                            sortDescriptor.column === "url" &&
+                            sortDescriptor.direction === "ascending"
+                              ? "descending"
+                              : "ascending",
+                        });
+                      }
+                    }}
+                  >
+                    URL{" "}
+                    {sortDescriptor.column === "url" &&
+                      (sortDescriptor.direction === "ascending" ? "↑" : "↓")}
+                  </div>
+                  <div
+                    className="col-span-3 cursor-pointer hover:text-foreground flex items-center gap-1"
+                    role="button"
+                    tabIndex={0}
+                    onClick={() =>
+                      setSortDescriptor({
+                        column: "title",
+                        direction:
+                          sortDescriptor.column === "title" &&
+                          sortDescriptor.direction === "ascending"
+                            ? "descending"
+                            : "ascending",
+                      })
+                    }
+                    onKeyDown={(e) => {
+                      if (e.key === "Enter" || e.key === " ") {
+                        e.preventDefault();
+                        setSortDescriptor({
+                          column: "title",
+                          direction:
+                            sortDescriptor.column === "title" &&
+                            sortDescriptor.direction === "ascending"
+                              ? "descending"
+                              : "ascending",
+                        });
+                      }
+                    }}
+                  >
+                    TITLE{" "}
+                    {sortDescriptor.column === "title" &&
+                      (sortDescriptor.direction === "ascending" ? "↑" : "↓")}
+                  </div>
+                  <div
+                    className="col-span-1 cursor-pointer hover:text-foreground flex items-center gap-1"
+                    role="button"
+                    tabIndex={0}
+                    onClick={() =>
+                      setSortDescriptor({
+                        column: "textLength",
+                        direction:
+                          sortDescriptor.column === "textLength" &&
+                          sortDescriptor.direction === "ascending"
+                            ? "descending"
+                            : "ascending",
+                      })
+                    }
+                    onKeyDown={(e) => {
+                      if (e.key === "Enter" || e.key === " ") {
+                        e.preventDefault();
+                        setSortDescriptor({
+                          column: "textLength",
+                          direction:
+                            sortDescriptor.column === "textLength" &&
+                            sortDescriptor.direction === "ascending"
+                              ? "descending"
+                              : "ascending",
+                        });
+                      }
+                    }}
+                  >
+                    LENGTH{" "}
+                    {sortDescriptor.column === "textLength" &&
+                      (sortDescriptor.direction === "ascending" ? "↑" : "↓")}
+                  </div>
+                  <div className="col-span-2 text-right">ACTIONS</div>
+                </div>
+
+                <div className="overflow-y-auto">
+                  {sortedItems.length > 0 ? (
+                    sortedItems.map((item) => (
+                      <div
+                        key={item.url}
+                        className="grid grid-cols-12 gap-4 p-3 border-b last:border-0 hover:bg-default-50 items-center"
+                      >
+                        <div className="col-span-1 flex items-center justify-center">
+                          <Checkbox
+                            isSelected={
+                              selectedKeys === "all" ||
+                              (selectedKeys instanceof Set &&
+                                selectedKeys.has(item.url))
+                            }
                             onValueChange={(isSelected) => {
-                                if (isSelected) {
-                                    setSelectedKeys("all");
-                                } else {
-                                    setSelectedKeys(new Set([]));
-                                }
+                              const newKeys = new Set(
+                                selectedKeys === "all"
+                                  ? filteredItems.map((i) => i.url)
+                                  : selectedKeys,
+                              );
+
+                              if (isSelected) {
+                                newKeys.add(item.url);
+                              } else {
+                                newKeys.delete(item.url);
+                              }
+                              setSelectedKeys(newKeys);
                             }}
-                        />
-                      </div>
-                      <div 
-                        className="col-span-5 cursor-pointer hover:text-foreground flex items-center gap-1"
-                        onClick={() => setSortDescriptor({ 
-                            column: "url", 
-                            direction: sortDescriptor.column === "url" && sortDescriptor.direction === "ascending" ? "descending" : "ascending" 
-                        })}
-                      >
-                          URL {sortDescriptor.column === "url" && (sortDescriptor.direction === "ascending" ? "↑" : "↓")}
-                      </div>
-                      <div 
-                        className="col-span-3 cursor-pointer hover:text-foreground flex items-center gap-1"
-                        onClick={() => setSortDescriptor({ 
-                            column: "title", 
-                            direction: sortDescriptor.column === "title" && sortDescriptor.direction === "ascending" ? "descending" : "ascending" 
-                        })}
-                      >
-                          TITLE {sortDescriptor.column === "title" && (sortDescriptor.direction === "ascending" ? "↑" : "↓")}
-                      </div>
-                      <div 
-                        className="col-span-1 cursor-pointer hover:text-foreground flex items-center gap-1"
-                        onClick={() => setSortDescriptor({ 
-                            column: "textLength", 
-                            direction: sortDescriptor.column === "textLength" && sortDescriptor.direction === "ascending" ? "descending" : "ascending" 
-                        })}
-                      >
-                          LENGTH {sortDescriptor.column === "textLength" && (sortDescriptor.direction === "ascending" ? "↑" : "↓")}
-                      </div>
-                      <div className="col-span-2 text-right">ACTIONS</div>
-                  </div>
-                  
-                  <div className="overflow-y-auto">
-                    {sortedItems.length > 0 ? (
-                        sortedItems.map((item) => (
-                            <div key={item.url} className="grid grid-cols-12 gap-4 p-3 border-b last:border-0 hover:bg-default-50 items-center">
-                                <div className="col-span-1 flex items-center justify-center">
-                                    <Checkbox 
-                                        isSelected={selectedKeys === "all" || (selectedKeys instanceof Set && selectedKeys.has(item.url))}
-                                        onValueChange={(isSelected) => {
-                                            const newKeys = new Set(selectedKeys === "all" ? filteredItems.map(i => i.url) : selectedKeys);
-                                            if (isSelected) {
-                                                newKeys.add(item.url);
-                                            } else {
-                                                newKeys.delete(item.url);
-                                            }
-                                            setSelectedKeys(newKeys);
-                                        }}
-                                    />
-                                </div>
-                                <div className="col-span-5 overflow-hidden">
-                                    <div className="flex flex-col">
-                                        <span className="text-small truncate" title={item.url}>{item.url}</span>
-                                        {item.main && <Chip size="sm" color="secondary" variant="flat" className="mt-1 w-fit h-5 text-[10px]">Main Page</Chip>}
-                                    </div>
-                                </div>
-                                <div className="col-span-3 truncate text-small" title={item.title}>
-                                    {item.title}
-                                </div>
-                                <div className="col-span-1 text-small">
-                                    {item.textLength}
-                                </div>
-                                <div className="col-span-2 flex justify-end">
-                                    <Button 
-                                        size="sm" 
-                                        variant="light" 
-                                        color="primary"
-                                        onPress={() => handleRescrapeSingle(item.url)}
-                                        isLoading={isLoading}
-                                    >
-                                        Re-scrape
-                                    </Button>
-                                </div>
-                            </div>
-                        ))
-                    ) : (
-                        <div className="p-8 text-center text-default-500">
-                            No scraped pages found.
+                          />
                         </div>
-                    )}
-                  </div>
+                        <div className="col-span-5 overflow-hidden">
+                          <div className="flex flex-col">
+                            <span
+                              className="text-small truncate"
+                              title={item.url}
+                            >
+                              {item.url}
+                            </span>
+                            {item.main && (
+                              <Chip
+                                className="mt-1 w-fit h-5 text-[10px]"
+                                color="secondary"
+                                size="sm"
+                                variant="flat"
+                              >
+                                Main Page
+                              </Chip>
+                            )}
+                          </div>
+                        </div>
+                        <div
+                          className="col-span-3 truncate text-small"
+                          title={item.title}
+                        >
+                          {item.title}
+                        </div>
+                        <div className="col-span-1 text-small">
+                          {item.textLength}
+                        </div>
+                        <div className="col-span-2 flex justify-end">
+                          <Button
+                            color="primary"
+                            isLoading={isLoading}
+                            size="sm"
+                            variant="light"
+                            onPress={() => handleRescrapeSingle(item.url)}
+                          >
+                            Re-scrape
+                          </Button>
+                        </div>
+                      </div>
+                    ))
+                  ) : (
+                    <div className="p-8 text-center text-default-500">
+                      No scraped pages found.
+                    </div>
+                  )}
+                </div>
               </div>
             </ModalBody>
             <ModalFooter>

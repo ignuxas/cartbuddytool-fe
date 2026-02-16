@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from 'react';
+import { useState } from "react";
 import {
   Modal,
   ModalContent,
@@ -10,7 +10,7 @@ import {
 } from "@heroui/modal";
 import { Button } from "@heroui/button";
 import { Input } from "@heroui/input";
-import { addToast } from '@heroui/toast';
+import { addToast } from "@heroui/toast";
 
 interface AuthModalProps {
   isOpen: boolean;
@@ -18,30 +18,32 @@ interface AuthModalProps {
 }
 
 export default function AuthModal({ isOpen, onAuthenticate }: AuthModalProps) {
-  const [authKey, setAuthKey] = useState('');
+  const [authKey, setAuthKey] = useState("");
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (!authKey.trim()) {
       addToast({
-        title: 'Authentication Error',
-        description: 'Please enter an authentication key',
-        color: 'danger',
+        title: "Authentication Error",
+        description: "Please enter an authentication key",
+        color: "danger",
       });
+
       return;
     }
     onAuthenticate(authKey.trim());
   };
 
   return (
-    <Modal 
-      isOpen={isOpen} 
-      isDismissable={false}
+    <Modal
       hideCloseButton
       backdrop="blur"
       classNames={{
-        backdrop: "bg-gradient-to-t from-zinc-900 to-zinc-900/10 backdrop-opacity-20"
+        backdrop:
+          "bg-gradient-to-t from-zinc-900 to-zinc-900/10 backdrop-opacity-20",
       }}
+      isDismissable={false}
+      isOpen={isOpen}
     >
       <ModalContent>
         <form onSubmit={handleSubmit}>
@@ -53,17 +55,18 @@ export default function AuthModal({ isOpen, onAuthenticate }: AuthModalProps) {
               Please enter your authentication key to access the application.
             </p>
             <Input
+              // eslint-disable-next-line jsx-a11y/no-autofocus
               autoFocus
               label="Authentication Key"
               placeholder="Enter your key here"
               type="password"
               value={authKey}
-              onValueChange={setAuthKey}
               variant="bordered"
+              onValueChange={setAuthKey}
             />
           </ModalBody>
           <ModalFooter>
-            <Button color="primary" type="submit" className="w-full">
+            <Button className="w-full" color="primary" type="submit">
               Authenticate
             </Button>
           </ModalFooter>

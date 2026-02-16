@@ -1,22 +1,21 @@
 "use client";
 
 import React from "react";
-import { useAuthContext } from "@/app/contexts/AuthContext";
-import AuthModal from "@/app/components/AuthModal";
+
+import { useAuth } from "@/app/contexts/AuthContext";
 
 export default function PromptPage() {
-  const { isAuthenticated, login, isLoading } = useAuthContext();
+  const { isAuthenticated, isLoading } = useAuth();
 
   if (isLoading) {
-      return <div>Loading...</div>;
+    return <div>Loading...</div>;
   }
 
   return (
     <>
-      <AuthModal isOpen={!isAuthenticated} onAuthenticate={login} />
       {isAuthenticated && (
         <div className="pt-4 max-w-4xl mx-auto">
-            {/* Prompt Generator disabled */}
+          {/* Prompt Generator disabled */}
         </div>
       )}
     </>

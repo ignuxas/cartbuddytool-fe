@@ -11,17 +11,31 @@ import {
   getKeyValue,
   SortDescriptor,
 } from "@heroui/table";
-import { Modal, ModalContent, ModalHeader, ModalBody, ModalFooter, useDisclosure } from "@heroui/modal";
-import { Dropdown, DropdownTrigger, DropdownMenu, DropdownItem } from "@heroui/dropdown";
+import {
+  Modal,
+  ModalContent,
+  ModalHeader,
+  ModalBody,
+  ModalFooter,
+  useDisclosure,
+} from "@heroui/modal";
+import {
+  Dropdown,
+  DropdownTrigger,
+  DropdownMenu,
+  DropdownItem,
+} from "@heroui/dropdown";
 import { Button } from "@heroui/button";
-import { TrashIcon } from "./TrashIcon";
-import { VerticalDotsIcon } from "./VerticalDotsIcon";
-import { Textarea } from "@heroui/input";
 import { Input } from "@heroui/input";
 import { Switch } from "@heroui/switch";
 import { Checkbox } from "@heroui/checkbox";
 import { Chip } from "@heroui/chip";
 import { addToast } from "@heroui/toast";
+
+import { VerticalDotsIcon } from "./VerticalDotsIcon";
+import { TrashIcon } from "./TrashIcon";
+
+import { useLanguage } from "@/app/contexts/LanguageContext";
 
 export interface ScrapedDataItem {
   url: string;
@@ -42,7 +56,7 @@ export interface ScrapedPagesTableProps {
   onRescrape?: (url: string, usePlaywright?: boolean) => Promise<void> | void;
   onUpdateImage?: (url: string, newImageUrl: string) => Promise<void>;
   onToggleMain?: (url: string, isMain: boolean) => Promise<void> | void;
-  
+
   // Optional overrides
   headerContent?: React.ReactNode;
   selectionMode?: "none" | "single" | "multiple";
@@ -96,12 +110,16 @@ const columns = [
   { key: "actions", label: "Actions" },
 ];
 
-const logComponentError = (context: string, error: any, additionalData?: any) => {
+const logComponentError = (
+  context: string,
+  error: any,
+  additionalData?: any,
+) => {
   console.error(`[ScrapedPagesTable:${context}] Error:`, {
     message: error.message,
     stack: error.stack,
     timestamp: new Date().toISOString(),
-    additionalData
+    additionalData,
   });
 };
 
@@ -113,7 +131,7 @@ export default function ScrapedPagesTable({
   onRescrape,
   onUpdateImage,
   onToggleMain,
-  headerContent
+  headerContent,
 }: ScrapedPagesTableProps) {
   const [sortDescriptor, setSortDescriptor] = React.useState<SortDescriptor>({
     column: "url",
@@ -123,15 +141,24 @@ export default function ScrapedPagesTable({
   const [searchQuery, setSearchQuery] = React.useState("");
   const rowsPerPage = 20;
 
+  const { t } = useLanguage();
+
   // Edit Image Modal State
-  const {isOpen, onOpen, onOpenChange} = useDisclosure();
-  const [editingItem, setEditingItem] = React.useState<ScrapedDataItem | null>(null);
+  const { isOpen, onOpen, onOpenChange } = useDisclosure();
+  const [editingItem, setEditingItem] = React.useState<ScrapedDataItem | null>(
+    null,
+  );
   const [newImageUrl, setNewImageUrl] = React.useState("");
   const [isUpdatingImage, setIsUpdatingImage] = React.useState(false);
 
   // View Content Modal State
-  const [viewContentItem, setViewContentItem] = React.useState<ScrapedDataItem | null>(null);
-  const { isOpen: isViewContentOpen, onOpen: onViewContentOpen, onOpenChange: onViewContentOpenChange } = useDisclosure();
+  const [viewContentItem, setViewContentItem] =
+    React.useState<ScrapedDataItem | null>(null);
+  const {
+    isOpen: isViewContentOpen,
+    onOpen: onViewContentOpen,
+    onOpenChange: onViewContentOpenChange,
+  } = useDisclosure();
 
   const openViewContentModal = (item: ScrapedDataItem) => {
     setViewContentItem(item);
@@ -146,7 +173,7 @@ export default function ScrapedPagesTable({
 
   const handleSaveImage = async () => {
     if (!editingItem || !onUpdateImage) return;
-    
+
     setIsUpdatingImage(true);
     try {
       await onUpdateImage(editingItem.url, newImageUrl);
@@ -170,9 +197,10 @@ export default function ScrapedPagesTable({
   const sortedItems = React.useMemo(() => {
     try {
       // Filter by search query
-      const filteredData = data.filter(item => {
+      const filteredData = data.filter((item) => {
         if (!searchQuery) return true;
         const query = searchQuery.toLowerCase();
+
         return (
           item.url.toLowerCase().includes(query) ||
           item.title.toLowerCase().includes(query)
@@ -180,23 +208,27 @@ export default function ScrapedPagesTable({
       });
 
       return [...filteredData].sort((a, b) => {
-        if (sortDescriptor.column === 'select') return 0;
-        
-        if (sortDescriptor.column === 'main') {
+        if (sortDescriptor.column === "select") return 0;
+
+        if (sortDescriptor.column === "main") {
           const aMain = a.main ? 1 : 0;
           const bMain = b.main ? 1 : 0;
           let cmp = aMain - bMain;
+
           if (sortDescriptor.direction === "descending") {
             cmp *= -1;
           }
+
           return cmp;
         }
-        
-        const first = a[sortDescriptor.column as keyof Omit<ScrapedDataItem, 'selected'>];
-        const second = b[sortDescriptor.column as keyof Omit<ScrapedDataItem, 'selected'>];
-        
+
+        const first =
+          a[sortDescriptor.column as keyof Omit<ScrapedDataItem, "selected">];
+        const second =
+          b[sortDescriptor.column as keyof Omit<ScrapedDataItem, "selected">];
+
         if (first === undefined || second === undefined) return 0;
-        
+
         let cmp =
           (parseInt(first as string) || first) <
           (parseInt(second as string) || second)
@@ -210,7 +242,11 @@ export default function ScrapedPagesTable({
         return cmp;
       });
     } catch (error: any) {
-      logComponentError("sortedItems", error, { sortDescriptor, dataLength: data.length });
+      logComponentError("sortedItems", error, {
+        sortDescriptor,
+        dataLength: data.length,
+      });
+
       return data;
     }
   }, [sortDescriptor, data, searchQuery]);
@@ -219,6 +255,7 @@ export default function ScrapedPagesTable({
   const paginatedItems = React.useMemo(() => {
     const start = (page - 1) * rowsPerPage;
     const end = start + rowsPerPage;
+
     return sortedItems.slice(start, end);
   }, [sortedItems, page]);
 
@@ -238,25 +275,25 @@ export default function ScrapedPagesTable({
           case "select":
             return (
               <Checkbox
+                aria-label={`Select row ${item.url}`}
                 isSelected={item.selected}
                 onValueChange={() => onToggleSelect(item.url)}
-                aria-label={`Select row ${item.url}`}
               />
             );
           case "main":
             return onToggleMain ? (
               <Switch
+                aria-label={`Toggle main status for ${item.url}`}
+                color="success"
                 isSelected={!!item.main}
                 size="sm"
-                color="success"
                 onValueChange={() => onToggleMain(item.url, !item.main)}
-                aria-label={`Toggle main status for ${item.url}`}
               />
             ) : (
               <Chip
                 color={item.main ? "success" : "default"}
-                variant="flat"
                 size="sm"
+                variant="flat"
               >
                 {item.main ? "Yes" : "No"}
               </Chip>
@@ -264,16 +301,20 @@ export default function ScrapedPagesTable({
           case "url":
             return (
               <a
-                href={item.url}
-                target="_blank"
-                rel="noopener noreferrer"
                 className="text-blue-500 hover:underline truncate block max-w-[300px]"
+                href={item.url}
+                rel="noopener noreferrer"
+                target="_blank"
                 onClick={(e) => {
                   try {
                     new URL(item.url);
                   } catch {
                     e.preventDefault();
-                    addToast({ title: "Error", description: `Invalid URL: ${item.url}`, color: "danger" });
+                    addToast({
+                      title: "Error",
+                      description: `Invalid URL: ${item.url}`,
+                      color: "danger",
+                    });
                   }
                 }}
               >
@@ -281,22 +322,26 @@ export default function ScrapedPagesTable({
               </a>
             );
           case "title":
-            return <span className="truncate block max-w-[200px]" title={item.title}>{item.title}</span>;
+            return (
+              <span className="truncate block max-w-[200px]" title={item.title}>
+                {item.title}
+              </span>
+            );
           case "image":
             return item.image ? (
-              <img 
-                src={item.image} 
-                alt={item.title || "Page image"} 
+              <img
+                alt={item.title || "Page image"}
                 className="w-16 h-16 object-cover rounded"
+                src={item.image}
                 onError={(e) => {
-                  e.currentTarget.style.display = 'none';
+                  e.currentTarget.style.display = "none";
                 }}
               />
             ) : (
               <span className="text-gray-400 text-sm">No image</span>
             );
           case "textLength":
-             return <span>{item.textLength?.toLocaleString()}</span>;
+            return <span>{item.textLength?.toLocaleString()}</span>;
           case "actions":
             return (
               <div className="relative flex justify-end items-center gap-2">
@@ -310,9 +355,24 @@ export default function ScrapedPagesTable({
                     <DropdownItem
                       key="view-content"
                       startContent={
-                        <svg className="w-4 h-4 text-default-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
+                        <svg
+                          className="w-4 h-4 text-default-500"
+                          fill="none"
+                          stroke="currentColor"
+                          viewBox="0 0 24 24"
+                        >
+                          <path
+                            d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"
+                            strokeLinecap="round"
+                            strokeLinejoin="round"
+                            strokeWidth={2}
+                          />
+                          <path
+                            d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"
+                            strokeLinecap="round"
+                            strokeLinejoin="round"
+                            strokeWidth={2}
+                          />
                         </svg>
                       }
                       onPress={() => openViewContentModal(item)}
@@ -322,54 +382,89 @@ export default function ScrapedPagesTable({
                     {onUpdateImage ? (
                       <DropdownItem
                         key="edit-image"
-                        startContent={<EditIcon className="w-4 h-4 text-default-500" />}
+                        startContent={
+                          <EditIcon className="w-4 h-4 text-default-500" />
+                        }
                         onPress={() => openEditImageModal(item)}
                       >
                         Edit Image
                       </DropdownItem>
-                    ) : (null as any)}
+                    ) : (
+                      (null as any)
+                    )}
                     {onRescrape ? (
                       <DropdownItem
                         key="rescrape"
                         startContent={
-                          <svg className="w-4 h-4 text-default-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+                          <svg
+                            className="w-4 h-4 text-default-500"
+                            fill="none"
+                            stroke="currentColor"
+                            viewBox="0 0 24 24"
+                          >
+                            <path
+                              d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"
+                              strokeLinecap="round"
+                              strokeLinejoin="round"
+                              strokeWidth={2}
+                            />
                           </svg>
                         }
                         onPress={async () => {
-                           await onRescrape(item.url, false);
+                          await onRescrape(item.url, false);
                         }}
                       >
                         Rescrape
                       </DropdownItem>
-                    ) : (null as any)}
+                    ) : (
+                      (null as any)
+                    )}
                     {onRescrape ? (
                       <DropdownItem
                         key="rescrape-playwright"
                         startContent={
-                          <svg className="w-4 h-4 text-default-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M14.752 11.168l-3.197-2.132A1 1 0 0010 9.87v4.263a1 1 0 001.555.832l3.197-2.132a1 1 0 000-1.664z" />
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                          <svg
+                            className="w-4 h-4 text-default-500"
+                            fill="none"
+                            stroke="currentColor"
+                            viewBox="0 0 24 24"
+                          >
+                            <path
+                              d="M14.752 11.168l-3.197-2.132A1 1 0 0010 9.87v4.263a1 1 0 001.555.832l3.197-2.132a1 1 0 000-1.664z"
+                              strokeLinecap="round"
+                              strokeLinejoin="round"
+                              strokeWidth={2}
+                            />
+                            <path
+                              d="M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
+                              strokeLinecap="round"
+                              strokeLinejoin="round"
+                              strokeWidth={2}
+                            />
                           </svg>
                         }
                         onPress={async () => {
-                           await onRescrape(item.url, true);
+                          await onRescrape(item.url, true);
                         }}
                       >
                         Rescrape (Playwright)
                       </DropdownItem>
-                    ) : (null as any)}
+                    ) : (
+                      (null as any)
+                    )}
                     {onDelete ? (
-                        <DropdownItem
+                      <DropdownItem
                         key="delete"
                         className="text-danger"
                         color="danger"
                         startContent={<TrashIcon className="w-4 h-4" />}
                         onPress={() => onDelete(item.url)}
-                        >
+                      >
                         Delete
-                        </DropdownItem>
-                    ) : (null as any)}
+                      </DropdownItem>
+                    ) : (
+                      (null as any)
+                    )}
                   </DropdownMenu>
                 </Dropdown>
               </div>
@@ -379,34 +474,47 @@ export default function ScrapedPagesTable({
         }
       } catch (error: any) {
         logComponentError("renderCell", error, { item, columnKey });
+
         return <span className="text-red-500">Error</span>;
       }
     },
-    [onDelete, onRescrape, onToggleSelect, onToggleMain, onUpdateImage]
+    [onDelete, onRescrape, onToggleSelect, onToggleMain, onUpdateImage],
   );
 
   return (
     <div className="w-full flex flex-col gap-4">
       {headerContent}
-      
+
       {/* Search Bar */}
       <div className="mb-3">
         <Input
-          type="text"
-          placeholder="Search by URL or title..."
-          value={searchQuery}
-          onChange={(e) => setSearchQuery(e.target.value)}
           isClearable
-          onClear={() => setSearchQuery("")}
+          placeholder={t("scraping.scrapedContent.searchPlaceholder")}
           startContent={
-            <svg className="w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+            <svg
+              className="w-4 h-4 text-gray-400"
+              fill="none"
+              stroke="currentColor"
+              viewBox="0 0 24 24"
+            >
+              <path
+                d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                strokeWidth={2}
+              />
             </svg>
           }
+          type="text"
+          value={searchQuery}
+          onChange={(e) => setSearchQuery(e.target.value)}
+          onClear={() => setSearchQuery("")}
         />
         {searchQuery && (
           <p className="text-sm text-gray-500 mt-1">
-            Showing {sortedItems.length} of {data.length} pages
+            {t("scraping.scrapedContent.showingPages")
+              .replace("{count}", sortedItems.length.toString())
+              .replace("{total}", data.length.toString())}
           </p>
         )}
       </div>
@@ -423,33 +531,35 @@ export default function ScrapedPagesTable({
                 return (
                   <TableColumn key={column.key} allowsSorting={false}>
                     <Checkbox
-                      isSelected={
-                        paginatedItems.length > 0 &&
-                        paginatedItems.every((item) => item.selected)
-                      }
+                      aria-label="Select all rows on current page"
                       isIndeterminate={
                         paginatedItems.length > 0 &&
                         !paginatedItems.every((item) => item.selected) &&
                         paginatedItems.some((item) => item.selected)
                       }
+                      isSelected={
+                        paginatedItems.length > 0 &&
+                        paginatedItems.every((item) => item.selected)
+                      }
                       onValueChange={(isSelected) => {
-                         if (onSelectionChange) {
-                             const urls = paginatedItems.map(i => i.url);
-                             onSelectionChange(urls, isSelected);
-                         } else {
-                            // Fallback if no bulk handler
-                            paginatedItems.forEach((item) => {
-                                if (item.selected !== isSelected) {
-                                    onToggleSelect(item.url);
-                                }
-                            });
-                         }
+                        if (onSelectionChange) {
+                          const urls = paginatedItems.map((i) => i.url);
+
+                          onSelectionChange(urls, isSelected);
+                        } else {
+                          // Fallback if no bulk handler
+                          paginatedItems.forEach((item) => {
+                            if (item.selected !== isSelected) {
+                              onToggleSelect(item.url);
+                            }
+                          });
+                        }
                       }}
-                      aria-label="Select all rows on current page"
                     />
                   </TableColumn>
                 );
               }
+
               return (
                 <TableColumn
                   key={column.key}
@@ -460,10 +570,7 @@ export default function ScrapedPagesTable({
               );
             }}
           </TableHeader>
-          <TableBody
-            items={paginatedItems}
-            emptyContent={"No pages found."}
-          >
+          <TableBody emptyContent={"No pages found."} items={paginatedItems}>
             {(item) => (
               <TableRow key={`${item.url}-${item.textLength}`}>
                 {(columnKey) => (
@@ -479,22 +586,26 @@ export default function ScrapedPagesTable({
       {totalPages > 1 && (
         <div className="flex justify-center items-center gap-4 mt-4">
           <Button
+            isDisabled={page === 1}
             size="sm"
             variant="flat"
-            isDisabled={page === 1}
             onPress={() => setPage(page - 1)}
           >
             ← Previous
           </Button>
           <div className="flex items-center gap-2">
             <span className="text-sm text-default-500">
-              Page <span className="font-semibold text-default-700">{page}</span> of <span className="font-semibold text-default-700">{totalPages}</span>
+              Page{" "}
+              <span className="font-semibold text-default-700">{page}</span> of{" "}
+              <span className="font-semibold text-default-700">
+                {totalPages}
+              </span>
             </span>
           </div>
           <Button
+            isDisabled={page === totalPages}
             size="sm"
             variant="flat"
-            isDisabled={page === totalPages}
             onPress={() => setPage(page + 1)}
           >
             Next →
@@ -503,11 +614,11 @@ export default function ScrapedPagesTable({
       )}
 
       {/* View Content Modal */}
-      <Modal 
-        isOpen={isViewContentOpen} 
-        onOpenChange={onViewContentOpenChange}
-        size="5xl"
+      <Modal
+        isOpen={isViewContentOpen}
         scrollBehavior="inside"
+        size="5xl"
+        onOpenChange={onViewContentOpenChange}
       >
         <ModalContent>
           {(onClose) => (
@@ -535,7 +646,9 @@ export default function ScrapedPagesTable({
         <ModalContent>
           {(onClose) => (
             <>
-              <ModalHeader className="flex flex-col gap-1">Edit Page Image</ModalHeader>
+              <ModalHeader className="flex flex-col gap-1">
+                Edit Page Image
+              </ModalHeader>
               <ModalBody>
                 <p className="text-sm text-default-500 mb-2">
                   Enter the URL of the product/page image.
@@ -544,18 +657,18 @@ export default function ScrapedPagesTable({
                   label="Image URL"
                   placeholder="https://example.com/image.jpg"
                   value={newImageUrl}
-                  onChange={(e) => setNewImageUrl(e.target.value)}
                   variant="bordered"
+                  onChange={(e) => setNewImageUrl(e.target.value)}
                 />
                 {newImageUrl && (
                   <div className="mt-2 flex justify-center">
                     <img
-                      src={newImageUrl}
                       alt="Preview"
                       className="max-h-48 object-contain rounded border"
-                      onError={(e) => {
-                         // e.currentTarget.style.display = 'none';
-                         // keep it to show broken link
+                      src={newImageUrl}
+                      onError={(_e) => {
+                        // e.currentTarget.style.display = 'none';
+                        // keep it to show broken link
                       }}
                     />
                   </div>
@@ -565,10 +678,10 @@ export default function ScrapedPagesTable({
                 <Button color="danger" variant="light" onPress={onClose}>
                   Cancel
                 </Button>
-                <Button 
-                  color="primary" 
-                  onPress={handleSaveImage}
+                <Button
+                  color="primary"
                   isLoading={isUpdatingImage}
+                  onPress={handleSaveImage}
                 >
                   Save
                 </Button>

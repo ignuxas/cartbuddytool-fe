@@ -336,7 +336,7 @@
       "rescrape": {
         "title": "Confirm Full Rescrape",
         "body": "Are you sure you want to re-scrape the entire site?",
-        "warning": "This will update all pages. If AI extraction is enabled, it may consume a significant amount of credits/time.",
+        "warning": "This will delete all existing data and re-scrape every page. If 'AI Image Selection' is enabled, image extraction will be slower but more accurate.",
         "confirm": "Rescrape All"
       },
       "cancel": "Cancel"
@@ -351,6 +351,9 @@
       "title": "Scraped Content",
       "searchPlaceholder": "Search by URL or title...",
       "showingPages": "Showing {count} of {total} pages"
+    },
+    "tooltips": {
+      "imageLock": "Lock Image: When active, the image for this page will NOT be updated during re-scrapes."
     },
     "blacklistManager": {
       "title": "Scraping Blacklist",
@@ -370,5 +373,16 @@
       "patternAdded": "Pattern added",
       "patternRemoved": "Pattern removed"
     }
+  },
+  "apiKey": {
+    "title": "API Key",
+    "description": "Use this key to authenticate external integrations (e.g., WordPress plugin).",
+    "regenerate": "Regenerate",
+    "regenerateConfirm": "Are you sure? Existing integrations using the old key will stop working.",
+    "regenerated": "API key regenerated successfully.",
+    "copied": "API key copied to clipboard.",
+    "copyFailed": "Failed to copy API key.",
+    "generate": "Generate Key",
+    "noKey": "No API key yet. Click Generate to create one."
   }
 }

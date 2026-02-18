@@ -6,6 +6,7 @@ import { Card, CardHeader, CardBody } from "@heroui/card";
 import { Checkbox } from "@heroui/checkbox";
 import { Spinner } from "@heroui/spinner";
 import { Chip } from "@heroui/chip";
+import { Input } from "@heroui/input";
 import { addToast } from "@heroui/toast";
 import {
   Modal,
@@ -33,6 +34,8 @@ export default function SiteSettingsPage() {
     isAuthenticated,
     isLoading: authLoading,
     isSuperAdmin,
+    user,
+    refreshProfile,
   } = useAuth();
   const { t } = useLanguage();
   const router = useRouter();
@@ -49,6 +52,8 @@ export default function SiteSettingsPage() {
   const [saving, setSaving] = useState(false);
   const [initialized, setInitialized] = useState(false);
   const [pendingAction, setPendingAction] = useState<(() => void) | null>(null);
+  const [regeneratingKey, setRegeneratingKey] = useState(false);
+  const [showApiKey, setShowApiKey] = useState(false);
 
   // Sync from fetched settings once loaded
   useEffect(() => {
@@ -66,8 +71,8 @@ export default function SiteSettingsPage() {
     );
   }
 
-  if (!isAuthenticated || !isSuperAdmin) {
-    router.replace("/");
+  if (!isAuthenticated) {
+    router.replace("/login");
 
     return null;
   }
@@ -101,6 +106,50 @@ export default function SiteSettingsPage() {
 
   const clearAll = () => {
     setAllowedModels([]);
+  };
+
+  const handleCopyApiKey = async () => {
+    if (!user?.api_key) return;
+    try {
+      await navigator.clipboard.writeText(user.api_key);
+      addToast({
+        title: t("common.success"),
+        description: t("apiKey.copied"),
+        color: "success",
+      });
+    } catch {
+      addToast({
+        title: t("common.error"),
+        description: t("apiKey.copyFailed"),
+        color: "danger",
+      });
+    }
+  };
+
+  const handleRegenerateApiKey = async () => {
+    if (user?.api_key && !confirm(t("apiKey.regenerateConfirm"))) return;
+    setRegeneratingKey(true);
+    try {
+      await authenticatedFetcher(
+        `${config.serverUrl}/api/auth/regenerate-api-key/`,
+        authKey!,
+        { method: "POST" },
+      );
+      await refreshProfile();
+      addToast({
+        title: t("common.success"),
+        description: t("apiKey.regenerated"),
+        color: "success",
+      });
+    } catch (e: any) {
+      addToast({
+        title: t("common.error"),
+        description: e?.message || "Failed to regenerate",
+        color: "danger",
+      });
+    } finally {
+      setRegeneratingKey(false);
+    }
   };
 
   const selectProvider = (provider: string) => {
@@ -229,91 +278,182 @@ export default function SiteSettingsPage() {
         </div>
       </div>
 
-      <Card>
-        <CardHeader className="flex justify-between items-center">
+      {/* API Key Section — visible to all authenticated users */}
+      <Card className="mb-6">
+        <CardHeader>
           <div>
-            <h3 className="text-xl font-bold">{t("settings.allowedModels")}</h3>
+            <h3 className="text-xl font-bold">{t("apiKey.title")}</h3>
             <p className="text-sm text-default-500 mt-1">
-              {noRestrictions
-                ? t("settings.noRestrictions")
-                : `${allowedModels.length} ${t("settings.modelsAllowed")}`}
+              {t("apiKey.description")}
             </p>
-          </div>
-          <div className="flex gap-2">
-            <Button
-              color="primary"
-              isDisabled={isLoading}
-              size="sm"
-              variant="flat"
-              onPress={selectAll}
-            >
-              {t("settings.enableAll")}
-            </Button>
-            <Button
-              color="warning"
-              isDisabled={isLoading || noRestrictions}
-              size="sm"
-              variant="flat"
-              onPress={clearAll}
-            >
-              {t("settings.clearRestrictions")}
-            </Button>
           </div>
         </CardHeader>
         <CardBody>
-          {isLoading ? (
-            <div className="flex justify-center py-8">
-              <Spinner />
-            </div>
-          ) : allModels.length === 0 ? (
-            <p className="text-default-500 text-center py-8">
-              {t("settings.noModelsAvailable")}
-            </p>
-          ) : (
-            <>
-              {renderModelGroup(geminiModels, "gemini", "Google Gemini")}
-              {renderModelGroup(openaiModels, "openai", "OpenAI")}
-
-              <div className="flex justify-end mt-4 pt-4 border-t border-divider">
+          {user?.api_key ? (
+            <div className="flex flex-col sm:flex-row gap-3">
+              <Input
+                isReadOnly
+                className="flex-1 font-mono"
+                size="sm"
+                type={showApiKey ? "text" : "password"}
+                value={user.api_key}
+                endContent={
+                  <button
+                    className="text-default-400 hover:text-default-600"
+                    type="button"
+                    onClick={() => setShowApiKey(!showApiKey)}
+                  >
+                    {showApiKey ? (
+                      <svg
+                        fill="none"
+                        height="18"
+                        stroke="currentColor"
+                        strokeWidth="2"
+                        viewBox="0 0 24 24"
+                        width="18"
+                      >
+                        <path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24" />
+                        <line x1="1" x2="23" y1="1" y2="23" />
+                      </svg>
+                    ) : (
+                      <svg
+                        fill="none"
+                        height="18"
+                        stroke="currentColor"
+                        strokeWidth="2"
+                        viewBox="0 0 24 24"
+                        width="18"
+                      >
+                        <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z" />
+                        <circle cx="12" cy="12" r="3" />
+                      </svg>
+                    )}
+                  </button>
+                }
+              />
+              <div className="flex gap-2">
+                <Button size="sm" variant="flat" onPress={handleCopyApiKey}>
+                  Copy
+                </Button>
                 <Button
-                  color="primary"
-                  isDisabled={isLoading}
-                  isLoading={saving}
-                  onPress={handleSave}
+                  color="warning"
+                  isLoading={regeneratingKey}
+                  size="sm"
+                  variant="flat"
+                  onPress={handleRegenerateApiKey}
                 >
-                  {t("common.save")}
+                  {t("apiKey.regenerate")}
                 </Button>
               </div>
-            </>
+            </div>
+          ) : (
+            <div className="flex flex-col sm:flex-row items-start sm:items-center gap-3">
+              <p className="text-default-500">{t("apiKey.noKey")}</p>
+              <Button
+                color="primary"
+                isLoading={regeneratingKey}
+                size="sm"
+                onPress={handleRegenerateApiKey}
+              >
+                {t("apiKey.generate")}
+              </Button>
+            </div>
           )}
         </CardBody>
       </Card>
 
-      <Modal isOpen={isOpen} onOpenChange={onOpenChange}>
-        <ModalContent>
-          {(onClose) => (
-            <>
-              <ModalHeader className="flex flex-col gap-1">
-                {t("settings.warningTitle")}
-              </ModalHeader>
-              <ModalBody>
-                <p>{t("settings.warningDescription")}</p>
-              </ModalBody>
-              <ModalFooter>
-                <Button color="danger" variant="light" onPress={onClose}>
-                  {t("settings.cancel")}
-                </Button>
+      {/* Admin-only sections below */}
+      {!isSuperAdmin ? null : (
+        <>
+          <Card>
+            <CardHeader className="flex justify-between items-center">
+              <div>
+                <h3 className="text-xl font-bold">
+                  {t("settings.allowedModels")}
+                </h3>
+                <p className="text-sm text-default-500 mt-1">
+                  {noRestrictions
+                    ? t("settings.noRestrictions")
+                    : `${allowedModels.length} ${t("settings.modelsAllowed")}`}
+                </p>
+              </div>
+              <div className="flex gap-2">
                 <Button
                   color="primary"
-                  onPress={() => pendingAction && pendingAction()}
+                  isDisabled={isLoading}
+                  size="sm"
+                  variant="flat"
+                  onPress={selectAll}
                 >
-                  {t("settings.confirmEnable")}
+                  {t("settings.enableAll")}
                 </Button>
-              </ModalFooter>
-            </>
-          )}
-        </ModalContent>
-      </Modal>
+                <Button
+                  color="warning"
+                  isDisabled={isLoading || noRestrictions}
+                  size="sm"
+                  variant="flat"
+                  onPress={clearAll}
+                >
+                  {t("settings.clearRestrictions")}
+                </Button>
+              </div>
+            </CardHeader>
+            <CardBody>
+              {isLoading ? (
+                <div className="flex justify-center py-8">
+                  <Spinner />
+                </div>
+              ) : allModels.length === 0 ? (
+                <p className="text-default-500 text-center py-8">
+                  {t("settings.noModelsAvailable")}
+                </p>
+              ) : (
+                <>
+                  {renderModelGroup(geminiModels, "gemini", "Google Gemini")}
+                  {renderModelGroup(openaiModels, "openai", "OpenAI")}
+
+                  <div className="flex justify-end mt-4 pt-4 border-t border-divider">
+                    <Button
+                      color="primary"
+                      isDisabled={isLoading}
+                      isLoading={saving}
+                      onPress={handleSave}
+                    >
+                      {t("common.save")}
+                    </Button>
+                  </div>
+                </>
+              )}
+            </CardBody>
+          </Card>
+
+          <Modal isOpen={isOpen} onOpenChange={onOpenChange}>
+            <ModalContent>
+              {(onClose) => (
+                <>
+                  <ModalHeader className="flex flex-col gap-1">
+                    {t("settings.warningTitle")}
+                  </ModalHeader>
+                  <ModalBody>
+                    <p>{t("settings.warningDescription")}</p>
+                  </ModalBody>
+                  <ModalFooter>
+                    <Button color="danger" variant="light" onPress={onClose}>
+                      {t("settings.cancel")}
+                    </Button>
+                    <Button
+                      color="primary"
+                      onPress={() => pendingAction && pendingAction()}
+                    >
+                      {t("settings.confirmEnable")}
+                    </Button>
+                  </ModalFooter>
+                </>
+              )}
+            </ModalContent>
+          </Modal>
+        </>
+      )}
     </div>
   );
 }

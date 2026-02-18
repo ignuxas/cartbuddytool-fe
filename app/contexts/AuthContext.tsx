@@ -24,6 +24,7 @@ export interface AppUser {
   refine_ai_daily_limit?: number;
   refine_ai_remaining?: number;
   projects?: string[];
+  api_key?: string;
 }
 
 interface AuthContextType {

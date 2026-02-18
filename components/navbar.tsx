@@ -84,7 +84,7 @@ export const Navbar = () => {
               </NextLink>
             </NavbarItem>
           )}
-          {isAuthenticated && isSuperAdmin && (
+          {isAuthenticated && (
             <NavbarItem isActive={pathname === "/settings"}>
               <NextLink
                 className="text-foreground data-[active=true]:text-primary data-[active=true]:font-medium"

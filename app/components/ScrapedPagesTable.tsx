@@ -30,6 +30,7 @@ import { Input } from "@heroui/input";
 import { Switch } from "@heroui/switch";
 import { Checkbox } from "@heroui/checkbox";
 import { Chip } from "@heroui/chip";
+import { Tooltip } from "@heroui/tooltip";
 import { addToast } from "@heroui/toast";
 
 import { VerticalDotsIcon } from "./VerticalDotsIcon";
@@ -45,6 +46,7 @@ export interface ScrapedDataItem {
   selected: boolean;
   main?: boolean;
   image?: string;
+  image_locked?: boolean;
   originalIndex?: number; // To help with updates if needed
 }
 
@@ -56,6 +58,7 @@ export interface ScrapedPagesTableProps {
   onRescrape?: (url: string, usePlaywright?: boolean) => Promise<void> | void;
   onUpdateImage?: (url: string, newImageUrl: string) => Promise<void>;
   onToggleMain?: (url: string, isMain: boolean) => Promise<void> | void;
+  onToggleImageLock?: (url: string, locked: boolean) => Promise<void> | void;
 
   // Optional overrides
   headerContent?: React.ReactNode;
@@ -106,6 +109,7 @@ const columns = [
   { key: "url", label: "URL" },
   { key: "title", label: "Title" },
   { key: "image", label: "Image" },
+  { key: "image_locked", label: "🔒" },
   { key: "textLength", label: "Text Length" },
   { key: "actions", label: "Actions" },
 ];
@@ -131,6 +135,7 @@ export default function ScrapedPagesTable({
   onRescrape,
   onUpdateImage,
   onToggleMain,
+  onToggleImageLock,
   headerContent,
 }: ScrapedPagesTableProps) {
   const [sortDescriptor, setSortDescriptor] = React.useState<SortDescriptor>({
@@ -340,6 +345,41 @@ export default function ScrapedPagesTable({
             ) : (
               <span className="text-gray-400 text-sm">No image</span>
             );
+          case "image_locked":
+            return onToggleImageLock ? (
+              <button
+                aria-label={`Toggle image lock for ${item.url}`}
+                className={`p-1 rounded transition-colors ${item.image_locked ? "text-warning" : "text-default-300 hover:text-default-500"}`}
+                title={
+                  item.image_locked
+                    ? "Image locked — won't change on rescrape"
+                    : "Image unlocked — may change on rescrape"
+                }
+                onClick={() => onToggleImageLock(item.url, !item.image_locked)}
+              >
+                {item.image_locked ? (
+                  <svg
+                    className="w-5 h-5"
+                    fill="currentColor"
+                    viewBox="0 0 20 20"
+                  >
+                    <path
+                      clipRule="evenodd"
+                      d="M5 9V7a5 5 0 0110 0v2a2 2 0 012 2v5a2 2 0 01-2 2H5a2 2 0 01-2-2v-5a2 2 0 012-2zm8-2v2H7V7a3 3 0 016 0z"
+                      fillRule="evenodd"
+                    />
+                  </svg>
+                ) : (
+                  <svg
+                    className="w-5 h-5"
+                    fill="currentColor"
+                    viewBox="0 0 20 20"
+                  >
+                    <path d="M10 2a5 5 0 00-5 5v2a2 2 0 00-2 2v5a2 2 0 002 2h10a2 2 0 002-2v-5a2 2 0 00-2-2H7V7a3 3 0 015.905-.75 1 1 0 001.937-.5A5.002 5.002 0 0010 2z" />
+                  </svg>
+                )}
+              </button>
+            ) : null;
           case "textLength":
             return <span>{item.textLength?.toLocaleString()}</span>;
           case "actions":
@@ -478,7 +518,14 @@ export default function ScrapedPagesTable({
         return <span className="text-red-500">Error</span>;
       }
     },
-    [onDelete, onRescrape, onToggleSelect, onToggleMain, onUpdateImage],
+    [
+      onDelete,
+      onRescrape,
+      onToggleSelect,
+      onToggleMain,
+      onUpdateImage,
+      onToggleImageLock,
+    ],
   );
 
   return (
@@ -556,6 +603,21 @@ export default function ScrapedPagesTable({
                         }
                       }}
                     />
+                  </TableColumn>
+                );
+              }
+
+              if (column.key === "image_locked") {
+                return (
+                  <TableColumn key={column.key} allowsSorting={true}>
+                    <Tooltip
+                      content={t("scraping.tooltips.imageLock")}
+                      placement="top"
+                    >
+                      <span className="cursor-help border-b border-dotted border-default-400">
+                        {column.label}
+                      </span>
+                    </Tooltip>
                   </TableColumn>
                 );
               }

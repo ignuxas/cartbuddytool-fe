@@ -760,7 +760,7 @@ export default function MetricsPage() {
                   >
                     <div className="flex-1 mr-4">
                       <div
-                        className="text-sm font-medium text-foreground truncate"
+                        className="text-sm font-medium text-foreground break-words"
                         title={item.query}
                       >
                         {item.query}
@@ -797,14 +797,14 @@ export default function MetricsPage() {
                   >
                     <div className="flex-1 mr-4">
                       <div
-                        className="text-sm font-medium text-foreground truncate"
+                        className="text-sm font-medium text-foreground break-words"
                         title={item.title}
                       >
                         {item.title || item.url}
                       </div>
                       {item.title && (
                         <div
-                          className="text-xs text-default-500 truncate"
+                          className="text-xs text-default-500 break-all"
                           title={item.url}
                         >
                           {item.url}
@@ -843,7 +843,7 @@ export default function MetricsPage() {
                     >
                       <div className="flex-1 mr-4">
                         <div
-                          className="text-sm font-medium text-foreground truncate"
+                          className="text-sm font-medium text-foreground break-words"
                           title={errorType.error_type}
                         >
                           {errorType.error_type}
@@ -905,7 +905,7 @@ export default function MetricsPage() {
                           </Chip>
                         </div>
                         <div
-                          className="text-sm font-medium text-foreground truncate"
+                          className="text-sm font-medium text-foreground break-wordsrds"
                           title={item.title || item.url}
                         >
                           {item.title || "Untitled"}
@@ -980,7 +980,7 @@ export default function MetricsPage() {
                             {item.title || "Untitled"}
                           </div>
                           <a
-                            className="text-xs text-blue-500 hover:text-blue-600 truncate block"
+                            className="text-xs text-blue-500 hover:text-blue-600 break-alll block"
                             href={item.url}
                             rel="noopener noreferrer"
                             target="_blank"

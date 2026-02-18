@@ -231,7 +231,6 @@ export default function UsersPage() {
           method: "PUT",
           headers: getAuthHeaders(accessToken),
           body: JSON.stringify({
-            role: editRole,
             refine_ai_daily_limit: editLimit,
           }),
         },
@@ -735,29 +734,7 @@ export default function UsersPage() {
             {editUser && (
               <div className="flex flex-col gap-4">
                 <p className="text-sm text-default-500">{editUser.email}</p>
-                <div>
-                  <span className="text-sm font-medium mb-1 block">Role</span>
-                  <div className="flex gap-2">
-                    <Button
-                      color={editRole === "user" ? "primary" : "default"}
-                      size="sm"
-                      variant={editRole === "user" ? "solid" : "bordered"}
-                      onPress={() => setEditRole("user")}
-                    >
-                      User
-                    </Button>
-                    <Button
-                      color={editRole === "super_admin" ? "warning" : "default"}
-                      size="sm"
-                      variant={
-                        editRole === "super_admin" ? "solid" : "bordered"
-                      }
-                      onPress={() => setEditRole("super_admin")}
-                    >
-                      Admin
-                    </Button>
-                  </div>
-                </div>
+
                 {editRole === "user" && (
                   <Input
                     description="How many times per day the user can use 'Refine with AI'"

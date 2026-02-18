@@ -336,7 +336,7 @@
       "rescrape": {
         "title": "Patvirtinti pilną nuskaitymą",
         "body": "Ar tikrai norite nuskaityti visą svetainę iš naujo?",
-        "warning": "Tai atnaujins visus puslapius. Jei įjungtas AI atpažinimas, tai gali sunaudoti daug kreditų/laiko.",
+        "warning": "Tai ištrins visus esamus duomenis ir nuskaitys kiekvieną puslapį iš naujo. Jei 'AI paveikslėlių atranka' įjungta, paveikslėlių atranka bus lėtesnė, bet tikslesnė.",
         "confirm": "Nuskaityti viską"
       },
       "cancel": "Atšaukti"
@@ -351,6 +351,9 @@
       "title": "Nuskaitytas turinys",
       "searchPlaceholder": "Ieškoti pagal URL arba pavadinimą...",
       "showingPages": "Rodoma {count} iš {total} puslapių"
+    },
+    "tooltips": {
+      "imageLock": "Užrakinti paveikslėlį: Kai aktyvu, šio puslapio paveikslėlis NEBUS atnaujintas per naujus nuskaitymus."
     },
     "blacklistManager": {
       "title": "Nuskaitymo blokavimo sąrašas",
@@ -370,5 +373,16 @@
       "patternAdded": "Šablonas pridėtas",
       "patternRemoved": "Šablonas pašalintas"
     }
+  },
+  "apiKey": {
+    "title": "API Raktas",
+    "description": "Naudokite šį raktą išorinėms integracijoms autentifikuoti (pvz., WordPress papildinys).",
+    "regenerate": "Atnaujinti",
+    "regenerateConfirm": "Ar tikrai? Esamos integracijos naudojančios seną raktą nustos veikusios.",
+    "regenerated": "API raktas sėkmingai atnaujintas.",
+    "copied": "API raktas nukopijuotas.",
+    "copyFailed": "Nepavyko nukopijuoti API rakto.",
+    "generate": "Generuoti raktą",
+    "noKey": "API rakto dar nėra. Spauskite Generuoti."
   }
 }

@@ -14,7 +14,6 @@ import {
   ModalFooter,
   useDisclosure,
 } from "@heroui/modal";
-import { Switch } from "@heroui/switch";
 import { Checkbox } from "@heroui/checkbox";
 import { Input } from "@heroui/input";
 
@@ -38,6 +37,7 @@ interface ScrapedDataItem {
   textLength: number;
   main?: boolean;
   image?: string;
+  image_locked?: boolean;
   selected: boolean;
 }
 
@@ -673,6 +673,8 @@ export default function ScrapingPage() {
             url,
             force_rescrape: forceRescrape,
             use_ai: useAI,
+            keep_images: keepImages,
+            use_playwright: usePlaywright,
             retry_count: retryCount,
             retry_delay: retryDelay,
             concurrency: concurrency,
@@ -797,10 +799,12 @@ export default function ScrapingPage() {
         "updateImage",
       );
 
-      // Update local state
+      // Update local state (auto-lock the image when manually set)
       setScrapedData((prev) =>
         prev.map((item) =>
-          item.url === pageUrl ? { ...item, image: newImageUrl } : item,
+          item.url === pageUrl
+            ? { ...item, image: newImageUrl, image_locked: true }
+            : item,
         ),
       );
     } catch (error: any) {
@@ -896,6 +900,44 @@ export default function ScrapingPage() {
     );
   };
 
+  const handleToggleImageLock = async (
+    urlToToggle: string,
+    locked: boolean,
+  ) => {
+    // Optimistic update
+    setScrapedData((prev) =>
+      prev.map((item) =>
+        item.url === urlToToggle ? { ...item, image_locked: locked } : item,
+      ),
+    );
+
+    try {
+      await makeApiCall(
+        `${config.serverUrl}/api/scrape/toggle-image-lock/`,
+        {
+          method: "POST",
+          headers: getAuthHeaders(),
+          body: JSON.stringify({ domain, url: urlToToggle, locked }),
+        },
+        "toggle-image-lock",
+      );
+    } catch (error: any) {
+      // Revert on failure
+      setScrapedData((prev) =>
+        prev.map((item) =>
+          item.url === urlToToggle ? { ...item, image_locked: !locked } : item,
+        ),
+      );
+
+      logError("handleToggleImageLock", error, { url: urlToToggle, locked });
+      addToast({
+        title: "Error",
+        description: "Failed to update image lock status",
+        color: "danger",
+      });
+    }
+  };
+
   const handleRescrapeSelected = () => {
     const selectedUrls = scrapedData
       .filter((i) => i.selected)
@@ -986,17 +1028,21 @@ export default function ScrapingPage() {
                   handleRetryScraping={handleRetryScraping}
                   handleSmartRescrapeImages={handleSmartRescrapeImages}
                   handleStopScraping={handleStopScraping}
+                  keepImages={keepImages}
                   loading={loading}
                   retryCount={retryCount}
                   retryDelay={retryDelay}
                   retryLoading={retryLoading}
                   scrapedDataLength={scrapedData.length}
                   setConcurrency={setConcurrency}
+                  setKeepImages={setKeepImages}
                   setRetryCount={setRetryCount}
                   setRetryDelay={setRetryDelay}
                   setUseAI={setUseAI}
+                  setUsePlaywright={setUsePlaywright}
                   url={url}
                   useAI={useAI}
+                  usePlaywright={usePlaywright}
                 />
               ) : (
                 <Card className="bg-content2">
@@ -1210,70 +1256,39 @@ export default function ScrapingPage() {
               <ScrapedPagesTable
                 data={scrapedData}
                 headerContent={
-                  <div className="flex flex-col md:flex-row justify-end gap-3 items-end mb-2">
-                    <div className="flex flex-col gap-2 items-end w-full md:w-auto">
-                      {isSuperAdmin && (
-                        <div className="flex gap-4 items-center flex-wrap justify-end">
-                          <PlaywrightSwitch
-                            color="warning"
-                            isSelected={usePlaywright}
-                            size="sm"
-                            onValueChange={setUsePlaywright}
-                          />
-                          <Switch
-                            isSelected={keepImages}
-                            size="sm"
-                            onValueChange={setKeepImages}
-                          >
-                            {t("scraping.controls.keepOldImages")}
-                          </Switch>
-                          {!keepImages && (
-                            <Switch
-                              color="secondary"
-                              isSelected={useAI}
-                              size="sm"
-                              onValueChange={setUseAI}
-                            >
-                              {t("scraping.controls.aiImageSelection")}
-                            </Switch>
-                          )}
-                        </div>
-                      )}
-                      <div className="flex gap-3">
-                        {isSuperAdmin && (
-                          <Button
-                            color="secondary"
-                            isDisabled={showAddMorePages}
-                            isLoading={retryLoading === "finding-pages"}
-                            variant="flat"
-                            onPress={handleShowAddMorePages}
-                          >
-                            {t("scraping.controls.addPages")}
-                          </Button>
-                        )}
-                        {isSuperAdmin && (
-                          <Button
-                            color="danger"
-                            isDisabled={!scrapedData.some((i) => i.selected)}
-                            isLoading={retryLoading === "scraping"}
-                            variant="flat"
-                            onPress={handleBlacklistSelected}
-                          >
-                            {t("scraping.controls.blacklistSelected")}
-                          </Button>
-                        )}
-                        {isSuperAdmin && (
-                          <Button
-                            color="primary"
-                            isDisabled={!scrapedData.some((i) => i.selected)}
-                            isLoading={retryLoading === "scraping"}
-                            onPress={handleRescrapeSelected}
-                          >
-                            {t("scraping.controls.rescrapeSelected")}
-                          </Button>
-                        )}
-                      </div>
-                    </div>
+                  <div className="flex gap-3 justify-end mb-2">
+                    {isSuperAdmin && (
+                      <Button
+                        color="secondary"
+                        isDisabled={showAddMorePages}
+                        isLoading={retryLoading === "finding-pages"}
+                        variant="flat"
+                        onPress={handleShowAddMorePages}
+                      >
+                        {t("scraping.controls.addPages")}
+                      </Button>
+                    )}
+                    {isSuperAdmin && (
+                      <Button
+                        color="danger"
+                        isDisabled={!scrapedData.some((i) => i.selected)}
+                        isLoading={retryLoading === "scraping"}
+                        variant="flat"
+                        onPress={handleBlacklistSelected}
+                      >
+                        {t("scraping.controls.blacklistSelected")}
+                      </Button>
+                    )}
+                    {isSuperAdmin && (
+                      <Button
+                        color="primary"
+                        isDisabled={!scrapedData.some((i) => i.selected)}
+                        isLoading={retryLoading === "scraping"}
+                        onPress={handleRescrapeSelected}
+                      >
+                        {t("scraping.controls.rescrapeSelected")}
+                      </Button>
+                    )}
                   </div>
                 }
                 onDelete={
@@ -1301,6 +1316,9 @@ export default function ScrapingPage() {
                   );
                 }}
                 onToggleMain={handleToggleMain}
+                onToggleImageLock={
+                  isSuperAdmin ? handleToggleImageLock : undefined
+                }
                 onToggleSelect={handleToggleSelect}
                 onUpdateImage={isSuperAdmin ? handleUpdateImage : undefined}
               />

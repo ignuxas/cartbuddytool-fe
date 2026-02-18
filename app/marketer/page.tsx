@@ -109,6 +109,7 @@ const STATUS_CONFIG: Record<
   sent: { label: "Sent", color: "primary" },
   sold: { label: "Sold", color: "success" },
   in_talks: { label: "In Talks", color: "secondary" },
+  turned_down: { label: "Turned Down", color: "danger" },
 };
 
 // ── Component ────────────────────────────────────────────────────────────
@@ -894,6 +895,7 @@ export default function MarketerPage() {
             <SelectItem key="email_ready">Email Ready</SelectItem>
             <SelectItem key="email_error">Error</SelectItem>
             <SelectItem key="sent">Sent</SelectItem>
+            <SelectItem key="turned_down">Turned Down</SelectItem>
           </Select>
           <Select
             className="w-36"
@@ -1832,6 +1834,9 @@ export default function MarketerPage() {
                   <SelectItem key="email_ready">Email Ready</SelectItem>
                   <SelectItem key="email_error">Error</SelectItem>
                   <SelectItem key="sent">Sent</SelectItem>
+                  <SelectItem key="in_talks">In Talks</SelectItem>
+                  <SelectItem key="sold">Sold</SelectItem>
+                  <SelectItem key="turned_down">Turned Down</SelectItem>
                 </Select>
               </div>
             )}

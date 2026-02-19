@@ -1,11 +1,24 @@
 "use client";
 
+import { useState } from "react";
 import { usePathname, useRouter, useParams } from "next/navigation";
 import { Tabs, Tab } from "@heroui/tabs";
 import { Link } from "@heroui/link";
+import { Button } from "@heroui/button";
+import {
+  Modal,
+  ModalContent,
+  ModalHeader,
+  ModalBody,
+  ModalFooter,
+} from "@heroui/modal";
+import { addToast } from "@heroui/toast";
 
 import ChatWidgetLoader from "@/app/components/ChatWidgetLoader";
 import { useLanguage } from "@/app/contexts/LanguageContext";
+import { useAuth } from "@/app/contexts/AuthContext";
+import { makeApiCall } from "@/app/utils/apiHelper";
+import { config } from "@/lib/config";
 
 export default function ProjectLayout({
   children,
@@ -17,6 +30,44 @@ export default function ProjectLayout({
   const params = useParams();
   const domain = params.domain as string;
   const { t } = useLanguage();
+  const { isSuperAdmin, accessToken } = useAuth();
+
+  const [deleteModalOpen, setDeleteModalOpen] = useState(false);
+  const [isDeleting, setIsDeleting] = useState(false);
+
+  const handleDeleteProject = async () => {
+    if (!accessToken) return;
+    setIsDeleting(true);
+    try {
+      await makeApiCall(
+        `${config.serverUrl}/api/scrape/project/delete/`,
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${accessToken}`,
+          },
+          body: JSON.stringify({ domain }),
+        },
+        "delete-project",
+      );
+      addToast({
+        title: t("common.success"),
+        description: `Project "${domain}" has been deleted.`,
+        color: "success",
+      });
+      router.push("/");
+    } catch (error: any) {
+      addToast({
+        title: t("common.error"),
+        description: error.message || "Failed to delete project.",
+        color: "danger",
+      });
+    } finally {
+      setIsDeleting(false);
+      setDeleteModalOpen(false);
+    }
+  };
 
   // Determine selected tab based on pathname
   let selected = "overview";
@@ -42,7 +93,18 @@ export default function ProjectLayout({
             </div>
             <h1 className="text-3xl font-bold tracking-tight">{domain}</h1>
           </div>
-          <div className="flex gap-2">{/* Actions placeholder */}</div>
+          <div className="flex gap-2">
+            {isSuperAdmin && (
+              <Button
+                color="danger"
+                size="sm"
+                variant="flat"
+                onPress={() => setDeleteModalOpen(true)}
+              >
+                Delete Project
+              </Button>
+            )}
+          </div>
         </div>
 
         <Tabs
@@ -69,6 +131,38 @@ export default function ProjectLayout({
       </div>
       <div className="w-full">{children}</div>
       <ChatWidgetLoader domain={domain} />
+
+      <Modal isOpen={deleteModalOpen} onOpenChange={setDeleteModalOpen}>
+        <ModalContent>
+          {(onClose) => (
+            <>
+              <ModalHeader className="text-danger">Delete Project</ModalHeader>
+              <ModalBody>
+                <p>
+                  Are you sure you want to delete{" "}
+                  <strong>{domain}</strong>? This will permanently remove all
+                  scraped data, embeddings, prompt, and widget settings.
+                </p>
+                <p className="text-sm text-default-500 mt-2">
+                  This action cannot be undone.
+                </p>
+              </ModalBody>
+              <ModalFooter>
+                <Button variant="flat" onPress={onClose} isDisabled={isDeleting}>
+                  Cancel
+                </Button>
+                <Button
+                  color="danger"
+                  isLoading={isDeleting}
+                  onPress={handleDeleteProject}
+                >
+                  Delete Project
+                </Button>
+              </ModalFooter>
+            </>
+          )}
+        </ModalContent>
+      </Modal>
     </div>
   );
 }

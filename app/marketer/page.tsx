@@ -540,6 +540,35 @@ export default function MarketerPage() {
     }
   };
 
+  const handleSendEmail = async (ids: number[]) => {
+    if (!accessToken) return;
+    try {
+      const res = await fetch(
+        `${config.serverUrl}/api/marketer/leads/send-email/`,
+        {
+          method: "POST",
+          headers: getAuthHeaders(accessToken),
+          body: JSON.stringify({ ids }),
+        },
+      );
+
+      const data = await res.json();
+      if (!res.ok && data.sent === 0) throw new Error(data.results?.[0]?.error || "Failed to send");
+      const msg = data.failed > 0
+        ? `Sent ${data.sent}, failed ${data.failed}`
+        : `${data.sent} email(s) sent successfully`;
+      addToast({
+        title: data.failed > 0 ? "Partial success" : "Sent",
+        description: msg,
+        color: data.failed > 0 ? "warning" : "success",
+      });
+      fetchLeads();
+      fetchStats();
+    } catch (e: any) {
+      addToast({ title: "Send failed", description: e.message, color: "danger" });
+    }
+  };
+
   const handleMarkSent = async (ids: number[]) => {
     if (!accessToken) return;
     try {
@@ -973,6 +1002,14 @@ export default function MarketerPage() {
                 Generate Emails
               </Button>
               <Button
+                color="primary"
+                size="sm"
+                variant="flat"
+                onPress={() => handleSendEmail(Array.from(selectedIds))}
+              >
+                Send Emails
+              </Button>
+              <Button
                 color="success"
                 size="sm"
                 variant="flat"
@@ -1380,7 +1417,10 @@ export default function MarketerPage() {
                                   ]
                                 : []),
                               ...(hasEmail && !lead.email_sent
-                                ? [{ key: "mark-sent", label: "Mark as Sent" }]
+                                ? [
+                                    { key: "send-email", label: "Send Email" },
+                                    { key: "mark-sent", label: "Mark as Sent" },
+                                  ]
                                 : []),
                               ...(!lead.is_scraped
                                 ? [{ key: "scrape", label: "Scrape Website" }]
@@ -1401,6 +1441,9 @@ export default function MarketerPage() {
                                   break;
                                 case "mark-sent":
                                   handleMarkSent([lead.id]);
+                                  break;
+                                case "send-email":
+                                  handleSendEmail([lead.id]);
                                   break;
                                 case "scrape":
                                   handleScrape(lead.website);
@@ -1731,9 +1774,21 @@ export default function MarketerPage() {
                     Copy Email
                   </Button>
                 )}
-                {viewingEmail && !viewingEmail.email_sent && (
+                {viewingEmail && !viewingEmail.email_sent && viewingEmail.email && (
                   <Button
                     color="success"
+                    onPress={() => {
+                      handleSendEmail([viewingEmail.id]);
+                      setEmailViewOpen(false);
+                    }}
+                  >
+                    Send Email
+                  </Button>
+                )}
+                {viewingEmail && !viewingEmail.email_sent && (
+                  <Button
+                    color="default"
+                    variant="flat"
                     onPress={() => {
                       handleMarkSent([viewingEmail.id]);
                       setEmailViewOpen(false);

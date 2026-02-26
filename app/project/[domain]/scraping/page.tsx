@@ -63,6 +63,7 @@ export default function ScrapingPage() {
   const [blacklist, setBlacklist] = useState<string[]>([]);
   const [keepImages, setKeepImages] = useState(true);
   const [usePlaywright, setUsePlaywright] = useState(false);
+  const [discoveryMethod, setDiscoveryMethod] = useState("auto");
   const [showAddMorePages, setShowAddMorePages] = useState(false);
   const [additionalUrls, setAdditionalUrls] = useState<
     { url: string; selected: boolean }[]
@@ -90,8 +91,15 @@ export default function ScrapingPage() {
     }[];
   } | null>(null);
 
+  const [interruptedJobInfo, setInterruptedJobInfo] = useState<{
+    scraped: number;
+    total: number;
+  } | null>(null);
+
   // Polling cleanup ref
   const pollingTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  // Track consecutive poll failures to detect a crashed server
+  const pollFailureCountRef = useRef(0);
 
   const url = `http://${domain}`;
 
@@ -127,9 +135,19 @@ export default function ScrapingPage() {
 
     if (pageData.active_job) {
       console.log("Found active scraping job:", pageData.active_job);
-      setRetryLoading("scraping");
-      setActiveJobId(pageData.active_job.id);
-      pollScrapingStatus(pageData.active_job.id);
+
+      if (pageData.active_job.is_stale) {
+        // Server-detected stale job: don't poll, show continue button
+        console.log("Job is stale, showing continue option");
+        setInterruptedJobInfo({
+          scraped: pageData.active_job.scraped_pages ?? 0,
+          total: pageData.active_job.total_pages ?? 0,
+        });
+      } else {
+        setRetryLoading("scraping");
+        setActiveJobId(pageData.active_job.id);
+        pollScrapingStatus(pageData.active_job.id);
+      }
     }
   }, [pageData]);
 
@@ -432,6 +450,7 @@ export default function ScrapingPage() {
             setRetryLoading(null);
             setScrapingProgress(null);
             setActiveJobId(null);
+            pollFailureCountRef.current = 0;
             addToast({
               title: "Success",
               description: "Scraping completed",
@@ -442,6 +461,7 @@ export default function ScrapingPage() {
             setRetryLoading(null);
             setScrapingProgress(null);
             setActiveJobId(null);
+            pollFailureCountRef.current = 0;
             setErrorMessage(statusData.error_message || "Scraping failed");
             addToast({
               title: "Error",
@@ -452,16 +472,32 @@ export default function ScrapingPage() {
             setRetryLoading(null);
             setScrapingProgress(null);
             setActiveJobId(null);
+            pollFailureCountRef.current = 0;
             addToast({
               title: "Cancelled",
               description: "Scraping job was cancelled",
               color: "warning",
             });
           } else {
+            pollFailureCountRef.current = 0; // reset on successful poll
             pollingTimerRef.current = setTimeout(poll, 6000);
           }
         } catch (e) {
           console.error("Polling failed", e);
+          pollFailureCountRef.current += 1;
+          if (pollFailureCountRef.current >= 3) {
+            // 3 consecutive failures (~30 s) – the server is likely down
+            console.warn("Polling failed 3 times in a row, treating job as interrupted");
+            setRetryLoading(null);
+            setScrapingProgress(null);
+            setActiveJobId(null);
+            pollFailureCountRef.current = 0;
+            setInterruptedJobInfo({
+              scraped: 0,
+              total: 0,
+            });
+            return;
+          }
           pollingTimerRef.current = setTimeout(poll, 10000);
         }
       };
@@ -678,6 +714,7 @@ export default function ScrapingPage() {
             retry_count: retryCount,
             retry_delay: retryDelay,
             concurrency: concurrency,
+            discovery_method: discoveryMethod,
           }),
         },
         "retry-scraping",
@@ -810,6 +847,71 @@ export default function ScrapingPage() {
     } catch (error: any) {
       logError("handleUpdateImage", error);
       throw error; // Re-throw to be handled by the component
+    }
+  };
+
+  const handleContinueScraping = async () => {
+    // Clear any existing state — active polling, interrupted info, etc.
+    setInterruptedJobInfo(null);
+    if (pollingTimerRef.current) {
+      clearTimeout(pollingTimerRef.current);
+      pollingTimerRef.current = null;
+    }
+    setActiveJobId(null);
+    pollFailureCountRef.current = 0;
+    setRetryLoading("scraping");
+    clearMessages();
+    setScrapingProgress({ current: 0, total: 0, status: "pending" });
+
+    try {
+      console.log("[handleContinueScraping] Resuming interrupted scraping job");
+      const data = await makeApiCall(
+        `${config.serverUrl}/api/scrape/resume/`,
+        {
+          method: "POST",
+          headers: getAuthHeaders(),
+          body: JSON.stringify({
+            url,
+            use_ai: useAI,
+            keep_images: keepImages,
+            use_playwright: usePlaywright,
+            retry_count: retryCount,
+            retry_delay: retryDelay,
+            concurrency: concurrency,
+            discovery_method: discoveryMethod,
+          }),
+        },
+        "resume-scraping",
+      );
+
+      if (data.job_id) {
+        addToast({
+          title: "Resumed",
+          description:
+            data.message || "Scraping resumed from where it left off",
+          color: "primary",
+        });
+        setActiveJobId(data.job_id);
+        pollScrapingStatus(data.job_id);
+      } else {
+        // Nothing left to scrape
+        addToast({
+          title: "Complete",
+          description: data.message || "All pages already scraped",
+          color: "success",
+        });
+        setRetryLoading(null);
+        setScrapingProgress(null);
+        revalidate();
+      }
+    } catch (error: any) {
+      logError("handleContinueScraping", error, { url });
+      const message = error.message || "Failed to resume scraping";
+
+      addToast({ title: "Error", description: message, color: "danger" });
+      setErrorMessage(message);
+      setRetryLoading(null);
+      setScrapingProgress(null);
     }
   };
 
@@ -1023,11 +1125,13 @@ export default function ScrapingPage() {
               {isSuperAdmin ? (
                 <ActionButtons
                   concurrency={concurrency}
+                  discoveryMethod={discoveryMethod}
                   errorMessage={errorMessage}
                   handleOpenRetryModal={handleOpenRetryModal}
                   handleRetryScraping={handleRetryScraping}
                   handleSmartRescrapeImages={handleSmartRescrapeImages}
                   handleStopScraping={handleStopScraping}
+                  handleContinueScraping={handleContinueScraping}
                   keepImages={keepImages}
                   loading={loading}
                   retryCount={retryCount}
@@ -1035,6 +1139,7 @@ export default function ScrapingPage() {
                   retryLoading={retryLoading}
                   scrapedDataLength={scrapedData.length}
                   setConcurrency={setConcurrency}
+                  setDiscoveryMethod={setDiscoveryMethod}
                   setKeepImages={setKeepImages}
                   setRetryCount={setRetryCount}
                   setRetryDelay={setRetryDelay}
@@ -1059,6 +1164,43 @@ export default function ScrapingPage() {
                 onUpdate={updateBlacklist}
               />
             </div>
+
+            {interruptedJobInfo && !scrapingProgress && (
+              <Card className="border-2 border-warning-400 bg-warning-50 dark:bg-warning-900/20">
+                <CardBody className="py-4">
+                  <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                    <div>
+                      <p className="font-semibold text-warning-700 dark:text-warning-400">
+                        Scraping was interrupted
+                      </p>
+                      <p className="text-sm text-default-600">
+                        {interruptedJobInfo.total > 0
+                          ? `The previous job scraped ${interruptedJobInfo.scraped} of ${interruptedJobInfo.total} pages before stopping.`
+                          : "The previous scraping job stopped unexpectedly (server crash or restart)."}
+                        {" "}
+                        Click <strong>Continue</strong> to resume from where it
+                        left off — already-scraped pages will be skipped.
+                      </p>
+                    </div>
+                    <div className="flex gap-2 shrink-0">
+                      <Button
+                        color="warning"
+                        isLoading={retryLoading === "scraping"}
+                        onPress={handleContinueScraping}
+                      >
+                        Continue Scraping
+                      </Button>
+                      <Button
+                        variant="light"
+                        onPress={() => setInterruptedJobInfo(null)}
+                      >
+                        Dismiss
+                      </Button>
+                    </div>
+                  </div>
+                </CardBody>
+              </Card>
+            )}
 
             {scrapingProgress && (
               <div className="w-full mt-4 p-4 border rounded-lg bg-content1 shadow-md">

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import React, { useState, useEffect } from "react";
 import { Button } from "@heroui/button";
 import { Input } from "@heroui/input";
 import { Card, CardBody } from "@heroui/card";
@@ -218,6 +218,11 @@ export default function NewProjectPage() {
     { url: string; main: boolean }[]
   >([]);
   const [newUrl, setNewUrl] = useState("");
+  const [searchFilter, setSearchFilter] = useState("");
+  const [patternInput, setPatternInput] = useState("");
+  const [blacklistPatterns, setBlacklistPatterns] = useState<string[]>([]);
+  const [showBlacklist, setShowBlacklist] = useState(false);
+  const [mainSearchFilter, setMainSearchFilter] = useState("");
   const [existingDataInfo, setExistingDataInfo] = useState<{
     count: number;
     existing_data: ScrapedDataItem[];
@@ -570,7 +575,7 @@ export default function NewProjectPage() {
               "fetch-blacklist",
             );
             const existingBlacklist = blacklistRes.blacklist || [];
-            const newBlacklist = [...existingBlacklist, ...unselectedUrls];
+            const newBlacklist = [...existingBlacklist, ...unselectedUrls, ...blacklistPatterns];
             const uniqueBlacklist = Array.from(new Set(newBlacklist));
 
             if (uniqueBlacklist.length > existingBlacklist.length) {
@@ -751,6 +756,88 @@ export default function NewProjectPage() {
     }
   };
 
+  const handleSelectFiltered = (select: boolean) => {
+    if (!searchFilter.trim()) return handleSelectAll(select);
+    const filter = searchFilter.toLowerCase();
+    setSitemapUrls((prev) =>
+      prev.map((item) =>
+        item.url.toLowerCase().includes(filter)
+          ? { ...item, selected: select }
+          : item,
+      ),
+    );
+  };
+
+  const handleDeselectByPattern = (pattern: string) => {
+    if (!pattern.trim()) return;
+    const pat = pattern.toLowerCase();
+    setSitemapUrls((prev) =>
+      prev.map((item) =>
+        item.url.toLowerCase().includes(pat)
+          ? { ...item, selected: false }
+          : item,
+      ),
+    );
+  };
+
+  const handleRemoveUrl = (urlToRemove: string) => {
+    setSitemapUrls((prev) => prev.filter((item) => item.url !== urlToRemove));
+  };
+
+  const handleAddBlacklistPattern = (pattern: string) => {
+    if (!pattern.trim()) return;
+    const trimmed = pattern.trim();
+    if (blacklistPatterns.includes(trimmed)) {
+      addToast({ title: "Info", description: "Pattern already exists", color: "primary" });
+      return;
+    }
+    setBlacklistPatterns((prev) => [...prev, trimmed]);
+    // Also deselect matching URLs
+    handleDeselectByPattern(trimmed);
+    setPatternInput("");
+    addToast({ title: "Success", description: `Pattern "${trimmed}" added — matching URLs deselected`, color: "success" });
+  };
+
+  const handleRemoveBlacklistPattern = (pattern: string) => {
+    setBlacklistPatterns((prev) => prev.filter((p) => p !== pattern));
+    addToast({ title: "Success", description: "Pattern removed", color: "success" });
+  };
+
+  // Filter URLs based on search and blacklist
+  const filteredSitemapUrls = React.useMemo(() => {
+    let items = sitemapUrls;
+    if (searchFilter.trim()) {
+      const filter = searchFilter.toLowerCase();
+      items = items.filter((item) => item.url.toLowerCase().includes(filter));
+    }
+    return items;
+  }, [sitemapUrls, searchFilter]);
+
+  const filteredMainPageUrls = React.useMemo(() => {
+    if (!mainSearchFilter.trim()) return mainPageUrls;
+    const filter = mainSearchFilter.toLowerCase();
+    return mainPageUrls.filter((item) => item.url.toLowerCase().includes(filter));
+  }, [mainPageUrls, mainSearchFilter]);
+
+  // URL category stats
+  const urlStats = React.useMemo(() => {
+    const selected = sitemapUrls.filter((u) => u.selected).length;
+    const total = sitemapUrls.length;
+    const categories: Record<string, number> = {};
+    sitemapUrls.forEach((item) => {
+      try {
+        const path = new URL(item.url).pathname;
+        const segments = path.split("/").filter(Boolean);
+        const cat = segments.length > 0 ? `/${segments[0]}/` : "/";
+        categories[cat] = (categories[cat] || 0) + 1;
+      } catch { /* ignore */ }
+    });
+    const sortedCategories = Object.entries(categories)
+      .sort((a, b) => b[1] - a[1])
+      .slice(0, 10);
+    return { selected, total, sortedCategories };
+  }, [sitemapUrls]);
+
   const handleToggleMainSelection = (urlToToggle: string) => {
     try {
       const targetItem = mainPageUrls.find((item) => item.url === urlToToggle);
@@ -892,6 +979,18 @@ export default function NewProjectPage() {
                 </div>
               )}
 
+              {/* Stats bar */}
+              <div className="flex flex-wrap gap-3 text-sm">
+                <span className="px-3 py-1 rounded-full bg-primary/10 text-primary font-medium">
+                  {urlStats.selected} / {urlStats.total} selected
+                </span>
+                {blacklistPatterns.length > 0 && (
+                  <span className="px-3 py-1 rounded-full bg-danger/10 text-danger font-medium">
+                    {blacklistPatterns.length} blacklist pattern{blacklistPatterns.length !== 1 ? "s" : ""}
+                  </span>
+                )}
+              </div>
+
               <Card className="border-blue-200 dark:border-blue-800 bg-blue-50 dark:bg-blue-950/30">
                 <CardBody className="py-3">
                   <div className="flex items-start gap-2">
@@ -926,24 +1025,84 @@ export default function NewProjectPage() {
                           <strong>Focus on static content</strong>: Policy
                           pages, company info, service descriptions
                         </li>
+                        <li>
+                          <strong>Use blacklist patterns</strong>: Exclude entire URL groups like /blog/ or /tag/
+                        </li>
                       </ul>
                     </div>
                   </div>
                 </CardBody>
               </Card>
             </div>
-            <div className="flex gap-2">
+
+            {/* Search bar */}
+            <Input
+              isClearable
+              placeholder="Search URLs..."
+              value={searchFilter}
+              startContent={
+                <svg
+                  aria-hidden="true"
+                  className="text-default-400"
+                  fill="none"
+                  focusable="false"
+                  height="1em"
+                  role="presentation"
+                  viewBox="0 0 24 24"
+                  width="1em"
+                >
+                  <path
+                    d="M11.5 21C16.7467 21 21 16.7467 21 11.5C21 6.25329 16.7467 2 11.5 2C6.25329 2 2 6.25329 2 11.5C2 16.7467 6.25329 21 11.5 21Z"
+                    stroke="currentColor"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth="2"
+                  />
+                  <path
+                    d="M22 22L20 20"
+                    stroke="currentColor"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth="2"
+                  />
+                </svg>
+              }
+              onClear={() => setSearchFilter("")}
+              onValueChange={setSearchFilter}
+            />
+
+            {/* Action buttons */}
+            <div className="flex flex-wrap gap-2">
               <Button size="sm" onClick={() => handleSelectAll(true)}>
                 Select All
               </Button>
               <Button size="sm" onClick={() => handleSelectAll(false)}>
                 Deselect All
               </Button>
+              {searchFilter && (
+                <>
+                  <Button
+                    size="sm"
+                    color="primary"
+                    variant="flat"
+                    onClick={() => handleSelectFiltered(true)}
+                  >
+                    Select Filtered ({filteredSitemapUrls.length})
+                  </Button>
+                  <Button
+                    size="sm"
+                    color="warning"
+                    variant="flat"
+                    onClick={() => handleSelectFiltered(false)}
+                  >
+                    Deselect Filtered ({filteredSitemapUrls.length})
+                  </Button>
+                </>
+              )}
               <Button
                 size="sm"
                 variant="bordered"
                 onClick={() => {
-                  // Smart selection: try to select main pages and deselect blog/product pages
                   setSitemapUrls((prev) =>
                     prev.map((item) => {
                       const url = item.url.toLowerCase();
@@ -963,8 +1122,8 @@ export default function NewProjectPage() {
                           !url.includes("/item/") &&
                           !url.includes("/category/") &&
                           !url.includes("/tag/") &&
-                          !url.match(/\/\d{4}\//) && // year in URL
-                          !url.match(/\/page\/\d+/)); // pagination
+                          !url.match(/\/\d{4}\//) &&
+                          !url.match(/\/page\/\d+/));
 
                       return { ...item, selected: isMainPage };
                     }),
@@ -973,49 +1132,191 @@ export default function NewProjectPage() {
               >
                 Smart Select
               </Button>
+              <Button
+                size="sm"
+                variant={showBlacklist ? "solid" : "bordered"}
+                color="danger"
+                onClick={() => setShowBlacklist(!showBlacklist)}
+              >
+                {showBlacklist ? "Hide" : "Show"} Blacklist ({blacklistPatterns.length})
+              </Button>
             </div>
-            <div className="max-h-64 overflow-y-auto border rounded-md">
+
+            {/* Inline Blacklist Manager */}
+            {showBlacklist && (
+              <Card className="border-danger-200 dark:border-danger-800">
+                <CardBody className="flex flex-col gap-3">
+                  <p className="text-sm font-semibold">URL Blacklist Patterns</p>
+                  <p className="text-xs text-default-500">
+                    Add URL patterns to exclude. Matching URLs will be auto-deselected. Patterns use simple text matching (e.g. &quot;/blog/&quot; matches any URL containing /blog/).
+                  </p>
+                  <div className="flex gap-2">
+                    <Input
+                      size="sm"
+                      placeholder="Enter pattern (e.g. /blog/, /tag/, /page/)"
+                      value={patternInput}
+                      onChange={(e) => setPatternInput(e.target.value)}
+                      onKeyDown={(e) => e.key === "Enter" && handleAddBlacklistPattern(patternInput)}
+                    />
+                    <Button
+                      size="sm"
+                      color="danger"
+                      variant="flat"
+                      isDisabled={!patternInput.trim()}
+                      onClick={() => handleAddBlacklistPattern(patternInput)}
+                    >
+                      Add
+                    </Button>
+                  </div>
+                  {/* Quick-add common patterns */}
+                  <div className="flex flex-wrap gap-1">
+                    <span className="text-xs text-default-400 mr-1 self-center">Quick add:</span>
+                    {["/blog/", "/tag/", "/category/", "/author/", "/page/", "/cart/", "/checkout/", "/wp-admin/", "/wp-json/", "/feed/"].map((p) => (
+                      <Button
+                        key={p}
+                        size="sm"
+                        variant="flat"
+                        className="h-6 text-xs min-w-0 px-2"
+                        isDisabled={blacklistPatterns.includes(p)}
+                        onClick={() => handleAddBlacklistPattern(p)}
+                      >
+                        {p}
+                      </Button>
+                    ))}
+                  </div>
+                  {blacklistPatterns.length > 0 && (
+                    <div className="flex flex-wrap gap-2">
+                      {blacklistPatterns.map((pattern) => {
+                        const matchCount = sitemapUrls.filter((u) =>
+                          u.url.toLowerCase().includes(pattern.toLowerCase())
+                        ).length;
+                        return (
+                          <span
+                            key={pattern}
+                            className="inline-flex items-center gap-1 px-2 py-1 rounded-full bg-danger/10 text-danger text-xs"
+                          >
+                            {pattern}
+                            <span className="text-default-400">({matchCount})</span>
+                            <button
+                              className="ml-0.5 hover:text-danger-600 font-bold"
+                              onClick={() => handleRemoveBlacklistPattern(pattern)}
+                            >
+                              ×
+                            </button>
+                          </span>
+                        );
+                      })}
+                    </div>
+                  )}
+                </CardBody>
+              </Card>
+            )}
+
+            {/* URL categories breakdown */}
+            {urlStats.sortedCategories.length > 1 && (
+              <div className="flex flex-wrap gap-1 items-center">
+                <span className="text-xs text-default-400 mr-1">Path groups:</span>
+                {urlStats.sortedCategories.map(([cat, count]) => (
+                  <button
+                    key={cat}
+                    className="text-xs px-2 py-0.5 rounded-full bg-default-100 hover:bg-default-200 dark:bg-default-50 dark:hover:bg-default-100 transition-colors cursor-pointer"
+                    title={`Click to filter by ${cat}`}
+                    onClick={() => setSearchFilter(cat)}
+                  >
+                    {cat} <span className="text-default-400">({count})</span>
+                  </button>
+                ))}
+              </div>
+            )}
+
+            {/* URL table */}
+            <div className="max-h-80 overflow-y-auto border rounded-md">
               <table className="w-full">
                 <thead className="sticky top-0 bg-gray-800 dark:bg-gray-900 border-b border-gray-600">
                   <tr>
                     <th className="w-12 text-left">
                       <input
-                        aria-label="Select all URLs"
+                        aria-label="Select all visible URLs"
                         checked={
-                          sitemapUrls.length > 0 &&
-                          sitemapUrls.every((item) => item.selected)
+                          filteredSitemapUrls.length > 0 &&
+                          filteredSitemapUrls.every((item) => item.selected)
                         }
                         className="rounded ml-2"
                         type="checkbox"
-                        onChange={(e) => handleSelectAll(e.target.checked)}
+                        onChange={(e) => {
+                          if (searchFilter) {
+                            handleSelectFiltered(e.target.checked);
+                          } else {
+                            handleSelectAll(e.target.checked);
+                          }
+                        }}
                       />
                     </th>
                     <th className="text-left text-sm font-medium pl-2">URL</th>
+                    <th className="w-10 text-center text-sm font-medium"></th>
                   </tr>
                 </thead>
                 <tbody>
-                  {sitemapUrls.map((item, index) => (
-                    <tr
-                      key={`${item.url}-${index}`}
-                      className="border-b border-gray-600 hover:bg-gray-700 dark:hover:bg-gray-800"
-                    >
-                      <td>
-                        <input
-                          aria-label={`Select ${item.url}`}
-                          checked={item.selected}
-                          className="rounded ml-2"
-                          type="checkbox"
-                          onChange={() => handleToggleUrlSelection(item.url)}
-                        />
-                      </td>
-                      <td className="text-sm pl-2" title={item.url}>
-                        {item.url}
+                  {filteredSitemapUrls.length === 0 ? (
+                    <tr>
+                      <td colSpan={3} className="text-center text-sm text-default-400 py-8">
+                        {searchFilter ? "No URLs match your search" : "No URLs found"}
                       </td>
                     </tr>
-                  ))}
+                  ) : (
+                    filteredSitemapUrls.map((item, index) => {
+                      const isBlacklisted = blacklistPatterns.some((p) =>
+                        item.url.toLowerCase().includes(p.toLowerCase())
+                      );
+                      return (
+                        <tr
+                          key={`${item.url}-${index}`}
+                          className={`border-b border-gray-600 hover:bg-gray-700 dark:hover:bg-gray-800 ${
+                            isBlacklisted ? "opacity-50" : ""
+                          }`}
+                        >
+                          <td>
+                            <input
+                              aria-label={`Select ${item.url}`}
+                              checked={item.selected}
+                              className="rounded ml-2"
+                              type="checkbox"
+                              onChange={() => handleToggleUrlSelection(item.url)}
+                            />
+                          </td>
+                          <td className="text-sm pl-2 py-1" title={item.url}>
+                            <span className={isBlacklisted ? "line-through" : ""}>
+                              {item.url}
+                            </span>
+                            {isBlacklisted && (
+                              <span className="ml-2 text-xs text-danger">blacklisted</span>
+                            )}
+                          </td>
+                          <td className="text-center">
+                            <button
+                              className="text-default-400 hover:text-danger text-sm px-1"
+                              title="Remove URL from list"
+                              onClick={() => handleRemoveUrl(item.url)}
+                            >
+                              ×
+                            </button>
+                          </td>
+                        </tr>
+                      );
+                    })
+                  )}
                 </tbody>
               </table>
             </div>
+
+            {/* Showing X of Y indicator */}
+            {searchFilter && (
+              <div className="text-xs text-default-400">
+                Showing {filteredSitemapUrls.length} of {sitemapUrls.length} URLs
+              </div>
+            )}
+
+            {/* Add URL */}
             <div className="flex gap-2">
               <Input
                 placeholder="Add another URL (e.g. example.com/page)"
@@ -1047,6 +1348,42 @@ export default function NewProjectPage() {
                 context, while other pages will be vectorized for semantic
                 search.
               </p>
+              {/* Search bar for main pages */}
+              <Input
+                isClearable
+                placeholder="Search selected URLs..."
+                size="sm"
+                value={mainSearchFilter}
+                startContent={
+                  <svg
+                    aria-hidden="true"
+                    className="text-default-400"
+                    fill="none"
+                    focusable="false"
+                    height="1em"
+                    role="presentation"
+                    viewBox="0 0 24 24"
+                    width="1em"
+                  >
+                    <path
+                      d="M11.5 21C16.7467 21 21 16.7467 21 11.5C21 6.25329 16.7467 2 11.5 2C6.25329 2 2 6.25329 2 11.5C2 16.7467 6.25329 21 11.5 21Z"
+                      stroke="currentColor"
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth="2"
+                    />
+                    <path
+                      d="M22 22L20 20"
+                      stroke="currentColor"
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth="2"
+                    />
+                  </svg>
+                }
+                onClear={() => setMainSearchFilter("")}
+                onValueChange={setMainSearchFilter}
+              />
               <Card className="border-green-200 dark:border-green-800 bg-green-50 dark:bg-green-950/30">
                 <CardBody className="py-3">
                   <div className="flex items-start gap-2">
@@ -1164,36 +1501,44 @@ export default function NewProjectPage() {
                   </tr>
                 </thead>
                 <tbody>
-                  {mainPageUrls.map((item, index) => (
-                    <tr
-                      key={`${item.url}-${index}`}
-                      className="border-b border-gray-600 hover:bg-gray-700 dark:hover:bg-gray-800"
-                    >
-                      <td>
-                        <input
-                          aria-label={`Select ${item.url} as main`}
-                          checked={item.main}
-                          className="rounded ml-2"
-                          type="checkbox"
-                          onChange={() => handleToggleMainSelection(item.url)}
-                        />
-                      </td>
-                      <td className="text-sm pl-2" title={item.url}>
-                        {item.url}
-                      </td>
-                      <td className="text-sm pl-2">
-                        <span
-                          className={`px-2 py-1 rounded text-xs ${
-                            item.main
-                              ? "bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200"
-                              : "bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200"
-                          }`}
-                        >
-                          {item.main ? "Main" : "Vectorized"}
-                        </span>
+                  {filteredMainPageUrls.length === 0 ? (
+                    <tr>
+                      <td colSpan={3} className="text-center text-sm text-default-400 py-8">
+                        {mainSearchFilter ? "No URLs match your search" : "No URLs"}
                       </td>
                     </tr>
-                  ))}
+                  ) : (
+                    filteredMainPageUrls.map((item, index) => (
+                      <tr
+                        key={`${item.url}-${index}`}
+                        className="border-b border-gray-600 hover:bg-gray-700 dark:hover:bg-gray-800"
+                      >
+                        <td>
+                          <input
+                            aria-label={`Select ${item.url} as main`}
+                            checked={item.main}
+                            className="rounded ml-2"
+                            type="checkbox"
+                            onChange={() => handleToggleMainSelection(item.url)}
+                          />
+                        </td>
+                        <td className="text-sm pl-2" title={item.url}>
+                          {item.url}
+                        </td>
+                        <td className="text-sm pl-2">
+                          <span
+                            className={`px-2 py-1 rounded text-xs ${
+                              item.main
+                                ? "bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200"
+                                : "bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200"
+                            }`}
+                          >
+                            {item.main ? "Main" : "Vectorized"}
+                          </span>
+                        </td>
+                      </tr>
+                    ))
+                  )}
                 </tbody>
               </table>
             </div>

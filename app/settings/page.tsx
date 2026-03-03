@@ -294,9 +294,6 @@ export default function SiteSettingsPage() {
               <Input
                 isReadOnly
                 className="flex-1 font-mono"
-                size="sm"
-                type={showApiKey ? "text" : "password"}
-                value={user.api_key}
                 endContent={
                   <button
                     className="text-default-400 hover:text-default-600"
@@ -330,6 +327,9 @@ export default function SiteSettingsPage() {
                     )}
                   </button>
                 }
+                size="sm"
+                type={showApiKey ? "text" : "password"}
+                value={user.api_key}
               />
               <div className="flex gap-2">
                 <Button size="sm" variant="flat" onPress={handleCopyApiKey}>

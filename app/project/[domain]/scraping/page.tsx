@@ -487,7 +487,9 @@ export default function ScrapingPage() {
           pollFailureCountRef.current += 1;
           if (pollFailureCountRef.current >= 3) {
             // 3 consecutive failures (~30 s) – the server is likely down
-            console.warn("Polling failed 3 times in a row, treating job as interrupted");
+            console.warn(
+              "Polling failed 3 times in a row, treating job as interrupted",
+            );
             setRetryLoading(null);
             setScrapingProgress(null);
             setActiveJobId(null);
@@ -496,6 +498,7 @@ export default function ScrapingPage() {
               scraped: 0,
               total: 0,
             });
+
             return;
           }
           pollingTimerRef.current = setTimeout(poll, 10000);
@@ -1127,11 +1130,11 @@ export default function ScrapingPage() {
                   concurrency={concurrency}
                   discoveryMethod={discoveryMethod}
                   errorMessage={errorMessage}
+                  handleContinueScraping={handleContinueScraping}
                   handleOpenRetryModal={handleOpenRetryModal}
                   handleRetryScraping={handleRetryScraping}
                   handleSmartRescrapeImages={handleSmartRescrapeImages}
                   handleStopScraping={handleStopScraping}
-                  handleContinueScraping={handleContinueScraping}
                   keepImages={keepImages}
                   loading={loading}
                   retryCount={retryCount}
@@ -1176,8 +1179,7 @@ export default function ScrapingPage() {
                       <p className="text-sm text-default-600">
                         {interruptedJobInfo.total > 0
                           ? `The previous job scraped ${interruptedJobInfo.scraped} of ${interruptedJobInfo.total} pages before stopping.`
-                          : "The previous scraping job stopped unexpectedly (server crash or restart)."}
-                        {" "}
+                          : "The previous scraping job stopped unexpectedly (server crash or restart)."}{" "}
                         Click <strong>Continue</strong> to resume from where it
                         left off — already-scraped pages will be skipped.
                       </p>
@@ -1457,10 +1459,10 @@ export default function ScrapingPage() {
                     ),
                   );
                 }}
-                onToggleMain={handleToggleMain}
                 onToggleImageLock={
                   isSuperAdmin ? handleToggleImageLock : undefined
                 }
+                onToggleMain={handleToggleMain}
                 onToggleSelect={handleToggleSelect}
                 onUpdateImage={isSuperAdmin ? handleUpdateImage : undefined}
               />

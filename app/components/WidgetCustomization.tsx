@@ -44,6 +44,8 @@ interface WidgetSettings {
   bot_icon?: string | null;
   show_greeting_bubble?: boolean;
   language?: string;
+  show_advertisement?: boolean;
+  initial_bot_message?: string;
 }
 
 export default function WidgetCustomization({
@@ -87,6 +89,8 @@ export default function WidgetCustomization({
     bot_icon: null,
     show_greeting_bubble: true,
     language: "en",
+    show_advertisement: true,
+    initial_bot_message: "",
   });
 
   const [loading, setLoading] = useState(false);
@@ -99,6 +103,17 @@ export default function WidgetCustomization({
       setSettings(cachedSettings);
     }
   }, [cachedSettings]);
+
+  // If the saved model is not in the allowed list, reset to the first allowed model
+  useEffect(() => {
+    if (availableModels.length > 0 && settings.ai_model) {
+      const ids = availableModels.map((m: any) => m.id);
+
+      if (!ids.includes(settings.ai_model)) {
+        setSettings((prev: WidgetSettings) => ({ ...prev, ai_model: ids[0] }));
+      }
+    }
+  }, [availableModels]);
 
   useEffect(() => {
     setLoading(settingsLoading);
@@ -120,7 +135,9 @@ export default function WidgetCustomization({
       });
 
       if (!response.ok) {
-        throw new Error("Failed to save widget settings");
+        const errorData = await response.json().catch(() => ({}));
+
+        throw new Error(errorData.error || "Failed to save widget settings");
       }
 
       const data = await response.json();
@@ -142,7 +159,7 @@ export default function WidgetCustomization({
       console.error("Error saving widget settings:", error);
       addToast({
         title: t("common.error"),
-        description: t("widget.saveFailed"),
+        description: (error as Error).message || t("widget.saveFailed"),
         color: "danger",
       });
     } finally {
@@ -688,6 +705,23 @@ export default function WidgetCustomization({
 
         <div className="flex flex-col gap-2">
           <label className="text-sm font-medium">
+            {t("widget.initialBotMessage")}
+          </label>
+          <Textarea
+            placeholder="Hi! How can I help you today?"
+            rows={2}
+            value={settings.initial_bot_message || ""}
+            onChange={(e) =>
+              setSettings({ ...settings, initial_bot_message: e.target.value })
+            }
+          />
+          <p className="text-xs text-default-500">
+            {t("widget.initialBotMessageDesc")}
+          </p>
+        </div>
+
+        <div className="flex flex-col gap-2">
+          <label className="text-sm font-medium">
             {t("widget.welcomeMessage")}
           </label>
           <Textarea
@@ -803,15 +837,49 @@ export default function WidgetCustomization({
             {t("widget.footerText")}
           </label>
           <Input
+            isDisabled={settings.show_advertisement}
             maxLength={200}
             placeholder="Ask me anything about this website"
-            value={settings.footer_text}
+            value={
+              settings.show_advertisement
+                ? settings.language === "lt"
+                  ? "Sukurta Cartbuddy.ai"
+                  : "Powered by Cartbuddy.ai"
+                : settings.footer_text
+            }
             onChange={(e) =>
               setSettings({ ...settings, footer_text: e.target.value })
             }
           />
-          <p className="text-xs text-gray-500">{t("widget.footerTextDesc")}</p>
+          <p className="text-xs text-gray-500">
+            {settings.show_advertisement
+              ? "Advertisement takes precedence."
+              : t("widget.footerTextDesc")}
+          </p>
         </div>
+
+        {isSuperAdmin && (
+          <div className="flex flex-col gap-2 p-4 bg-default-100 rounded-lg border border-default-200">
+            <div className="flex items-center justify-between">
+              <div>
+                <span className="text-sm font-medium block">
+                  Show Advertisement
+                </span>
+                <p className="text-xs text-gray-500">
+                  Admin only: Overrides footer text with &quot;Powered by
+                  Cartbuddy.ai&quot;.
+                </p>
+              </div>
+              <Switch
+                aria-label="Show advertisement"
+                isSelected={settings.show_advertisement}
+                onValueChange={(isSelected) =>
+                  setSettings({ ...settings, show_advertisement: isSelected })
+                }
+              />
+            </div>
+          </div>
+        )}
 
         <div className="flex flex-col gap-2">
           <label className="text-sm font-medium">

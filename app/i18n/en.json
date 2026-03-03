@@ -168,6 +168,8 @@
     "textColor": "Text Color",
     "textBubbleColor": "User Bubble Color",
     "widgetTitle": "Widget Title",
+    "initialBotMessage": "Initial Bot Message",
+    "initialBotMessageDesc": "First message shown as an AI reply when the chat opens (persists after reset)",
     "welcomeMessage": "Welcome Message",
     "chatBubbleGreeting": "Chat Bubble Greeting",
     "chatBubbleGreetingDesc": "First line of text shown in the chat bubble (fully customizable)",

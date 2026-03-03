@@ -1177,7 +1177,7 @@ export default function MetricsPage() {
                         <div className="text-sm font-semibold text-foreground mb-1">
                           {t("metrics.output")}:
                         </div>
-                        {/* eslint-disable-next-line */}
+                        {}
                         <div
                           className="p-3 rounded-lg max-h-64 overflow-y-auto"
                           style={{

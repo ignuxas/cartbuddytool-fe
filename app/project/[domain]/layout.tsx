@@ -139,16 +139,20 @@ export default function ProjectLayout({
               <ModalHeader className="text-danger">Delete Project</ModalHeader>
               <ModalBody>
                 <p>
-                  Are you sure you want to delete{" "}
-                  <strong>{domain}</strong>? This will permanently remove all
-                  scraped data, embeddings, prompt, and widget settings.
+                  Are you sure you want to delete <strong>{domain}</strong>?
+                  This will permanently remove all scraped data, embeddings,
+                  prompt, and widget settings.
                 </p>
                 <p className="text-sm text-default-500 mt-2">
                   This action cannot be undone.
                 </p>
               </ModalBody>
               <ModalFooter>
-                <Button variant="flat" onPress={onClose} isDisabled={isDeleting}>
+                <Button
+                  isDisabled={isDeleting}
+                  variant="flat"
+                  onPress={onClose}
+                >
                   Cancel
                 </Button>
                 <Button

@@ -168,6 +168,8 @@
     "textColor": "Teksto spalva",
     "textBubbleColor": "Vartotojo žinutės spalva",
     "widgetTitle": "Valdiklio pavadinimas",
+    "initialBotMessage": "Pradinė boto žinutė",
+    "initialBotMessageDesc": "Pirmoji žinutė, rodoma kaip DI atsakymas atidarius pokalbį (išlieka po nustatymo atstatymo)",
     "welcomeMessage": "Pasisveikinimo žinutė",
     "chatBubbleGreeting": "Pokalbio burbulo pasisveikinimas",
     "chatBubbleGreetingDesc": "Pirmoji teksto eilutė, rodoma pokalbio burbule",

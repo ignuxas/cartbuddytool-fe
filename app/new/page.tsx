@@ -203,7 +203,6 @@ export default function NewProjectPage() {
         setUrl(urlParam);
       }
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const [loading, setLoading] = useState(false);
@@ -575,7 +574,11 @@ export default function NewProjectPage() {
               "fetch-blacklist",
             );
             const existingBlacklist = blacklistRes.blacklist || [];
-            const newBlacklist = [...existingBlacklist, ...unselectedUrls, ...blacklistPatterns];
+            const newBlacklist = [
+              ...existingBlacklist,
+              ...unselectedUrls,
+              ...blacklistPatterns,
+            ];
             const uniqueBlacklist = Array.from(new Set(newBlacklist));
 
             if (uniqueBlacklist.length > existingBlacklist.length) {
@@ -759,6 +762,7 @@ export default function NewProjectPage() {
   const handleSelectFiltered = (select: boolean) => {
     if (!searchFilter.trim()) return handleSelectAll(select);
     const filter = searchFilter.toLowerCase();
+
     setSitemapUrls((prev) =>
       prev.map((item) =>
         item.url.toLowerCase().includes(filter)
@@ -771,6 +775,7 @@ export default function NewProjectPage() {
   const handleDeselectByPattern = (pattern: string) => {
     if (!pattern.trim()) return;
     const pat = pattern.toLowerCase();
+
     setSitemapUrls((prev) =>
       prev.map((item) =>
         item.url.toLowerCase().includes(pat)
@@ -787,36 +792,56 @@ export default function NewProjectPage() {
   const handleAddBlacklistPattern = (pattern: string) => {
     if (!pattern.trim()) return;
     const trimmed = pattern.trim();
+
     if (blacklistPatterns.includes(trimmed)) {
-      addToast({ title: "Info", description: "Pattern already exists", color: "primary" });
+      addToast({
+        title: "Info",
+        description: "Pattern already exists",
+        color: "primary",
+      });
+
       return;
     }
     setBlacklistPatterns((prev) => [...prev, trimmed]);
     // Also deselect matching URLs
     handleDeselectByPattern(trimmed);
     setPatternInput("");
-    addToast({ title: "Success", description: `Pattern "${trimmed}" added — matching URLs deselected`, color: "success" });
+    addToast({
+      title: "Success",
+      description: `Pattern "${trimmed}" added — matching URLs deselected`,
+      color: "success",
+    });
   };
 
   const handleRemoveBlacklistPattern = (pattern: string) => {
     setBlacklistPatterns((prev) => prev.filter((p) => p !== pattern));
-    addToast({ title: "Success", description: "Pattern removed", color: "success" });
+    addToast({
+      title: "Success",
+      description: "Pattern removed",
+      color: "success",
+    });
   };
 
   // Filter URLs based on search and blacklist
   const filteredSitemapUrls = React.useMemo(() => {
     let items = sitemapUrls;
+
     if (searchFilter.trim()) {
       const filter = searchFilter.toLowerCase();
+
       items = items.filter((item) => item.url.toLowerCase().includes(filter));
     }
+
     return items;
   }, [sitemapUrls, searchFilter]);
 
   const filteredMainPageUrls = React.useMemo(() => {
     if (!mainSearchFilter.trim()) return mainPageUrls;
     const filter = mainSearchFilter.toLowerCase();
-    return mainPageUrls.filter((item) => item.url.toLowerCase().includes(filter));
+
+    return mainPageUrls.filter((item) =>
+      item.url.toLowerCase().includes(filter),
+    );
   }, [mainPageUrls, mainSearchFilter]);
 
   // URL category stats
@@ -824,17 +849,22 @@ export default function NewProjectPage() {
     const selected = sitemapUrls.filter((u) => u.selected).length;
     const total = sitemapUrls.length;
     const categories: Record<string, number> = {};
+
     sitemapUrls.forEach((item) => {
       try {
         const path = new URL(item.url).pathname;
         const segments = path.split("/").filter(Boolean);
         const cat = segments.length > 0 ? `/${segments[0]}/` : "/";
+
         categories[cat] = (categories[cat] || 0) + 1;
-      } catch { /* ignore */ }
+      } catch {
+        /* ignore */
+      }
     });
     const sortedCategories = Object.entries(categories)
       .sort((a, b) => b[1] - a[1])
       .slice(0, 10);
+
     return { selected, total, sortedCategories };
   }, [sitemapUrls]);
 
@@ -986,7 +1016,8 @@ export default function NewProjectPage() {
                 </span>
                 {blacklistPatterns.length > 0 && (
                   <span className="px-3 py-1 rounded-full bg-danger/10 text-danger font-medium">
-                    {blacklistPatterns.length} blacklist pattern{blacklistPatterns.length !== 1 ? "s" : ""}
+                    {blacklistPatterns.length} blacklist pattern
+                    {blacklistPatterns.length !== 1 ? "s" : ""}
                   </span>
                 )}
               </div>
@@ -1026,7 +1057,8 @@ export default function NewProjectPage() {
                           pages, company info, service descriptions
                         </li>
                         <li>
-                          <strong>Use blacklist patterns</strong>: Exclude entire URL groups like /blog/ or /tag/
+                          <strong>Use blacklist patterns</strong>: Exclude
+                          entire URL groups like /blog/ or /tag/
                         </li>
                       </ul>
                     </div>
@@ -1039,7 +1071,6 @@ export default function NewProjectPage() {
             <Input
               isClearable
               placeholder="Search URLs..."
-              value={searchFilter}
               startContent={
                 <svg
                   aria-hidden="true"
@@ -1067,6 +1098,7 @@ export default function NewProjectPage() {
                   />
                 </svg>
               }
+              value={searchFilter}
               onClear={() => setSearchFilter("")}
               onValueChange={setSearchFilter}
             />
@@ -1082,16 +1114,16 @@ export default function NewProjectPage() {
               {searchFilter && (
                 <>
                   <Button
-                    size="sm"
                     color="primary"
+                    size="sm"
                     variant="flat"
                     onClick={() => handleSelectFiltered(true)}
                   >
                     Select Filtered ({filteredSitemapUrls.length})
                   </Button>
                   <Button
-                    size="sm"
                     color="warning"
+                    size="sm"
                     variant="flat"
                     onClick={() => handleSelectFiltered(false)}
                   >
@@ -1133,12 +1165,13 @@ export default function NewProjectPage() {
                 Smart Select
               </Button>
               <Button
+                color="danger"
                 size="sm"
                 variant={showBlacklist ? "solid" : "bordered"}
-                color="danger"
                 onClick={() => setShowBlacklist(!showBlacklist)}
               >
-                {showBlacklist ? "Hide" : "Show"} Blacklist ({blacklistPatterns.length})
+                {showBlacklist ? "Hide" : "Show"} Blacklist (
+                {blacklistPatterns.length})
               </Button>
             </div>
 
@@ -1146,23 +1179,30 @@ export default function NewProjectPage() {
             {showBlacklist && (
               <Card className="border-danger-200 dark:border-danger-800">
                 <CardBody className="flex flex-col gap-3">
-                  <p className="text-sm font-semibold">URL Blacklist Patterns</p>
+                  <p className="text-sm font-semibold">
+                    URL Blacklist Patterns
+                  </p>
                   <p className="text-xs text-default-500">
-                    Add URL patterns to exclude. Matching URLs will be auto-deselected. Patterns use simple text matching (e.g. &quot;/blog/&quot; matches any URL containing /blog/).
+                    Add URL patterns to exclude. Matching URLs will be
+                    auto-deselected. Patterns use simple text matching (e.g.
+                    &quot;/blog/&quot; matches any URL containing /blog/).
                   </p>
                   <div className="flex gap-2">
                     <Input
-                      size="sm"
                       placeholder="Enter pattern (e.g. /blog/, /tag/, /page/)"
+                      size="sm"
                       value={patternInput}
                       onChange={(e) => setPatternInput(e.target.value)}
-                      onKeyDown={(e) => e.key === "Enter" && handleAddBlacklistPattern(patternInput)}
+                      onKeyDown={(e) =>
+                        e.key === "Enter" &&
+                        handleAddBlacklistPattern(patternInput)
+                      }
                     />
                     <Button
-                      size="sm"
                       color="danger"
-                      variant="flat"
                       isDisabled={!patternInput.trim()}
+                      size="sm"
+                      variant="flat"
                       onClick={() => handleAddBlacklistPattern(patternInput)}
                     >
                       Add
@@ -1170,14 +1210,27 @@ export default function NewProjectPage() {
                   </div>
                   {/* Quick-add common patterns */}
                   <div className="flex flex-wrap gap-1">
-                    <span className="text-xs text-default-400 mr-1 self-center">Quick add:</span>
-                    {["/blog/", "/tag/", "/category/", "/author/", "/page/", "/cart/", "/checkout/", "/wp-admin/", "/wp-json/", "/feed/"].map((p) => (
+                    <span className="text-xs text-default-400 mr-1 self-center">
+                      Quick add:
+                    </span>
+                    {[
+                      "/blog/",
+                      "/tag/",
+                      "/category/",
+                      "/author/",
+                      "/page/",
+                      "/cart/",
+                      "/checkout/",
+                      "/wp-admin/",
+                      "/wp-json/",
+                      "/feed/",
+                    ].map((p) => (
                       <Button
                         key={p}
-                        size="sm"
-                        variant="flat"
                         className="h-6 text-xs min-w-0 px-2"
                         isDisabled={blacklistPatterns.includes(p)}
+                        size="sm"
+                        variant="flat"
                         onClick={() => handleAddBlacklistPattern(p)}
                       >
                         {p}
@@ -1188,18 +1241,23 @@ export default function NewProjectPage() {
                     <div className="flex flex-wrap gap-2">
                       {blacklistPatterns.map((pattern) => {
                         const matchCount = sitemapUrls.filter((u) =>
-                          u.url.toLowerCase().includes(pattern.toLowerCase())
+                          u.url.toLowerCase().includes(pattern.toLowerCase()),
                         ).length;
+
                         return (
                           <span
                             key={pattern}
                             className="inline-flex items-center gap-1 px-2 py-1 rounded-full bg-danger/10 text-danger text-xs"
                           >
                             {pattern}
-                            <span className="text-default-400">({matchCount})</span>
+                            <span className="text-default-400">
+                              ({matchCount})
+                            </span>
                             <button
                               className="ml-0.5 hover:text-danger-600 font-bold"
-                              onClick={() => handleRemoveBlacklistPattern(pattern)}
+                              onClick={() =>
+                                handleRemoveBlacklistPattern(pattern)
+                              }
                             >
                               ×
                             </button>
@@ -1215,7 +1273,9 @@ export default function NewProjectPage() {
             {/* URL categories breakdown */}
             {urlStats.sortedCategories.length > 1 && (
               <div className="flex flex-wrap gap-1 items-center">
-                <span className="text-xs text-default-400 mr-1">Path groups:</span>
+                <span className="text-xs text-default-400 mr-1">
+                  Path groups:
+                </span>
                 {urlStats.sortedCategories.map(([cat, count]) => (
                   <button
                     key={cat}
@@ -1253,21 +1313,27 @@ export default function NewProjectPage() {
                       />
                     </th>
                     <th className="text-left text-sm font-medium pl-2">URL</th>
-                    <th className="w-10 text-center text-sm font-medium"></th>
+                    <th className="w-10 text-center text-sm font-medium" />
                   </tr>
                 </thead>
                 <tbody>
                   {filteredSitemapUrls.length === 0 ? (
                     <tr>
-                      <td colSpan={3} className="text-center text-sm text-default-400 py-8">
-                        {searchFilter ? "No URLs match your search" : "No URLs found"}
+                      <td
+                        className="text-center text-sm text-default-400 py-8"
+                        colSpan={3}
+                      >
+                        {searchFilter
+                          ? "No URLs match your search"
+                          : "No URLs found"}
                       </td>
                     </tr>
                   ) : (
                     filteredSitemapUrls.map((item, index) => {
                       const isBlacklisted = blacklistPatterns.some((p) =>
-                        item.url.toLowerCase().includes(p.toLowerCase())
+                        item.url.toLowerCase().includes(p.toLowerCase()),
                       );
+
                       return (
                         <tr
                           key={`${item.url}-${index}`}
@@ -1281,15 +1347,21 @@ export default function NewProjectPage() {
                               checked={item.selected}
                               className="rounded ml-2"
                               type="checkbox"
-                              onChange={() => handleToggleUrlSelection(item.url)}
+                              onChange={() =>
+                                handleToggleUrlSelection(item.url)
+                              }
                             />
                           </td>
                           <td className="text-sm pl-2 py-1" title={item.url}>
-                            <span className={isBlacklisted ? "line-through" : ""}>
+                            <span
+                              className={isBlacklisted ? "line-through" : ""}
+                            >
                               {item.url}
                             </span>
                             {isBlacklisted && (
-                              <span className="ml-2 text-xs text-danger">blacklisted</span>
+                              <span className="ml-2 text-xs text-danger">
+                                blacklisted
+                              </span>
                             )}
                           </td>
                           <td className="text-center">
@@ -1312,7 +1384,8 @@ export default function NewProjectPage() {
             {/* Showing X of Y indicator */}
             {searchFilter && (
               <div className="text-xs text-default-400">
-                Showing {filteredSitemapUrls.length} of {sitemapUrls.length} URLs
+                Showing {filteredSitemapUrls.length} of {sitemapUrls.length}{" "}
+                URLs
               </div>
             )}
 
@@ -1353,7 +1426,6 @@ export default function NewProjectPage() {
                 isClearable
                 placeholder="Search selected URLs..."
                 size="sm"
-                value={mainSearchFilter}
                 startContent={
                   <svg
                     aria-hidden="true"
@@ -1381,6 +1453,7 @@ export default function NewProjectPage() {
                     />
                   </svg>
                 }
+                value={mainSearchFilter}
                 onClear={() => setMainSearchFilter("")}
                 onValueChange={setMainSearchFilter}
               />
@@ -1503,8 +1576,13 @@ export default function NewProjectPage() {
                 <tbody>
                   {filteredMainPageUrls.length === 0 ? (
                     <tr>
-                      <td colSpan={3} className="text-center text-sm text-default-400 py-8">
-                        {mainSearchFilter ? "No URLs match your search" : "No URLs"}
+                      <td
+                        className="text-center text-sm text-default-400 py-8"
+                        colSpan={3}
+                      >
+                        {mainSearchFilter
+                          ? "No URLs match your search"
+                          : "No URLs"}
                       </td>
                     </tr>
                   ) : (

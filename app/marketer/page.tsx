@@ -553,10 +553,14 @@ export default function MarketerPage() {
       );
 
       const data = await res.json();
-      if (!res.ok && data.sent === 0) throw new Error(data.results?.[0]?.error || "Failed to send");
-      const msg = data.failed > 0
-        ? `Sent ${data.sent}, failed ${data.failed}`
-        : `${data.sent} email(s) sent successfully`;
+
+      if (!res.ok && data.sent === 0)
+        throw new Error(data.results?.[0]?.error || "Failed to send");
+      const msg =
+        data.failed > 0
+          ? `Sent ${data.sent}, failed ${data.failed}`
+          : `${data.sent} email(s) sent successfully`;
+
       addToast({
         title: data.failed > 0 ? "Partial success" : "Sent",
         description: msg,
@@ -565,7 +569,11 @@ export default function MarketerPage() {
       fetchLeads();
       fetchStats();
     } catch (e: any) {
-      addToast({ title: "Send failed", description: e.message, color: "danger" });
+      addToast({
+        title: "Send failed",
+        description: e.message,
+        color: "danger",
+      });
     }
   };
 
@@ -1774,17 +1782,19 @@ export default function MarketerPage() {
                     Copy Email
                   </Button>
                 )}
-                {viewingEmail && !viewingEmail.email_sent && viewingEmail.email && (
-                  <Button
-                    color="success"
-                    onPress={() => {
-                      handleSendEmail([viewingEmail.id]);
-                      setEmailViewOpen(false);
-                    }}
-                  >
-                    Send Email
-                  </Button>
-                )}
+                {viewingEmail &&
+                  !viewingEmail.email_sent &&
+                  viewingEmail.email && (
+                    <Button
+                      color="success"
+                      onPress={() => {
+                        handleSendEmail([viewingEmail.id]);
+                        setEmailViewOpen(false);
+                      }}
+                    >
+                      Send Email
+                    </Button>
+                  )}
                 {viewingEmail && !viewingEmail.email_sent && (
                   <Button
                     color="default"

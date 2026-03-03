@@ -144,24 +144,44 @@ export default function ActionButtons({
             <div className="flex flex-col gap-1 p-3 bg-default-100 rounded-lg border border-default-200">
               <p className="text-sm font-medium">URL Discovery Method</p>
               <div className="flex flex-wrap gap-1.5 mt-1">
-                {([
-                  { value: "auto", label: "Auto", desc: "WP API + Sitemap + Crawl fallback" },
-                  { value: "sitemap_only", label: "Sitemap only", desc: "Parse sitemap.xml only" },
-                  { value: "wp_api_only", label: "WP API only", desc: "WordPress REST API only" },
-                  { value: "crawl_only", label: "Crawl only", desc: "2-layer link crawl" },
-                ] as const).map((opt) => (
+                {(
+                  [
+                    {
+                      value: "auto",
+                      label: "Auto",
+                      desc: "WP API + Sitemap + Crawl fallback",
+                    },
+                    {
+                      value: "sitemap_only",
+                      label: "Sitemap only",
+                      desc: "Parse sitemap.xml only",
+                    },
+                    {
+                      value: "wp_api_only",
+                      label: "WP API only",
+                      desc: "WordPress REST API only",
+                    },
+                    {
+                      value: "crawl_only",
+                      label: "Crawl only",
+                      desc: "2-layer link crawl",
+                    },
+                  ] as const
+                ).map((opt) => (
                   <button
                     key={opt.value}
-                    disabled={isDisabled}
-                    title={opt.desc}
-                    type="button"
                     className={[
                       "px-3 py-1 rounded-full text-xs font-medium border transition-colors",
                       discoveryMethod === opt.value
                         ? "bg-primary text-white border-primary"
                         : "bg-default-50 text-default-600 border-default-300 hover:border-primary",
-                      isDisabled ? "opacity-50 cursor-not-allowed" : "cursor-pointer",
+                      isDisabled
+                        ? "opacity-50 cursor-not-allowed"
+                        : "cursor-pointer",
                     ].join(" ")}
+                    disabled={isDisabled}
+                    title={opt.desc}
+                    type="button"
                     onClick={() => setDiscoveryMethod(opt.value)}
                   >
                     {opt.label}
@@ -169,10 +189,14 @@ export default function ActionButtons({
                 ))}
               </div>
               <p className="text-xs text-default-400 mt-0.5">
-                {discoveryMethod === "auto" && "Tries WP REST API first, then merges sitemap, falls back to crawl."}
-                {discoveryMethod === "sitemap_only" && "Only reads sitemap.xml — fast and complete for most sites."}
-                {discoveryMethod === "wp_api_only" && "Only uses WordPress REST API — useful if sitemap is missing or slow."}
-                {discoveryMethod === "crawl_only" && "Crawls homepage and all linked pages (2 layers). Slowest option."}
+                {discoveryMethod === "auto" &&
+                  "Tries WP REST API first, then merges sitemap, falls back to crawl."}
+                {discoveryMethod === "sitemap_only" &&
+                  "Only reads sitemap.xml — fast and complete for most sites."}
+                {discoveryMethod === "wp_api_only" &&
+                  "Only uses WordPress REST API — useful if sitemap is missing or slow."}
+                {discoveryMethod === "crawl_only" &&
+                  "Crawls homepage and all linked pages (2 layers). Slowest option."}
               </p>
             </div>
           )}
@@ -285,7 +309,8 @@ export default function ActionButtons({
                   Continue Scraping
                 </Button>
                 <p className="text-xs text-default-400 max-w-[220px]">
-                  Resume scraping — skips already-scraped pages and scrapes any remaining ones.
+                  Resume scraping — skips already-scraped pages and scrapes any
+                  remaining ones.
                 </p>
               </div>
             )}

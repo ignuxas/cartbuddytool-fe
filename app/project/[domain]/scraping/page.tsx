@@ -50,6 +50,7 @@ export default function ScrapingPage() {
     accessToken: authKey,
     isLoading: authIsLoading,
     isSuperAdmin,
+    user,
   } = useAuth();
   const router = useRouter();
   const [retryLoading, setRetryLoading] = useState<string | null>(null);
@@ -1076,6 +1077,22 @@ export default function ScrapingPage() {
   );
   const mainPages = scrapedData.filter((i) => i.main).length;
 
+  const getPageLimit = () => {
+    if (isSuperAdmin) return Infinity;
+    const tier = user?.plan_tier || "free";
+    const limits: Record<string, number> = {
+      free: 200,
+      growth: 2000,
+      enterprise: Infinity,
+    };
+
+    return limits[tier] || 200;
+  };
+
+  const limit = getPageLimit();
+  const showWarning = limit !== Infinity && totalPages >= limit * 0.9;
+  const isAtLimit = limit !== Infinity && totalPages >= limit;
+
   return (
     <div className="flex flex-col gap-6 py-6 w-full">
       {isAuthenticated &&
@@ -1083,40 +1100,78 @@ export default function ScrapingPage() {
           <div>Loading scraping data...</div>
         ) : (
           <>
+            {showWarning && (
+              <div
+                className={`w-full p-4 rounded-lg flex items-center justify-between shadow-sm ${
+                  isAtLimit
+                    ? "bg-danger-50 text-danger-900 border border-danger-200"
+                    : "bg-warning-50 text-warning-900 border border-warning-200"
+                }`}
+              >
+                <div>
+                  <h4 className="font-semibold mb-1">
+                    {isAtLimit
+                      ? "Page Limit Reached"
+                      : "Approaching Page Limit"}
+                  </h4>
+                  <p className="text-sm">
+                    {isAtLimit
+                      ? `You have reached your plan's limit of ${limit} pages. New pages will not be scraped.`
+                      : `You have scraped ${totalPages} of your ${limit} allowed pages.`}
+                  </p>
+                </div>
+                <Button
+                  color={isAtLimit ? "danger" : "warning"}
+                  variant="flat"
+                  onPress={() => router.push("/pricing")}
+                >
+                  Upgrade Plan
+                </Button>
+              </div>
+            )}
+
             {/* Stats Cards */}
             <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-              <Card shadow="sm">
-                <CardBody className="py-4">
-                  <p className="text-small text-default-500 uppercase font-bold">
+              <Card className="bg-background shadow-sm border border-content2">
+                <CardBody className="flex flex-col justify-center px-6 py-5 gap-2">
+                  <span className="text-sm font-medium text-default-500 uppercase tracking-wide">
                     {t("scraping.stats.totalPages")}
-                  </p>
-                  <p className="text-2xl font-bold">{totalPages}</p>
+                  </span>
+                  <div className="flex items-center justify-between">
+                    <span className="text-3xl font-bold">{totalPages}</span>
+                  </div>
                 </CardBody>
               </Card>
-              <Card shadow="sm">
-                <CardBody className="py-4">
-                  <p className="text-small text-default-500 uppercase font-bold">
+              <Card className="bg-background shadow-sm border border-content2">
+                <CardBody className="flex flex-col justify-center px-6 py-5 gap-2">
+                  <span className="text-sm font-medium text-default-500 uppercase tracking-wide">
                     {t("scraping.stats.imagesFound")}
-                  </p>
-                  <p className="text-2xl font-bold">{totalImages}</p>
+                  </span>
+                  <div className="flex items-center justify-between">
+                    <span className="text-3xl font-bold">{totalImages}</span>
+                  </div>
                 </CardBody>
               </Card>
-              <Card shadow="sm">
-                <CardBody className="py-4">
-                  <p className="text-small text-default-500 uppercase font-bold">
+              <Card className="bg-background shadow-sm border border-content2">
+                <CardBody className="flex flex-col justify-center px-6 py-5 gap-2">
+                  <span className="text-sm font-medium text-default-500 uppercase tracking-wide">
                     {t("scraping.stats.mainPages")}
-                  </p>
-                  <p className="text-2xl font-bold">{mainPages}</p>
+                  </span>
+                  <div className="flex items-center justify-between">
+                    <span className="text-3xl font-bold">{mainPages}</span>
+                  </div>
                 </CardBody>
               </Card>
-              <Card shadow="sm">
-                <CardBody className="py-4">
-                  <p className="text-small text-default-500 uppercase font-bold">
+              <Card className="bg-background shadow-sm border border-content2">
+                <CardBody className="flex flex-col justify-center px-6 py-5 gap-2">
+                  <span className="text-sm font-medium text-default-500 uppercase tracking-wide">
                     {t("scraping.stats.estTokens")}
-                  </p>
-                  <p className="text-2xl font-bold">
-                    {(totalWords / 4).toFixed(0)}
-                  </p>
+                  </span>
+                  <div className="flex items-center justify-between">
+                    <span className="text-3xl font-bold">
+                      {(totalWords / 4).toFixed(0)}
+                    </span>
+                  </div>
                 </CardBody>
               </Card>
             </div>
@@ -1125,42 +1180,32 @@ export default function ScrapingPage() {
               <h2 className="text-xl font-semibold">
                 {t("scraping.controls.title")}
               </h2>
-              {isSuperAdmin ? (
-                <ActionButtons
-                  concurrency={concurrency}
-                  discoveryMethod={discoveryMethod}
-                  errorMessage={errorMessage}
-                  handleContinueScraping={handleContinueScraping}
-                  handleOpenRetryModal={handleOpenRetryModal}
-                  handleRetryScraping={handleRetryScraping}
-                  handleSmartRescrapeImages={handleSmartRescrapeImages}
-                  handleStopScraping={handleStopScraping}
-                  keepImages={keepImages}
-                  loading={loading}
-                  retryCount={retryCount}
-                  retryDelay={retryDelay}
-                  retryLoading={retryLoading}
-                  scrapedDataLength={scrapedData.length}
-                  setConcurrency={setConcurrency}
-                  setDiscoveryMethod={setDiscoveryMethod}
-                  setKeepImages={setKeepImages}
-                  setRetryCount={setRetryCount}
-                  setRetryDelay={setRetryDelay}
-                  setUseAI={setUseAI}
-                  setUsePlaywright={setUsePlaywright}
-                  url={url}
-                  useAI={useAI}
-                  usePlaywright={usePlaywright}
-                />
-              ) : (
-                <Card className="bg-content2">
-                  <CardBody className="py-4">
-                    <p className="text-sm text-default-500">
-                      {t("scraping.adminOnly")}
-                    </p>
-                  </CardBody>
-                </Card>
-              )}
+              <ActionButtons
+                concurrency={concurrency}
+                discoveryMethod={discoveryMethod}
+                errorMessage={errorMessage}
+                handleContinueScraping={handleContinueScraping}
+                handleOpenRetryModal={handleOpenRetryModal}
+                handleRetryScraping={handleRetryScraping}
+                handleSmartRescrapeImages={handleSmartRescrapeImages}
+                handleStopScraping={handleStopScraping}
+                keepImages={keepImages}
+                loading={loading}
+                retryCount={retryCount}
+                retryDelay={retryDelay}
+                retryLoading={retryLoading}
+                scrapedDataLength={scrapedData.length}
+                setConcurrency={setConcurrency}
+                setDiscoveryMethod={setDiscoveryMethod}
+                setKeepImages={setKeepImages}
+                setRetryCount={setRetryCount}
+                setRetryDelay={setRetryDelay}
+                setUseAI={setUseAI}
+                setUsePlaywright={setUsePlaywright}
+                url={url}
+                useAI={useAI}
+                usePlaywright={usePlaywright}
+              />
 
               <BlacklistManager
                 blacklist={blacklist}
@@ -1290,14 +1335,15 @@ export default function ScrapingPage() {
               </h2>
 
               {showAddMorePages && (
-                <Card className="mb-4">
-                  <CardBody>
+                <Card className="mb-4 bg-background shadow-sm border border-content2">
+                  <CardBody className="p-4 md:p-6">
                     <h4 className="text-lg font-semibold mb-2">
                       {t("scraping.addPages.title")}
                     </h4>
                     <div className="flex gap-2 mb-2">
                       <Button
                         size="sm"
+                        variant="flat"
                         onClick={() => {
                           const newUrls = [...additionalUrls];
 
@@ -1308,7 +1354,9 @@ export default function ScrapingPage() {
                         {t("scraping.addPages.selectAll")}
                       </Button>
                       <Button
+                        color="secondary"
                         size="sm"
+                        variant="flat"
                         onClick={() => {
                           const newUrls = [...additionalUrls];
 
@@ -1367,6 +1415,7 @@ export default function ScrapingPage() {
                       </div>
                       <div className="flex gap-2">
                         <Button
+                          className="font-semibold shadow-lg shadow-primary/20"
                           color="primary"
                           isDisabled={
                             additionalUrls.filter((u) => u.selected).length ===
@@ -1382,8 +1431,9 @@ export default function ScrapingPage() {
                           {t("scraping.addPages.scrapeSelected")}
                         </Button>
                         <Button
+                          color="secondary"
                           isDisabled={retryLoading === "additional"}
-                          variant="bordered"
+                          variant="flat"
                           onClick={() => {
                             setShowAddMorePages(false);
                             setAdditionalUrls([]);
@@ -1401,7 +1451,7 @@ export default function ScrapingPage() {
                 data={scrapedData}
                 headerContent={
                   <div className="flex gap-3 justify-end mb-2">
-                    {isSuperAdmin && (
+                    {true && (
                       <Button
                         color="secondary"
                         isDisabled={showAddMorePages}
@@ -1412,7 +1462,7 @@ export default function ScrapingPage() {
                         {t("scraping.controls.addPages")}
                       </Button>
                     )}
-                    {isSuperAdmin && (
+                    {true && (
                       <Button
                         color="danger"
                         isDisabled={!scrapedData.some((i) => i.selected)}
@@ -1423,7 +1473,7 @@ export default function ScrapingPage() {
                         {t("scraping.controls.blacklistSelected")}
                       </Button>
                     )}
-                    {isSuperAdmin && (
+                    {true && (
                       <Button
                         color="primary"
                         isDisabled={!scrapedData.some((i) => i.selected)}
@@ -1435,20 +1485,13 @@ export default function ScrapingPage() {
                     )}
                   </div>
                 }
-                onDelete={
-                  isSuperAdmin
-                    ? (url) => handleBlacklistItems([url])
-                    : undefined
-                }
-                onRescrape={
-                  isSuperAdmin
-                    ? async (url) =>
-                        handleRescrapePages([url], {
-                          keepImages,
-                          useAI,
-                          usePlaywright,
-                        })
-                    : undefined
+                onDelete={(url) => handleBlacklistItems([url])}
+                onRescrape={async (url) =>
+                  handleRescrapePages([url], {
+                    keepImages,
+                    useAI,
+                    usePlaywright,
+                  })
                 }
                 onSelectionChange={(urls, isSelected) => {
                   setScrapedData((prev) =>
@@ -1459,12 +1502,10 @@ export default function ScrapingPage() {
                     ),
                   );
                 }}
-                onToggleImageLock={
-                  isSuperAdmin ? handleToggleImageLock : undefined
-                }
+                onToggleImageLock={handleToggleImageLock}
                 onToggleMain={handleToggleMain}
                 onToggleSelect={handleToggleSelect}
-                onUpdateImage={isSuperAdmin ? handleUpdateImage : undefined}
+                onUpdateImage={handleUpdateImage}
               />
             </div>
           </>

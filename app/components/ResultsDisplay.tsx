@@ -1,5 +1,11 @@
 "use client";
-
+import {
+  Sparkles,
+  Rocket,
+  MessageSquare,
+  ClipboardList,
+  Copy,
+} from "lucide-react";
 import React from "react";
 import { Button } from "@heroui/button";
 import { Textarea } from "@heroui/input";
@@ -277,8 +283,8 @@ export default function ResultsDisplay({
     <div className="w-full flex flex-col gap-4">
       <div className="mt-8">
         <h3 className="text-xl font-bold mb-4">{t("project.aiSettings")}</h3>
-        <Card className="mb-4">
-          <CardBody>
+        <Card className="mb-4 bg-background shadow-sm border border-content2">
+          <CardBody className="p-4 md:p-6">
             <div className="space-y-4">
               <div>
                 <label className="block text-sm font-medium mb-2">
@@ -368,7 +374,7 @@ export default function ResultsDisplay({
                           refineAiQuota.remaining <= 0
                         }
                         size="sm"
-                        startContent={<span>✨</span>}
+                        startContent={<Sparkles size={16} />}
                         variant={showRefinementTools ? "flat" : "ghost"}
                         onClick={() =>
                           setShowRefinementTools(!showRefinementTools)
@@ -469,21 +475,27 @@ export default function ResultsDisplay({
         <h3 className="text-xl font-bold mb-4">
           {t("project.integrationAndDemo")}
         </h3>
-        <Card className="mb-4">
-          <CardBody>
+        <Card className="mb-4 bg-background shadow-sm border border-content2">
+          <CardBody className="p-4 md:p-6">
             <div className="space-y-4">
               <div>
                 <h4 className="text-lg font-semibold mb-2">
-                  {t("project.liveChatWidget")}
+                  <span className="flex items-center gap-2">
+                    <MessageSquare
+                      className="text-primary-600 dark:text-primary-400"
+                      size={20}
+                    />{" "}
+                    {t("project.liveChatWidget")}
+                  </span>
                 </h4>
-                <div className="bg-green-800 rounded-lg p-4 mb-4">
+                <div className="bg-success-50 dark:bg-success-50/10 border border-success-200 dark:border-success-900/50 rounded-lg p-4 mb-4">
                   <div className="flex items-center gap-2 mb-2">
-                    <div className="w-3 h-3 bg-green-500 rounded-full animate-pulse" />
-                    <span className="text-green-400 font-medium">
+                    <div className="w-3 h-3 bg-success-500 rounded-full animate-pulse shadow-[0_0_8px_hsl(var(--heroui-success))]" />
+                    <span className="text-success-700 dark:text-success-400 font-medium">
                       {t("project.chatWidgetReady")}
                     </span>
                   </div>
-                  <p className="text-sm text-green-400">
+                  <p className="text-sm text-success-600 dark:text-success-500/80">
                     {t("project.testEnvironmentDesc")}
                   </p>
                 </div>
@@ -493,7 +505,7 @@ export default function ResultsDisplay({
                     className="w-full font-semibold mb-2"
                     color="success"
                     size="lg"
-                    startContent={<span>🚀</span>}
+                    startContent={<Rocket size={16} />}
                     variant="shadow"
                     onClick={() => {
                       try {
@@ -516,9 +528,12 @@ export default function ResultsDisplay({
                 </div>
 
                 <h4 className="text-lg font-semibold mb-2">
-                  {t("project.embedCode")}
+                  <span className="flex items-center gap-2">
+                    <ClipboardList className="text-default-500" size={20} />{" "}
+                    {t("project.embedCode")}
+                  </span>
                 </h4>
-                <div className="bg-gray-900 text-gray-100 p-4 rounded-lg text-sm font-mono overflow-x-auto">
+                <div className="bg-default-100 dark:bg-default-50 text-default-800 dark:text-default-300 p-4 rounded-xl text-sm font-mono overflow-x-auto border border-default-200">
                   <pre>{`<script src="${config.serverUrl}/api/widget.js" data-domain="${(() => {
                     try {
                       return new URL(url).hostname;
@@ -530,6 +545,7 @@ export default function ResultsDisplay({
                 <div className="flex gap-2 mt-2">
                   <Button
                     size="sm"
+                    startContent={<Copy size={16} />}
                     variant="bordered"
                     onClick={() => {
                       try {
@@ -556,12 +572,12 @@ export default function ResultsDisplay({
               </div>
 
               {webhookSecret && (
-                <div className="mt-4 p-4 border border-yellow-200 bg-yellow-50 rounded-lg">
-                  <h4 className="text-sm font-semibold text-yellow-800 mb-2">
+                <div className="mt-4 p-4 border border-warning-200 dark:border-warning-900/50 bg-warning-50 dark:bg-warning-50/10 rounded-lg">
+                  <h4 className="text-sm font-semibold text-warning-800 dark:text-warning-500 mb-2">
                     {t("project.webhookSecurity")}
                   </h4>
                   <div className="flex items-center gap-2">
-                    <code className="bg-white px-2 py-1 rounded border text-xs flex-1 break-all font-mono select-all text-black">
+                    <code className="bg-background px-2 py-1 rounded border border-content2 text-xs flex-1 break-all font-mono select-all text-foreground">
                       {showSecret
                         ? webhookSecret
                         : "•".repeat(webhookSecret ? webhookSecret.length : 12)}

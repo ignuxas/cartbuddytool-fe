@@ -7,6 +7,7 @@ import { Checkbox } from "@heroui/checkbox";
 import { Spinner } from "@heroui/spinner";
 import { Chip } from "@heroui/chip";
 import { Input } from "@heroui/input";
+import { Select, SelectItem } from "@heroui/select";
 import { addToast } from "@heroui/toast";
 import {
   Modal,
@@ -25,6 +26,7 @@ import {
 } from "../utils/swr";
 import { useLanguage } from "../contexts/LanguageContext";
 import { useAuth } from "../contexts/AuthContext";
+import { makeApiCall, getAuthHeaders } from "../utils/apiHelper";
 
 import { config } from "@/lib/config";
 
@@ -49,16 +51,53 @@ export default function SiteSettingsPage() {
   const { models: allModels, isLoading: modelsLoading } = useAllModels(authKey);
 
   const [allowedModels, setAllowedModels] = useState<string[]>([]);
+  const [defaultModel, setDefaultModel] = useState<string>("gpt-5-mini");
   const [saving, setSaving] = useState(false);
   const [initialized, setInitialized] = useState(false);
   const [pendingAction, setPendingAction] = useState<(() => void) | null>(null);
   const [regeneratingKey, setRegeneratingKey] = useState(false);
   const [showApiKey, setShowApiKey] = useState(false);
+  const [billingLoading, setBillingLoading] = useState(false);
+
+  const handleManageBilling = async () => {
+    if (!user?.stripe_customer_id) {
+      addToast({
+        title: t("common.error"),
+        description: t("billing.noSubscription"),
+        color: "warning",
+      });
+      router.push("/pricing");
+
+      return;
+    }
+    setBillingLoading(true);
+    try {
+      const data = await makeApiCall(
+        `${config.serverUrl}/api/stripe/create-portal-session/`,
+        {
+          method: "POST",
+          headers: getAuthHeaders(authKey),
+        },
+        "ManageBilling",
+      );
+
+      window.location.href = data.portal_url;
+    } catch (e: any) {
+      addToast({
+        title: t("common.error"),
+        description: e?.message || t("billing.portalError"),
+        color: "danger",
+      });
+    } finally {
+      setBillingLoading(false);
+    }
+  };
 
   // Sync from fetched settings once loaded
   useEffect(() => {
     if (settings && !initialized) {
       setAllowedModels(settings.allowed_models || []);
+      setDefaultModel(settings.default_model || "gpt-5-mini");
       setInitialized(true);
     }
   }, [settings, initialized]);
@@ -193,7 +232,10 @@ export default function SiteSettingsPage() {
       await authenticatedFetcher(
         `${config.serverUrl}/api/site-settings/`,
         authKey!,
-        { method: "PUT", body: { allowed_models: allowedModels } },
+        {
+          method: "PUT",
+          body: { allowed_models: allowedModels, default_model: defaultModel },
+        },
       );
       revalidate();
       addToast({
@@ -277,6 +319,76 @@ export default function SiteSettingsPage() {
           </p>
         </div>
       </div>
+
+      <Card className="mb-6">
+        <CardHeader>
+          <div>
+            <h3 className="text-xl font-bold">{t("billing.title")}</h3>
+            <p className="text-sm text-default-500 mt-1">
+              {t("billing.description")}
+            </p>
+          </div>
+        </CardHeader>
+        <CardBody>
+          {user?.plan_tier && (
+            <div className="flex flex-wrap gap-3 mb-4 items-center">
+              <div className="flex items-center gap-2">
+                <span className="text-sm text-default-500">
+                  {t("billing.currentPlan")}:
+                </span>
+                <Chip color="primary" size="sm" variant="flat">
+                  {user.plan_tier.charAt(0).toUpperCase() +
+                    user.plan_tier.slice(1)}
+                </Chip>
+              </div>
+              {user.plan_status && (
+                <div className="flex items-center gap-2">
+                  <span className="text-sm text-default-500">
+                    {t("billing.status")}:
+                  </span>
+                  <Chip
+                    color={
+                      user.plan_status === "active"
+                        ? "success"
+                        : user.plan_status === "trialing"
+                          ? "warning"
+                          : user.plan_status === "past_due"
+                            ? "danger"
+                            : "default"
+                    }
+                    size="sm"
+                    variant="flat"
+                  >
+                    {t(`billing.${user.plan_status}`)}
+                  </Chip>
+                </div>
+              )}
+              {user.plan_status === "trialing" && user.trial_end && (
+                <div className="flex items-center gap-2">
+                  <span className="text-sm text-default-500">
+                    {t("billing.trialEnds")}:
+                  </span>
+                  <span className="text-sm">
+                    {new Date(user.trial_end).toLocaleDateString()}
+                  </span>
+                </div>
+              )}
+            </div>
+          )}
+          <div className="flex flex-col sm:flex-row gap-3 items-start">
+            <Button
+              color="primary"
+              isLoading={billingLoading}
+              onPress={handleManageBilling}
+            >
+              {t("billing.manageBilling")}
+            </Button>
+            <Button variant="flat" onPress={() => router.push("/pricing")}>
+              {t("billing.viewPlans")}
+            </Button>
+          </div>
+        </CardBody>
+      </Card>
 
       {/* API Key Section — visible to all authenticated users */}
       <Card className="mb-6">
@@ -424,6 +536,37 @@ export default function SiteSettingsPage() {
                   </div>
                 </>
               )}
+            </CardBody>
+          </Card>
+
+          <Card className="mt-6">
+            <CardHeader>
+              <div>
+                <h3 className="text-xl font-bold">Default AI Model</h3>
+                <p className="text-sm text-default-500 mt-1">
+                  Choose the default AI model to fall back to when one
+                  isn&apos;t specified.
+                </p>
+              </div>
+            </CardHeader>
+            <CardBody>
+              <Select
+                className="max-w-md"
+                label="Default Model"
+                selectedKeys={[defaultModel]}
+                onChange={(e) => setDefaultModel(e.target.value)}
+              >
+                {allModels.map((m: any) => (
+                  <SelectItem key={m.id} value={m.id}>
+                    {m.name} ({m.provider || "gemini"})
+                  </SelectItem>
+                ))}
+              </Select>
+              <div className="flex justify-start mt-4">
+                <Button color="primary" isLoading={saving} onPress={handleSave}>
+                  Save
+                </Button>
+              </div>
             </CardBody>
           </Card>
 

@@ -1,10 +1,12 @@
 "use client";
-
+import { Lock, AlertTriangle, Check } from "lucide-react";
 import { Button } from "@heroui/button";
 import { Switch } from "@heroui/switch";
 import { Input } from "@heroui/input";
+import { Tooltip } from "@heroui/tooltip";
 
 import PlaywrightSwitch from "@/app/components/PlaywrightSwitch";
+import { useAuth } from "@/app/contexts/AuthContext";
 
 interface ActionButtonsProps {
   scrapedDataLength: number;
@@ -59,14 +61,22 @@ export default function ActionButtons({
   discoveryMethod = "auto",
   setDiscoveryMethod,
 }: ActionButtonsProps) {
+  const { user, isSuperAdmin } = useAuth();
+
   if (!((scrapedDataLength > 0 || errorMessage) && url)) {
     return null;
   }
 
   const isDisabled = loading || retryLoading !== null;
 
+  const planTier = user?.plan_tier || "free";
+  const hasPremiumFeatures = isSuperAdmin || planTier !== "free";
+  const premiumTooltip = hasPremiumFeatures
+    ? ""
+    : "Available on Growth plan or higher";
+
   return (
-    <div className="w-full flex flex-col gap-5 p-5 border rounded-xl bg-content1 shadow-sm">
+    <div className="w-full flex flex-col gap-5 p-4 md:p-6 border border-content2 rounded-large bg-background shadow-sm">
       {/* Settings Section */}
       <div>
         <h3 className="text-sm font-semibold text-default-700 uppercase tracking-wide mb-3">
@@ -94,49 +104,69 @@ export default function ActionButtons({
 
             {/* AI Image Selection Toggle — only visible when Keep Old Images is OFF */}
             {!keepImages && (
-              <div className="flex flex-col gap-1 p-3 bg-default-100 rounded-lg border border-default-200 w-full md:w-auto">
-                <div className="flex items-center gap-3">
-                  <Switch
-                    color="secondary"
-                    disabled={isDisabled}
-                    isSelected={useAI}
-                    size="sm"
-                    onValueChange={setUseAI}
-                  >
-                    <span className="text-sm font-medium">
-                      AI Image Selection
-                    </span>
-                  </Switch>
-                  <div className="text-xs text-default-500 hidden sm:block">
-                    {useAI ? (
-                      <span className="text-warning">⚠️ ~4s/page</span>
-                    ) : (
-                      <span className="text-success">✓ ~0.1s/page</span>
-                    )}
+              <Tooltip content={premiumTooltip} isDisabled={hasPremiumFeatures}>
+                <div className="flex flex-col gap-1 p-3 bg-default-100 rounded-lg border border-default-200 w-full md:w-auto">
+                  <div className="flex items-center gap-3">
+                    <Switch
+                      color="secondary"
+                      disabled={isDisabled || !hasPremiumFeatures}
+                      isSelected={hasPremiumFeatures && useAI}
+                      size="sm"
+                      onValueChange={setUseAI}
+                    >
+                      <span
+                        className={`text-sm font-medium ${!hasPremiumFeatures ? "text-default-400" : ""}`}
+                      >
+                        AI Image Selection{" "}
+                        {hasPremiumFeatures ? (
+                          ""
+                        ) : (
+                          <Lock className="inline ml-1 mb-0.5" size={14} />
+                        )}
+                      </span>
+                    </Switch>
+                    <div className="text-xs text-default-500 hidden sm:block">
+                      {useAI ? (
+                        <span className="text-warning flex items-center gap-1">
+                          <AlertTriangle size={14} /> ~4s/page
+                        </span>
+                      ) : (
+                        <span className="text-success flex items-center gap-1">
+                          <Check size={14} /> ~0.1s/page
+                        </span>
+                      )}
+                    </div>
                   </div>
+                  <p className="text-xs text-default-400 ml-1">
+                    {useAI
+                      ? "Gemini AI analyzes page images and picks the most relevant one. Slower but more accurate."
+                      : "Uses heuristics (meta tags, CSS classes) to pick images. Fast but may be less accurate."}
+                  </p>
                 </div>
-                <p className="text-xs text-default-400 ml-1">
-                  {useAI
-                    ? "Gemini AI analyzes page images and picks the most relevant one. Slower but more accurate."
-                    : "Uses heuristics (meta tags, CSS classes) to pick images. Fast but may be less accurate."}
-                </p>
-              </div>
+              </Tooltip>
             )}
 
             {/* Playwright Toggle */}
-            <div className="flex flex-col gap-1 p-3 bg-default-100 rounded-lg border border-default-200 w-full md:w-auto">
-              <PlaywrightSwitch
-                disabled={isDisabled}
-                isSelected={usePlaywright}
-                size="sm"
-                onValueChange={setUsePlaywright}
-              />
-              <p className="text-xs text-default-400 ml-1">
-                {usePlaywright
-                  ? "Uses a headless browser — handles JS-rendered content but slower."
-                  : "Uses simple HTTP requests — fast but may miss dynamic content."}
-              </p>
-            </div>
+            <Tooltip content={premiumTooltip} isDisabled={hasPremiumFeatures}>
+              <div className="flex flex-col gap-1 p-3 bg-default-100 rounded-lg border border-default-200 w-full md:w-auto">
+                <div className="flex items-center gap-1">
+                  <PlaywrightSwitch
+                    disabled={isDisabled || !hasPremiumFeatures}
+                    isSelected={hasPremiumFeatures && usePlaywright}
+                    size="sm"
+                    onValueChange={setUsePlaywright}
+                  />
+                  {!hasPremiumFeatures && (
+                    <Lock className="text-default-500" size={16} />
+                  )}
+                </div>
+                <p className="text-xs text-default-400 ml-1">
+                  {usePlaywright
+                    ? "Uses a headless browser — handles JS-rendered content but slower."
+                    : "Uses simple HTTP requests — fast but may miss dynamic content."}
+                </p>
+              </div>
+            </Tooltip>
           </div>
 
           {/* Discovery Method Selector */}
@@ -300,10 +330,10 @@ export default function ActionButtons({
             {handleContinueScraping && retryLoading !== "scraping" && (
               <div className="flex flex-col gap-1">
                 <Button
+                  className="font-semibold shadow-lg shadow-primary/20"
                   color="primary"
                   disabled={isDisabled}
                   size="sm"
-                  variant="flat"
                   onPress={handleContinueScraping}
                 >
                   Continue Scraping

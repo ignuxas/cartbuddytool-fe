@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect, useRef } from "react";
+import React, { useState, useRef } from "react";
 import { Card, CardBody, CardHeader } from "@heroui/card";
 import { Button } from "@heroui/button";
 import {
@@ -17,6 +17,7 @@ import { Tooltip } from "@heroui/tooltip"; // Assuming this exists in HeroUI
 
 import { config } from "@/lib/config";
 import { useLanguage } from "@/app/contexts/LanguageContext";
+import { useKnowledgeFiles } from "@/app/utils/swr";
 
 interface KnowledgeFile {
   id: string;
@@ -115,8 +116,6 @@ export const KnowledgeBase: React.FC<KnowledgeBaseProps> = ({
   authKey,
   isSuperAdmin: _isSuperAdmin,
 }) => {
-  const [files, setFiles] = useState<KnowledgeFile[]>([]);
-  const [loading, setLoading] = useState(false);
   const [actionLoading, setActionLoading] = useState<string | null>(null); // 'upload' or fileId for specific actions
   const [uploadMode, setUploadMode] = useState<"create" | "update">("create");
   const [targetFileId, setTargetFileId] = useState<string | null>(null);
@@ -124,35 +123,11 @@ export const KnowledgeBase: React.FC<KnowledgeBaseProps> = ({
 
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  const fetchFiles = async () => {
-    if (!authKey) return;
-    setLoading(true);
-    try {
-      const res = await fetch(
-        `${config.serverUrl}/api/knowledge/list/?domain=${domain}`,
-        {
-          headers: { Authorization: `Bearer ${authKey}` },
-        },
-      );
-
-      if (res.ok) {
-        const data = await res.json();
-
-        setFiles(data.files);
-      }
-    } catch (error) {
-      console.error(error);
-      addToast({ title: t("project.fetchFilesError"), color: "danger" });
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  useEffect(() => {
-    if (domain && authKey) {
-      fetchFiles();
-    }
-  }, [domain, authKey]);
+  const {
+    files,
+    isLoading: loading,
+    revalidate: fetchFiles,
+  } = useKnowledgeFiles(domain, authKey);
 
   const triggerUpload = (
     mode: "create" | "update",
@@ -310,8 +285,8 @@ export const KnowledgeBase: React.FC<KnowledgeBaseProps> = ({
   };
 
   return (
-    <Card className="w-full mt-6">
-      <CardHeader className="flex justify-between items-center px-6 py-4">
+    <Card className="w-full mt-6 bg-background shadow-sm border border-content2">
+      <CardHeader className="flex justify-between items-center px-6 pt-6 pb-2">
         <div>
           <h2 className="text-xl font-bold">
             {t("project.knowledgeBaseTitle")}
@@ -330,6 +305,7 @@ export const KnowledgeBase: React.FC<KnowledgeBaseProps> = ({
             onChange={handleFileChange}
           />
           <Button
+            className="font-semibold shadow-lg shadow-primary/20"
             color="primary"
             isLoading={actionLoading === "upload_new"}
             startContent={<UploadIcon />}
@@ -339,18 +315,23 @@ export const KnowledgeBase: React.FC<KnowledgeBaseProps> = ({
           </Button>
         </div>
       </CardHeader>
-      <CardBody>
+      <CardBody className="p-4 md:p-6">
         {loading && files.length === 0 ? (
           <div className="flex justify-center p-4">
             <Spinner />
           </div>
         ) : files.length === 0 ? (
-          <div className="text-center text-gray-500 py-12 border-2 border-dashed border-default-200 rounded-lg">
+          <div className="text-center text-default-500 py-12 border-2 border-dashed border-default-200 rounded-lg">
             <p>{t("project.noFiles")}</p>
             <p className="text-sm">{t("project.noFilesDesc")}</p>
           </div>
         ) : (
-          <Table aria-label="Knowledge Files">
+          <Table
+            aria-label="Knowledge Files"
+            classNames={{
+              wrapper: "bg-background shadow-sm border border-content2",
+            }}
+          >
             <TableHeader>
               <TableColumn>{t("project.fileName")}</TableColumn>
               <TableColumn>{t("project.fileSize")}</TableColumn>

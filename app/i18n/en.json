@@ -1,6 +1,7 @@
 {
   "common": {
     "dashboard": "Dashboard",
+    "projects": "Projects",
     "newProject": "New Project",
     "prompts": "Prompts",
     "users": "Users",
@@ -8,7 +9,7 @@
     "admin": "Admin",
     "logout": "Logout",
     "builtFor": "Built For",
-    "appName": "CartBuddy Tools",
+    "appName": "CartBuddy",
     "loading": "Loading...",
     "success": "Success",
     "error": "Error",
@@ -117,12 +118,12 @@
     "generateImprovements": "Generate Improvements",
     "manualSave": "Save Settings",
     "integrationAndDemo": "Integration & Demo",
-    "liveChatWidget": "💬 Live Chat Widget",
+    "liveChatWidget": "Live Chat Widget",
     "chatWidgetReady": "Chat widget is ready!",
     "testEnvironmentDesc": "Use the buttons below to test the assistant in a live environment.",
     "viewWidgetLiveDemo": "View Live Demo on Your Website",
-    "embedCode": "📋 Embed Code",
-    "copyEmbedCode": "📋 Copy Embed Code",
+    "embedCode": "Embed Code",
+    "copyEmbedCode": "Copy Embed Code",
     "webhookSecurity": "🔒 Webhook Security",
     "show": "Show",
     "hide": "Hide",
@@ -386,5 +387,199 @@
     "copyFailed": "Failed to copy API key.",
     "generate": "Generate Key",
     "noKey": "No API key yet. Click Generate to create one."
+  },
+  "billing": {
+    "title": "Billing & Subscription",
+    "description": "Manage your plan, billing details, and view invoices via Stripe portal.",
+    "noSubscription": "No active subscription. Redirecting to pricing...",
+    "portalError": "Expected complete URL to be returned",
+    "currentPlan": "Current Plan",
+    "status": "Status",
+    "trialEnds": "Trial Ends",
+    "manageBilling": "Manage Billing",
+    "viewBilling": "View Billing",
+    "viewPlans": "View Plans",
+    "active": "Active",
+    "trialing": "Trialing",
+    "past_due": "Past Due",
+    "canceled": "Canceled",
+    "unpaid": "Unpaid"
+  },
+  "pricing": {
+    "title": "Simple, Transparent Pricing",
+    "subtitle": "Choose the plan that fits your needs. 14-day free trial on the Growth plan.",
+    "mostPopular": "Most Popular",
+    "freeTrial": "14-day free trial",
+    "getStarted": "Get Started",
+    "startFreeTrial": "Start Free Trial",
+    "currentPlan": "Current Plan",
+    "contactSales": "Contact Sales",
+    "confirmDowngrade": "Are you sure you want to downgrade to the Free plan? You will immediately lose access to premium features.",
+    "monthly": "mo",
+    "contactNote": "Contact us for a custom quote.",
+    "plans": {
+      "free": {
+        "name": "Free",
+        "description": "Basic AI chat for small websites",
+        "price": "€0"
+      },
+      "growth": {
+        "name": "Growth",
+        "description": "For growing businesses",
+        "price": "€150"
+      },
+      "enterprise": {
+        "name": "Enterprise",
+        "description": "Unlimited scale & white-glove setup",
+        "price": "Custom"
+      }
+    },
+    "features": {
+      "chatsPerMonth": "Chats / Month",
+      "maxPages": "Max Pages",
+      "guidedFlows": "Guided Chat Flows",
+      "knowledgeBase": "File Knowledge Base",
+      "customAI": "Custom AI Prompts",
+      "branding": "Branding",
+      "analytics": "Analytics",
+      "support": "Support",
+      "overageRate": "Overage Rate"
+    },
+    "values": {
+      "free": {
+        "chatsPerMonth": "100",
+        "maxPages": "200",
+        "guidedFlows": "1",
+        "knowledgeBase": "5 Files Max",
+        "customAI": "Standard",
+        "branding": "CartBuddy watermark",
+        "analytics": "Basic",
+        "support": "Community",
+        "overageRate": "Hard cap"
+      },
+      "growth": {
+        "chatsPerMonth": "1,500",
+        "maxPages": "2,000",
+        "guidedFlows": "3",
+        "knowledgeBase": "5 Files Max",
+        "customAI": "Full Context Tuning",
+        "branding": "No watermark",
+        "analytics": "Conversion & AOV Uplift",
+        "support": "Priority Email (24h)",
+        "overageRate": "€0.10 / chat"
+      },
+      "enterprise": {
+        "chatsPerMonth": "Unlimited",
+        "maxPages": "Unlimited",
+        "guidedFlows": "Custom + API",
+        "knowledgeBase": "5 Files Max",
+        "customAI": "Dedicated Models",
+        "branding": "No watermark",
+        "analytics": "Premium SLA",
+        "support": "Dedicated Slack",
+        "overageRate": "Custom"
+      }
+    }
+  },
+  "new": {
+    "title": "Create New Project",
+    "subtitle": "Enter your website URL to set up a new project",
+    "backToDashboard": "Back to Dashboard",
+    "invalidUrl": "Please enter a valid URL (e.g. https://example.com)",
+    "invalidUrlDomain": "Invalid domain",
+    "websiteExistsTitle": "Website Exists",
+    "websiteExistsMessage": "This website is already added. Please manage it from your dashboard.",
+    "scanningSitemap": "Scanning sitemap...",
+    "foundUrls": "Found {{count}} URLs",
+    "existingData": {
+      "title": "Existing Data Found",
+      "description": "We found existing scraped data for this domain ({{domain}}). Would you like to use it or perform a new scan?",
+      "useExisting": "Use Existing Data",
+      "rescan": "Rescan Website"
+    },
+    "selection": {
+      "title": "Select Pages to Scrape",
+      "foundPages": "Found {{count}} pages via {{method}}",
+      "methodCrawling": "web crawling",
+      "methodSitemap": "sitemap",
+      "selectedCount": "{{count}} selected",
+      "pleaseSelectUrl": "Please select at least one URL",
+      "urlAlreadyInList": "This URL is already in the list",
+      "searchPlaceholder": "Search URLs...",
+      "selectAll": "Select All",
+      "deselectAll": "Deselect All",
+      "selectFiltered": "Select {{count}} Filtered",
+      "deselectFiltered": "Deselect {{count}} Filtered",
+      "showBlacklist": "Show Blacklist ({{count}} patterns)",
+      "hideBlacklist": "Hide Blacklist ({{count}} patterns)",
+      "urlHeader": "URL",
+      "noUrlsSearch": "No URLs match your search",
+      "noUrlsFound": "No URLs found",
+      "blacklisted": "Blacklisted",
+      "removeUrl": "Remove from list",
+      "showingCount": "Showing {{showing}} of {{total}}",
+      "addUrlPlaceholder": "https://example.com/page",
+      "add": "Add URL",
+      "next": "Continue ({{count}} selected)",
+      "tips": {
+        "title": "Tips for selection:",
+        "selectMain": "Select the main pages:",
+        "selectMainDesc": "Home, About, Contact, Services, FAQs, and Product pages.",
+        "skipPosts": "Skip dynamic pages:",
+        "skipPostsDesc": "Blog posts, news articles, or pages that are frequently updated.",
+        "focusStatic": "Focus on static content:",
+        "focusStaticDesc": "Pages that contain the core information about your business.",
+        "useBlacklist": "Use the blacklist:",
+        "useBlacklistDesc": "To automatically exclude pages that contain certain keywords in the URL."
+      },
+      "pathGroups": "Path Groups",
+      "blacklist": {
+        "title": "URL Blacklist Patterns",
+        "description": "Any URL containing these patterns will be automatically excluded.",
+        "placeholder": "Pattern (e.g. /blog/)",
+        "patternExists": "This pattern is already in the blacklist",
+        "patternAdded": "Added pattern '{{pattern}}'. Selected {{removed}} filtered URLs.",
+        "patternRemoved": "Pattern removed",
+        "quickAdd": "Quick Select"
+      }
+    },
+    "mainSelection": {
+      "title": "Select Main URLs",
+      "description": "Choose up to 10 URLs to be used as main URLs. These will be added to the Master Prompt for immediate availability.",
+      "searchPlaceholder": "Search selected URLs...",
+      "selectAll": "Select All",
+      "deselectAll": "Deselect All",
+      "smartSelect": "Smart Select",
+      "urlHeader": "URL",
+      "typeHeader": "Type",
+      "typeMain": "Main Text",
+      "typeVectorized": "Vectorized",
+      "noUrlsSearch": "No URLs match your search",
+      "noUrls": "No URLs available",
+      "back": "Back to Selection",
+      "scrape": "Scrape {{count}} URLs",
+      "maxMainPages": "You can select a maximum of 10 main pages. Please untick a page to select a new one.",
+      "maxMainPagesBulk": "You can only select up to 10 main pages. Only the first selected pages will be marked as main.",
+      "tips": {
+        "title": "Tips for Main URLs:",
+        "alwaysAvailable": "Always Available",
+        "alwaysAvailableDesc": "Content from Main URLs is injected directly into the prompt without semantic search.",
+        "staticContent": "Best for Core Info",
+        "staticContentDesc": "Use for homepage, contact, FAQ, or core services.",
+        "essentialPages": "Keep it Essential",
+        "essentialPagesDesc": "More main text increases cost and latency. Choose only the most critical pages.",
+        "limitRec": "Limits",
+        "limitRecDesc": "Max 10 pages recommended for main text."
+      }
+    },
+    "scrapingTips": {
+      "title": "Tips for Successful Scraping:",
+      "tip1": "Large websites may take some time. Please be patient.",
+      "tip2": "If a page fails, you can retry it later from the project dashboard.",
+      "tip3": "Make sure your website responds quickly and doesn't aggressively block scrapers.",
+      "tip4": "You don't need to select every single page, only those with useful information for your chatbot.",
+      "tip5": "You can add more URLs or remove scraped URLs after the initial scraping is done.",
+      "tip6": "Ensure that your API key is correctly configured."
+    }
   }
 }

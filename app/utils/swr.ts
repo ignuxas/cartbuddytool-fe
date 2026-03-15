@@ -51,7 +51,7 @@ export const authenticatedFetcher = async (
 export const swrConfig: SWRConfiguration = {
   revalidateOnFocus: false, // Don't refetch when window regains focus (reduces requests)
   revalidateOnReconnect: true, // Refetch when internet reconnects
-  dedupingInterval: 5000, // Dedupe requests within 5 seconds
+  dedupingInterval: 30000, // Dedupe requests within 30 seconds
   errorRetryCount: 2, // Retry failed requests twice
   shouldRetryOnError: (error) => {
     // Don't retry on 4xx errors (client errors)
@@ -85,7 +85,7 @@ export function useProjectData(domain: string | null, authKey: string | null) {
     },
     {
       ...swrConfig,
-      revalidateOnMount: true, // Always fetch on first mount
+      // Removed revalidateOnMount to rely on standard SWR caching and deduping
     },
   );
 
@@ -215,7 +215,7 @@ export function useAdditionalUrls(
     },
     {
       ...swrConfig,
-      revalidateOnMount: true,
+      // Default caching behaviors
     },
   );
 
@@ -272,7 +272,7 @@ export function useScrapingPageData(
     },
     {
       ...swrConfig,
-      revalidateOnMount: true,
+      // Removed revalidateOnMount: true to stop aggressive refetching
     },
   );
 
@@ -360,6 +360,10 @@ export function useMasterPrompts(authKey: string) {
   const { data, error, isLoading, mutate } = useSWR(
     authKey ? [`${config.serverUrl}/api/master-prompts/`, authKey] : null,
     ([url, key]) => authenticatedFetcher(url, key),
+    {
+      ...swrConfig,
+      dedupingInterval: 60000,
+    },
   );
 
   return {
@@ -376,6 +380,10 @@ export function useMasterPrompt(id: number | null, authKey: string) {
       ? [`${config.serverUrl}/api/master-prompts/${id}/`, authKey]
       : null,
     ([url, key]) => authenticatedFetcher(url, key),
+    {
+      ...swrConfig,
+      dedupingInterval: 60000,
+    },
   );
 
   return {
@@ -392,6 +400,10 @@ export function useSystemMasterPrompt(authKey: string) {
       ? [`${config.serverUrl}/api/master-prompts/default/`, authKey]
       : null,
     ([url, key]) => authenticatedFetcher(url, key),
+    {
+      ...swrConfig,
+      dedupingInterval: 60000,
+    },
   );
 
   return {
@@ -458,5 +470,108 @@ export function useAllModels(authKey: string | null) {
     models: data?.models || [],
     isLoading,
     error,
+  };
+}
+
+/**
+ * Hook for fetching dashboard components data (projects list).
+ */
+export function useProjectsList(authKey: string | null) {
+  const {
+    data,
+    error,
+    isLoading,
+    mutate: revalidate,
+  } = useSWR(
+    authKey ? ["projects-list", authKey] : null,
+    async () => {
+      if (!authKey) return null;
+
+      return authenticatedFetcher(
+        `${config.serverUrl}/api/scrape/projects/`,
+        authKey,
+      );
+    },
+    {
+      ...swrConfig,
+      dedupingInterval: 15000,
+      refreshInterval: 30000, // Poll every 30s to update scraping progress
+    },
+  );
+
+  return {
+    projects: data?.projects || [],
+    isLoading,
+    error,
+    revalidate,
+  };
+}
+
+/**
+ * Hook for fetching metrics summary for the dashboard.
+ */
+export function useMetricsSummary(authKey: string | null) {
+  const {
+    data,
+    error,
+    isLoading,
+    mutate: revalidate,
+  } = useSWR(
+    authKey ? ["metrics-summary", authKey] : null,
+    async () => {
+      if (!authKey) return null;
+
+      return authenticatedFetcher(
+        `${config.serverUrl}/api/metrics/summary/`,
+        authKey,
+      );
+    },
+    {
+      ...swrConfig,
+      dedupingInterval: 15000,
+    },
+  );
+
+  return {
+    summary: data as any, // Type assertion since it's used in DashboardSummary which has its own type
+    isLoading,
+    error,
+    revalidate,
+  };
+}
+
+/**
+ * Hook for fetching knowledge base files with caching.
+ */
+export function useKnowledgeFiles(
+  domain: string | null,
+  authKey: string | null,
+) {
+  const {
+    data,
+    error,
+    isLoading,
+    mutate: revalidate,
+  } = useSWR(
+    domain && authKey ? ["knowledge-files", domain] : null,
+    async () => {
+      if (!authKey || !domain) return null;
+
+      return authenticatedFetcher(
+        `${config.serverUrl}/api/knowledge/list/?domain=${encodeURIComponent(domain)}`,
+        authKey,
+      );
+    },
+    {
+      ...swrConfig,
+      dedupingInterval: 10000,
+    },
+  );
+
+  return {
+    files: data?.files || [],
+    isLoading,
+    error,
+    revalidate,
   };
 }

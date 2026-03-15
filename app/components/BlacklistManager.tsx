@@ -132,11 +132,11 @@ export default function BlacklistManager({
   };
 
   return (
-    <Card className="w-full mt-4">
-      <CardHeader className="font-bold text-lg">
+    <Card className="w-full mt-4 bg-background shadow-sm border border-content2">
+      <CardHeader className="font-bold text-lg px-6 pt-6 pb-2">
         {t("scraping.blacklistManager.title")}
       </CardHeader>
-      <CardBody>
+      <CardBody className="p-4 md:p-6">
         <p className="text-sm text-gray-500 mb-4">
           {t("scraping.blacklistManager.description")}
         </p>
@@ -153,7 +153,12 @@ export default function BlacklistManager({
               onChange={(e) => setNewValue(e.target.value)}
               onKeyDown={(e) => e.key === "Enter" && addItem()}
             />
-            <Button color="primary" isLoading={loading} onPress={addItem}>
+            <Button
+              className="font-semibold shadow-lg shadow-primary/20"
+              color="primary"
+              isLoading={loading}
+              onPress={addItem}
+            >
               {t("scraping.blacklistManager.add")}
             </Button>
           </div>
@@ -240,7 +245,8 @@ export default function BlacklistManager({
               ) : null
             }
             classNames={{
-              wrapper: "max-h-[400px]",
+              wrapper:
+                "max-h-[400px] bg-background shadow-sm border border-content2",
             }}
             sortDescriptor={sortDescriptor}
             onSortChange={setSortDescriptor}

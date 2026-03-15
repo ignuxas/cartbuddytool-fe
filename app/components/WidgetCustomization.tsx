@@ -84,7 +84,7 @@ export default function WidgetCustomization({
     footer_text: "Ask me anything about this website",
     view_product_text: "View Product",
     visit_page_text: "Visit Page",
-    ai_model: "gemini-2.5-flash",
+    ai_model: "",
     master_prompt_id: null,
     bot_icon: null,
     show_greeting_bubble: true,
@@ -309,7 +309,7 @@ export default function WidgetCustomization({
 
   if (loading) {
     return (
-      <Card className="w-full">
+      <Card className="w-full bg-background shadow-sm border border-content2">
         <CardBody>
           <p>{t("widget.loading")}</p>
         </CardBody>
@@ -318,7 +318,7 @@ export default function WidgetCustomization({
   }
 
   return (
-    <Card className="w-full">
+    <Card className="w-full bg-background shadow-sm border border-content2">
       <CardHeader>
         <h3 className="text-xl font-bold">{t("widget.title")}</h3>
       </CardHeader>
@@ -330,7 +330,7 @@ export default function WidgetCustomization({
               <select
                 aria-label={t("widget.selectAiModel")}
                 className="w-full h-10 px-3 pr-10 rounded-medium bg-default-100 text-small outline-none focus:ring-2 focus:ring-primary appearance-none cursor-pointer hover:bg-default-200 transition-colors"
-                value={settings.ai_model || "gemini-2.5-flash"}
+                value={settings.ai_model || ""}
                 onChange={(e) =>
                   setSettings({ ...settings, ai_model: e.target.value })
                 }
@@ -385,7 +385,7 @@ export default function WidgetCustomization({
           ) : (
             <Input
               aria-label="AI Model ID"
-              placeholder="gemini-2.5-flash"
+              placeholder="Default Model"
               type="text"
               value={settings.ai_model || ""}
               onChange={(e) =>
@@ -501,7 +501,7 @@ export default function WidgetCustomization({
                     // Fallback if image fails to load
                     e.currentTarget.style.display = "none";
                     e.currentTarget.parentElement!.innerHTML =
-                      '<span class="text-2xl">🤖</span>';
+                      '<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="mx-auto my-1 text-default-500"><path d="M12 8V4H8"/><rect width="16" height="12" x="4" y="8" rx="2"/><path d="M2 14h2"/><path d="M20 14h2"/><path d="M15 13v2"/><path d="M9 13v2"/></svg>';
                   }}
                 />
               </div>
@@ -898,7 +898,11 @@ export default function WidgetCustomization({
                 }
               }}
             />
-            <Button color="primary" onClick={addSuggestion}>
+            <Button
+              className="font-semibold shadow-lg shadow-primary/20"
+              color="primary"
+              onClick={addSuggestion}
+            >
               {t("widget.add")}
             </Button>
           </div>

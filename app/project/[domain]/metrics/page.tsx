@@ -28,6 +28,7 @@ import { useLanguage } from "@/app/contexts/LanguageContext";
 interface MetricsData {
   domain: string;
   total_interactions: number;
+  monthly_interactions: number;
   unique_sessions: number;
   unique_ips: number;
   average_response_length: number;
@@ -93,7 +94,7 @@ export default function MetricsPage() {
   const params = useParams();
   const router = useRouter();
   const domain = params.domain as string;
-  const { accessToken: authKey } = useAuth();
+  const { accessToken: authKey, user, isSuperAdmin } = useAuth();
   const { t } = useLanguage();
 
   // SWR: dashboard metrics (stats, charts, initial recent items)
@@ -253,13 +254,17 @@ export default function MetricsPage() {
   if (error) {
     return (
       <div className="flex items-center justify-center min-h-screen bg-background">
-        <Card className="max-w-md">
-          <CardBody className="text-center">
+        <Card className="max-w-md bg-background shadow-sm border border-content2">
+          <CardBody className="text-center p-4 md:p-6">
             <div className="text-xl font-semibold mb-2 text-danger">
               {t("metrics.error")}
             </div>
             <div className="text-default-500 mb-4">{error}</div>
-            <Button color="primary" onPress={() => router.back()}>
+            <Button
+              className="font-semibold shadow-lg shadow-primary/20"
+              color="primary"
+              onPress={() => router.back()}
+            >
               {t("metrics.goBack")}
             </Button>
           </CardBody>
@@ -272,47 +277,111 @@ export default function MetricsPage() {
     return null;
   }
 
+  const getChatLimit = () => {
+    if (isSuperAdmin) return Infinity;
+    const tier = user?.plan_tier || "free";
+    const limits: Record<string, number> = {
+      free: 100,
+      growth: 1500,
+      enterprise: Infinity,
+    };
+
+    return limits[tier] || 100;
+  };
+
+  const limit = getChatLimit();
+  const showWarning =
+    limit !== Infinity && metrics.monthly_interactions >= limit * 0.9;
+  const isAtLimit = limit !== Infinity && metrics.monthly_interactions >= limit;
+
   return (
     <div className="flex flex-col gap-6 py-6 transition-all duration-300 ease-in-out">
+      {showWarning && (
+        <div
+          className={`w-full p-4 rounded-lg flex items-center justify-between shadow-sm ${
+            isAtLimit
+              ? "bg-danger-50 text-danger-900 border border-danger-200"
+              : "bg-warning-50 text-warning-900 border border-warning-200"
+          }`}
+        >
+          <div>
+            <h4 className="font-semibold mb-1">
+              {isAtLimit
+                ? "Monthly Chat Limit Reached"
+                : "Approaching Monthly Chat Limit"}
+            </h4>
+            <p className="text-sm">
+              {isAtLimit
+                ? `You have reached your plan's limit of ${limit} chats this month. The widget will not respond to new queries.`
+                : `You have used ${metrics.monthly_interactions} of your ${limit} allowed chats this month.`}
+            </p>
+          </div>
+          <Button
+            color={isAtLimit ? "danger" : "warning"}
+            variant="flat"
+            onPress={() => router.push("/pricing")}
+          >
+            Upgrade Plan
+          </Button>
+        </div>
+      )}
+
       {/* Summary Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-        <Card>
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">
+        <Card className="bg-background shadow-sm border border-content2">
           <CardBody className="text-center">
-            <div className="text-3xl font-bold text-blue-500">
-              {metrics.total_interactions}
+            <div
+              className={`text-3xl font-bold ${isAtLimit ? "text-danger-500" : "text-blue-500"}`}
+            >
+              {metrics.monthly_interactions}{" "}
+              {limit !== Infinity ? `/ ${limit}` : ""}
             </div>
-            <div className="text-default-500 mt-1">
+            <div className="text-default-500 mt-1">Monthly Usage</div>
+          </CardBody>
+        </Card>
+        <Card className="bg-background shadow-sm border border-content2">
+          <CardBody className="flex flex-col justify-center px-6 py-5 gap-2">
+            <span className="text-sm font-medium text-default-500 uppercase tracking-wide">
               {t("metrics.totalInteractions")}
+            </span>
+            <div className="flex items-center justify-between">
+              <span className="text-3xl font-bold">
+                {metrics.total_interactions}
+              </span>
             </div>
           </CardBody>
         </Card>
-        <Card>
-          <CardBody className="text-center">
-            <div className="text-3xl font-bold text-green-500">
-              {metrics.unique_sessions}
-            </div>
-            <div className="text-default-500 mt-1">
+        <Card className="bg-background shadow-sm border border-content2">
+          <CardBody className="flex flex-col justify-center px-6 py-5 gap-2">
+            <span className="text-sm font-medium text-default-500 uppercase tracking-wide">
               {t("metrics.uniqueSessions")}
+            </span>
+            <div className="flex items-center justify-between">
+              <span className="text-3xl font-bold">
+                {metrics.unique_sessions}
+              </span>
             </div>
           </CardBody>
         </Card>
-        <Card>
-          <CardBody className="text-center">
-            <div className="text-3xl font-bold text-purple-500">
-              {metrics.unique_ips}
-            </div>
-            <div className="text-default-500 mt-1">
+        <Card className="bg-background shadow-sm border border-content2">
+          <CardBody className="flex flex-col justify-center px-6 py-5 gap-2">
+            <span className="text-sm font-medium text-default-500 uppercase tracking-wide">
               {t("metrics.uniqueIps")}
+            </span>
+            <div className="flex items-center justify-between">
+              <span className="text-3xl font-bold">{metrics.unique_ips}</span>
             </div>
           </CardBody>
         </Card>
-        <Card>
-          <CardBody className="text-center">
-            <div className="text-3xl font-bold text-orange-500">
-              {metrics.average_response_length.toFixed(0)}
-            </div>
-            <div className="text-default-500 mt-1">
+        <Card className="bg-background shadow-sm border border-content2">
+          <CardBody className="flex flex-col justify-center px-6 py-5 gap-2">
+            <span className="text-sm font-medium text-default-500 uppercase tracking-wide">
               {t("metrics.avgResponseLength")}
+            </span>
+            <div className="flex items-center justify-between">
+              <span className="text-3xl font-bold">
+                {metrics.average_response_length.toFixed(0)}
+              </span>
             </div>
           </CardBody>
         </Card>
@@ -320,43 +389,51 @@ export default function MetricsPage() {
 
       {/* Engagement Metrics Cards */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-        <Card>
-          <CardBody className="text-center">
-            <div className="text-3xl font-bold text-cyan-500">
-              {metrics.widget_opens || 0}
-            </div>
-            <div className="text-default-500 mt-1">
+        <Card className="bg-background shadow-sm border border-content2">
+          <CardBody className="flex flex-col justify-center px-6 py-5 gap-2">
+            <span className="text-sm font-medium text-default-500 uppercase tracking-wide">
               {t("metrics.widgetOpens")}
+            </span>
+            <div className="flex items-center justify-between">
+              <span className="text-3xl font-bold">
+                {metrics.widget_opens || 0}
+              </span>
             </div>
           </CardBody>
         </Card>
-        <Card>
-          <CardBody className="text-center">
-            <div className="text-3xl font-bold text-amber-500">
-              {metrics.link_clicks || 0}
-            </div>
-            <div className="text-default-500 mt-1">
+        <Card className="bg-background shadow-sm border border-content2">
+          <CardBody className="flex flex-col justify-center px-6 py-5 gap-2">
+            <span className="text-sm font-medium text-default-500 uppercase tracking-wide">
               {t("metrics.linkProductClicks")}
+            </span>
+            <div className="flex items-center justify-between">
+              <span className="text-3xl font-bold">
+                {metrics.link_clicks || 0}
+              </span>
             </div>
           </CardBody>
         </Card>
-        <Card>
-          <CardBody className="text-center">
-            <div className="text-3xl font-bold text-indigo-500">
-              {metrics.total_products_recommended || 0}
-            </div>
-            <div className="text-default-500 mt-1">
+        <Card className="bg-background shadow-sm border border-content2">
+          <CardBody className="flex flex-col justify-center px-6 py-5 gap-2">
+            <span className="text-sm font-medium text-default-500 uppercase tracking-wide">
               {t("metrics.productsRecommended")}
+            </span>
+            <div className="flex items-center justify-between">
+              <span className="text-3xl font-bold">
+                {metrics.total_products_recommended || 0}
+              </span>
             </div>
           </CardBody>
         </Card>
-        <Card>
-          <CardBody className="text-center">
-            <div className="text-3xl font-bold text-teal-500">
-              {metrics.total_links_recommended || 0}
-            </div>
-            <div className="text-default-500 mt-1">
+        <Card className="bg-background shadow-sm border border-content2">
+          <CardBody className="flex flex-col justify-center px-6 py-5 gap-2">
+            <span className="text-sm font-medium text-default-500 uppercase tracking-wide">
               {t("metrics.linksRecommended")}
+            </span>
+            <div className="flex items-center justify-between">
+              <span className="text-3xl font-bold">
+                {metrics.total_links_recommended || 0}
+              </span>
             </div>
           </CardBody>
         </Card>
@@ -364,49 +441,57 @@ export default function MetricsPage() {
 
       {/* Conversion Rates */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-        <Card>
-          <CardBody className="text-center">
-            <div className="text-3xl font-bold text-emerald-500">
-              {metrics.chat_conversion_rate || 0}%
-            </div>
-            <div className="text-default-500 mt-1">
+        <Card className="bg-background shadow-sm border border-content2">
+          <CardBody className="flex flex-col justify-center px-6 py-5 gap-2">
+            <span className="text-sm font-medium text-default-500 uppercase tracking-wide">
               {t("metrics.chatConversionRate")}
+            </span>
+            <div className="flex items-center justify-between">
+              <span className="text-3xl font-bold">
+                {metrics.chat_conversion_rate || 0}%
+              </span>
             </div>
             <div className="text-xs text-default-400 mt-0.5">
               {t("metrics.opensToMessages")}
             </div>
           </CardBody>
         </Card>
-        <Card>
-          <CardBody className="text-center">
-            <div className="text-3xl font-bold text-rose-500">
-              {metrics.product_click_rate || 0}%
-            </div>
-            <div className="text-default-500 mt-1">
+        <Card className="bg-background shadow-sm border border-content2">
+          <CardBody className="flex flex-col justify-center px-6 py-5 gap-2">
+            <span className="text-sm font-medium text-default-500 uppercase tracking-wide">
               {t("metrics.clickThroughRate")}
+            </span>
+            <div className="flex items-center justify-between">
+              <span className="text-3xl font-bold">
+                {metrics.product_click_rate || 0}%
+              </span>
             </div>
             <div className="text-xs text-default-400 mt-0.5">
               {t("metrics.recommendedToClicked")}
             </div>
           </CardBody>
         </Card>
-        <Card>
-          <CardBody className="text-center">
-            <div className="text-3xl font-bold text-sky-500">
-              {metrics.suggestion_clicks || 0}
-            </div>
-            <div className="text-default-500 mt-1">
+        <Card className="bg-background shadow-sm border border-content2">
+          <CardBody className="flex flex-col justify-center px-6 py-5 gap-2">
+            <span className="text-sm font-medium text-default-500 uppercase tracking-wide">
               {t("metrics.suggestionClicks")}
+            </span>
+            <div className="flex items-center justify-between">
+              <span className="text-3xl font-bold">
+                {metrics.suggestion_clicks || 0}
+              </span>
             </div>
           </CardBody>
         </Card>
-        <Card>
-          <CardBody className="text-center">
-            <div className="text-3xl font-bold text-violet-500">
-              {metrics.interactions_with_products || 0}
-            </div>
-            <div className="text-default-500 mt-1">
+        <Card className="bg-background shadow-sm border border-content2">
+          <CardBody className="flex flex-col justify-center px-6 py-5 gap-2">
+            <span className="text-sm font-medium text-default-500 uppercase tracking-wide">
               {t("metrics.chatsWithProducts")}
+            </span>
+            <div className="flex items-center justify-between">
+              <span className="text-3xl font-bold">
+                {metrics.interactions_with_products || 0}
+              </span>
             </div>
             <div className="text-xs text-default-400 mt-0.5">
               {metrics.total_interactions > 0
@@ -419,33 +504,39 @@ export default function MetricsPage() {
 
       {/* Error Summary Cards */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
-        <Card>
-          <CardBody className="text-center">
-            <div className="text-3xl font-bold text-red-500">
-              {metrics.total_errors || 0}
-            </div>
-            <div className="text-default-500 mt-1">
+        <Card className="bg-background shadow-sm border border-content2">
+          <CardBody className="flex flex-col justify-center px-6 py-5 gap-2">
+            <span className="text-sm font-medium text-default-500 uppercase tracking-wide">
               {t("metrics.totalErrors")}
+            </span>
+            <div className="flex items-center justify-between">
+              <span className="text-3xl font-bold">
+                {metrics.total_errors || 0}
+              </span>
             </div>
           </CardBody>
         </Card>
-        <Card>
-          <CardBody className="text-center">
-            <div className="text-3xl font-bold text-red-400">
-              {(metrics.error_percentage || 0).toFixed(2)}%
-            </div>
-            <div className="text-default-500 mt-1">
+        <Card className="bg-background shadow-sm border border-content2">
+          <CardBody className="flex flex-col justify-center px-6 py-5 gap-2">
+            <span className="text-sm font-medium text-default-500 uppercase tracking-wide">
               {t("metrics.errorRate")}
+            </span>
+            <div className="flex items-center justify-between">
+              <span className="text-3xl font-bold">
+                {(metrics.error_percentage || 0).toFixed(2)}%
+              </span>
             </div>
           </CardBody>
         </Card>
-        <Card>
-          <CardBody className="text-center">
-            <div className="text-3xl font-bold text-green-400">
-              {(100 - (metrics.error_percentage || 0)).toFixed(2)}%
-            </div>
-            <div className="text-default-500 mt-1">
+        <Card className="bg-background shadow-sm border border-content2">
+          <CardBody className="flex flex-col justify-center px-6 py-5 gap-2">
+            <span className="text-sm font-medium text-default-500 uppercase tracking-wide">
               {t("metrics.successRate")}
+            </span>
+            <div className="flex items-center justify-between">
+              <span className="text-3xl font-bold">
+                {(100 - (metrics.error_percentage || 0)).toFixed(2)}%
+              </span>
             </div>
           </CardBody>
         </Card>
@@ -459,10 +550,10 @@ export default function MetricsPage() {
         <Card
           className={
             fullscreenChart === "daily"
-              ? "fixed inset-0 z-50 m-0 h-screen w-screen"
+              ? "fixed inset-0 z-50 m-0 h-screen w-screen bg-background"
               : fullscreenChart
                 ? "hidden"
-                : ""
+                : "bg-background shadow-sm border border-content2"
           }
         >
           <CardHeader className="flex flex-col sm:flex-row justify-between items-start sm:items-center px-6 py-4 gap-4">
@@ -554,24 +645,41 @@ export default function MetricsPage() {
                 width="100%"
               >
                 <LineChart data={metrics.daily_stats}>
-                  <CartesianGrid stroke="#374151" strokeDasharray="3 3" />
+                  <CartesianGrid
+                    opacity={0.2}
+                    stroke="#333"
+                    strokeDasharray="3 3"
+                    vertical={false}
+                  />
                   <XAxis
+                    axisLine={false}
                     dataKey="date"
-                    stroke="#9CA3AF"
+                    tick={{
+                      fontSize: 12,
+                      fill: "hsl(var(--heroui-default-500))",
+                    }}
                     tickFormatter={(value: any) => {
                       const date = new Date(value);
 
                       return `${date.getMonth() + 1}/${date.getDate()}`;
                     }}
+                    tickLine={false}
                   />
-                  <YAxis stroke="#9CA3AF" />
+                  <YAxis
+                    axisLine={false}
+                    tick={{
+                      fontSize: 12,
+                      fill: "hsl(var(--heroui-default-500))",
+                    }}
+                    tickLine={false}
+                  />
                   <Tooltip
                     contentStyle={{
-                      backgroundColor: "#1F2937",
-                      border: "1px solid #374151",
-                      borderRadius: "6px",
-                      color: "#F3F4F6",
+                      borderRadius: "8px",
+                      border: "none",
+                      boxShadow: "0 4px 6px -1px rgb(0 0 0 / 0.1)",
                     }}
+                    cursor={{ fill: "rgba(0,0,0,0.05)" }}
                     labelFormatter={(value: any) => formatDate(value)}
                   />
                   <Legend
@@ -579,29 +687,47 @@ export default function MetricsPage() {
                   />
                   {chartFilters.daily.interactions && (
                     <Line
+                      activeDot={{ r: 6, strokeWidth: 0 }}
                       dataKey="count"
+                      dot={{
+                        fill: "hsl(var(--heroui-primary))",
+                        strokeWidth: 2,
+                        r: 4,
+                      }}
                       name="interactions"
-                      stroke="#3B82F6"
-                      strokeWidth={2}
+                      stroke="hsl(var(--heroui-primary))"
+                      strokeWidth={3}
                       type="monotone"
                     />
                   )}
                   {chartFilters.daily.opens && (
                     <Line
+                      activeDot={{ r: 6, strokeWidth: 0 }}
                       dataKey="widget_opens"
+                      dot={{
+                        fill: "hsl(var(--heroui-secondary))",
+                        strokeWidth: 2,
+                        r: 4,
+                      }}
                       name="widgetOpens"
-                      stroke="#06B6D4"
+                      stroke="hsl(var(--heroui-secondary))"
                       strokeDasharray="5 5"
-                      strokeWidth={2}
+                      strokeWidth={3}
                       type="monotone"
                     />
                   )}
                   {chartFilters.daily.errors && (
                     <Line
+                      activeDot={{ r: 6, strokeWidth: 0 }}
                       dataKey="errors"
+                      dot={{
+                        fill: "hsl(var(--heroui-danger))",
+                        strokeWidth: 2,
+                        r: 4,
+                      }}
                       name="errors"
-                      stroke="#EF4444"
-                      strokeWidth={2}
+                      stroke="hsl(var(--heroui-danger))"
+                      strokeWidth={3}
                       type="monotone"
                     />
                   )}
@@ -619,10 +745,10 @@ export default function MetricsPage() {
         <Card
           className={
             fullscreenChart === "hourly"
-              ? "fixed inset-0 z-50 m-0 h-screen w-screen"
+              ? "fixed inset-0 z-50 m-0 h-screen w-screen bg-background"
               : fullscreenChart
                 ? "hidden"
-                : ""
+                : "bg-background shadow-sm border border-content2"
           }
         >
           <CardHeader className="flex flex-col sm:flex-row justify-between items-start sm:items-center px-6 py-4 gap-4">
@@ -706,28 +832,54 @@ export default function MetricsPage() {
                 width="100%"
               >
                 <BarChart data={metrics.hourly_stats}>
-                  <CartesianGrid stroke="#374151" strokeDasharray="3 3" />
-                  <XAxis dataKey="hour" stroke="#9CA3AF" />
-                  <YAxis stroke="#9CA3AF" />
+                  <CartesianGrid
+                    opacity={0.2}
+                    stroke="#333"
+                    strokeDasharray="3 3"
+                    vertical={false}
+                  />
+                  <XAxis
+                    axisLine={false}
+                    dataKey="hour"
+                    tick={{
+                      fontSize: 12,
+                      fill: "hsl(var(--heroui-default-500))",
+                    }}
+                    tickLine={false}
+                  />
+                  <YAxis
+                    axisLine={false}
+                    tick={{
+                      fontSize: 12,
+                      fill: "hsl(var(--heroui-default-500))",
+                    }}
+                    tickLine={false}
+                  />
                   <Tooltip
                     contentStyle={{
-                      backgroundColor: "#1F2937",
-                      border: "1px solid #374151",
-                      borderRadius: "6px",
-                      color: "#F3F4F6",
+                      borderRadius: "8px",
+                      border: "none",
+                      boxShadow: "0 4px 6px -1px rgb(0 0 0 / 0.1)",
                     }}
+                    cursor={{ fill: "rgba(0,0,0,0.05)" }}
                   />
                   <Legend
                     formatter={(value) => t(`metrics.chart.${value}`) || value}
                   />
                   {chartFilters.hourly.interactions && (
-                    <Bar dataKey="count" fill="#10B981" name="interactions" />
+                    <Bar
+                      dataKey="count"
+                      fill="hsl(var(--heroui-primary))"
+                      name="interactions"
+                      radius={[4, 4, 0, 0]}
+                    />
                   )}
                   {chartFilters.hourly.opens && (
                     <Bar
                       dataKey="widget_opens"
-                      fill="#06B6D4"
+                      fill="hsl(var(--heroui-secondary))"
                       name="widgetOpens"
+                      radius={[4, 4, 0, 0]}
                     />
                   )}
                 </BarChart>
@@ -746,7 +898,7 @@ export default function MetricsPage() {
         className={`grid grid-cols-1 md:grid-cols-2 ${metrics.total_errors > 0 ? "lg:grid-cols-3" : ""} gap-6 mb-6`}
       >
         {/* Top Queries */}
-        <Card>
+        <Card className="bg-background shadow-sm border border-content2">
           <CardHeader>
             <h3 className="text-xl font-semibold">Top User Queries</h3>
           </CardHeader>
@@ -781,7 +933,7 @@ export default function MetricsPage() {
         </Card>
 
         {/* Top Pages */}
-        <Card>
+        <Card className="bg-background shadow-sm border border-content2">
           <CardHeader>
             <h3 className="text-xl font-semibold">
               {t("metrics.visitedPages")}
@@ -827,7 +979,7 @@ export default function MetricsPage() {
 
         {/* Error Types Distribution - Only if errors exist */}
         {metrics.total_errors > 0 && (
-          <Card>
+          <Card className="bg-background shadow-sm border border-content2">
             <CardHeader>
               <h3 className="text-xl font-semibold">
                 {t("metrics.errorDistribution")}
@@ -871,7 +1023,7 @@ export default function MetricsPage() {
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
           {/* Most Clicked Links */}
           {metrics.clicked_links && metrics.clicked_links.length > 0 && (
-            <Card>
+            <Card className="bg-background shadow-sm border border-content2">
               <CardHeader>
                 <h3 className="text-xl font-semibold">
                   {t("metrics.mostClickedLinks")}
@@ -937,7 +1089,7 @@ export default function MetricsPage() {
 
           {/* Top Recommended (by AI) */}
           {metrics.top_recommended && metrics.top_recommended.length > 0 && (
-            <Card>
+            <Card className="bg-background shadow-sm border border-content2">
               <CardHeader>
                 <h3 className="text-xl font-semibold">
                   {t("metrics.topRecommended")}
@@ -1015,7 +1167,7 @@ export default function MetricsPage() {
       >
         {/* Recent Errors */}
         {paginatedErrors && paginatedErrors.length > 0 && (
-          <Card>
+          <Card className="bg-background shadow-sm border border-content2">
             <CardHeader className="flex justify-between items-center">
               <h3 className="text-xl font-semibold text-red-500">
                 {t("metrics.recentErrors")}
@@ -1118,7 +1270,7 @@ export default function MetricsPage() {
         )}
 
         {/* Recent Interactions */}
-        <Card>
+        <Card className="bg-background shadow-sm border border-content2">
           <CardHeader className="flex justify-between items-center">
             <h3 className="text-xl font-semibold">
               {t("metrics.recentInteractions")}

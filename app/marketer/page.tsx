@@ -1,5 +1,5 @@
 "use client";
-
+import { Settings, Check, Mail, Phone, FileText } from "lucide-react";
 import { useEffect, useState, useCallback, useRef } from "react";
 import { Card, CardBody } from "@heroui/card";
 import { Button } from "@heroui/button";
@@ -162,7 +162,7 @@ export default function MarketerPage() {
   const [editLead, setEditLead] = useState<Lead | null>(null);
   const [viewingEmail, setViewingEmail] = useState<Lead | null>(null);
   const [settings, setSettings] = useState<MarketerSettings>({
-    ai_model: "gemini-2.5-flash",
+    ai_model: "",
     email_template_intro: "",
     email_template_footer: "",
     demo_base_url: "",
@@ -816,7 +816,9 @@ export default function MarketerPage() {
             variant="flat"
             onPress={() => setSettingsOpen(true)}
           >
-            ⚙ Settings
+            <div className="flex items-center gap-2">
+              <Settings size={18} /> Settings
+            </div>
           </Button>
         </div>
       </div>
@@ -1201,18 +1203,28 @@ export default function MarketerPage() {
                         </a>
                         <div className="flex gap-1 items-center">
                           {lead.is_scraped ? (
-                            <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-green-950/50 text-green-400 border border-green-900/50">
-                              ✓ Scraped
-                            </span>
+                            <Chip
+                              color="success"
+                              size="sm"
+                              startContent={<Check size={14} />}
+                              variant="flat"
+                            >
+                              Scraped
+                            </Chip>
                           ) : (
-                            <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-default-100/10 text-default-400 border border-default-200/20">
+                            <Chip color="default" size="sm" variant="flat">
                               Not scraped
-                            </span>
+                            </Chip>
                           )}
                           {lead.detected_language && (
-                            <span className="text-[10px] text-default-400 uppercase border border-default-200 px-1 rounded">
+                            <Chip
+                              className="text-[10px] uppercase"
+                              color="default"
+                              size="sm"
+                              variant="bordered"
+                            >
                               {lead.detected_language}
-                            </span>
+                            </Chip>
                           )}
                         </div>
                       </div>
@@ -1224,7 +1236,7 @@ export default function MarketerPage() {
                             className="flex items-center gap-1 overflow-hidden"
                             title={lead.email}
                           >
-                            <span>📧</span>
+                            <Mail size={16} />
                             <span className="truncate">{lead.email}</span>
                           </div>
                         ) : (
@@ -1235,7 +1247,7 @@ export default function MarketerPage() {
                             className="flex items-center gap-1"
                             title={lead.phone}
                           >
-                            <span>📞</span>
+                            <Phone size={16} />
                             <span>{lead.phone}</span>
                           </div>
                         )}
@@ -1270,7 +1282,9 @@ export default function MarketerPage() {
 
                         {lead.email_sent ? (
                           <span className="text-[10px] text-primary font-medium px-1">
-                            ✓ Sent
+                            <div className="flex items-center gap-1">
+                              <Check size={16} /> Sent
+                            </div>
                           </span>
                         ) : hasEmail ? (
                           <span className="text-[10px] text-success font-medium px-1">
@@ -1613,7 +1627,9 @@ export default function MarketerPage() {
                 {importFile ? (
                   <div className="flex flex-col items-center gap-2">
                     <Chip color="success" variant="flat">
-                      📄 {importFile.name}
+                      <div className="flex items-center gap-1">
+                        <FileText size={16} /> {importFile.name}
+                      </div>
                     </Chip>
                     <Button
                       size="sm"

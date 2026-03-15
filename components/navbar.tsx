@@ -1,5 +1,5 @@
 "use client";
-
+import { Globe } from "lucide-react";
 import {
   Navbar as HeroUINavbar,
   NavbarContent,
@@ -107,7 +107,7 @@ export const Navbar = () => {
                 size="sm"
                 variant="light"
               >
-                {language === "lt" ? "🇱🇹 LT" : "🇺🇸 EN"}
+                {language === "lt" ? "LT" : "EN"}
               </Button>
             </DropdownTrigger>
             <DropdownMenu
@@ -116,16 +116,10 @@ export const Navbar = () => {
               selectionMode="single"
               onAction={(key) => setLanguage(key as "en" | "lt")}
             >
-              <DropdownItem
-                key="en"
-                startContent={<span className="text-xl">🇺🇸</span>}
-              >
+              <DropdownItem key="en" startContent={<Globe size={18} />}>
                 English
               </DropdownItem>
-              <DropdownItem
-                key="lt"
-                startContent={<span className="text-xl">🇱🇹</span>}
-              >
+              <DropdownItem key="lt" startContent={<Globe size={18} />}>
                 Lietuvių
               </DropdownItem>
             </DropdownMenu>
@@ -138,6 +132,25 @@ export const Navbar = () => {
               {isSuperAdmin && (
                 <Chip color="warning" size="sm" variant="flat">
                   {t("common.admin")}
+                </Chip>
+              )}
+              {user?.plan_tier && user.plan_tier !== "free" && (
+                <Chip
+                  color={
+                    user.plan_tier === "growth"
+                      ? "secondary"
+                      : user.plan_tier === "enterprise"
+                        ? "warning"
+                        : "primary"
+                  }
+                  size="sm"
+                  variant="flat"
+                >
+                  {user.plan_tier.charAt(0).toUpperCase() +
+                    user.plan_tier.slice(1)}
+                  {user.plan_status === "trialing"
+                    ? ` (${t("billing.trialing")})`
+                    : ""}
                 </Chip>
               )}
             </NavbarItem>

@@ -1,5 +1,5 @@
 "use client";
-
+import { Lock } from "lucide-react";
 import React from "react";
 import {
   Table,
@@ -109,7 +109,7 @@ const columns = [
   { key: "url", label: "URL" },
   { key: "title", label: "Title" },
   { key: "image", label: "Image" },
-  { key: "image_locked", label: "🔒" },
+  { key: "image_locked", label: <Lock className="inline" size={14} /> },
   { key: "textLength", label: "Text Length" },
   { key: "actions", label: "Actions" },
 ];
@@ -569,6 +569,10 @@ export default function ScrapedPagesTable({
       <div className="max-h-[600px] overflow-auto rounded-lg">
         <Table
           aria-label="Scraped data table"
+          classNames={{
+            wrapper:
+              "max-h-[600px] bg-background shadow-sm border border-content2",
+          }}
           sortDescriptor={sortDescriptor}
           onSortChange={setSortDescriptor}
         >
@@ -741,6 +745,7 @@ export default function ScrapedPagesTable({
                   Cancel
                 </Button>
                 <Button
+                  className="font-semibold shadow-lg shadow-primary/20"
                   color="primary"
                   isLoading={isUpdatingImage}
                   onPress={handleSaveImage}

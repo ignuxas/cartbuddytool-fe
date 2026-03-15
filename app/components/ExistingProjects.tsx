@@ -4,6 +4,7 @@ import React, { useEffect, useState, useMemo } from "react";
 import { Card, CardBody, CardHeader } from "@heroui/card";
 import { Button } from "@heroui/button";
 import { Input } from "@heroui/input";
+import { Pagination } from "@heroui/pagination";
 import {
   Dropdown,
   DropdownTrigger,
@@ -16,6 +17,7 @@ import ProjectCard from "./ProjectCard";
 
 import { config } from "@/lib/config";
 import { useLanguage } from "@/app/contexts/LanguageContext";
+import { useProjectsList } from "@/app/utils/swr";
 
 interface Project {
   domain: string;
@@ -70,11 +72,36 @@ const ExistingProjects: React.FC<ExistingProjectsProps> = ({
   onSelectProject,
   isSuperAdmin = false,
 }) => {
-  const [projects, setProjects] = useState<Project[]>([]);
-  const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState("");
   const [sortKey, setSortKey] = useState<string>("updated_desc");
+  const [page, setPage] = useState(1);
+  const itemsPerPage = 6;
   const { t } = useLanguage();
+
+  const { projects: rawProjects, isLoading: loading } =
+    useProjectsList(authKey);
+
+  const projects = useMemo(() => {
+    if (!rawProjects) return [];
+
+    const ignoredProjects = [
+      "widget.events",
+      "users",
+      "user.projects",
+      "site.settings",
+      "marketer.leads",
+      "marketer.settings",
+    ];
+
+    return rawProjects.filter(
+      (p: Project) => !ignoredProjects.includes(p.domain),
+    );
+  }, [rawProjects]);
+
+  // Reset page when search or sort changes
+  useEffect(() => {
+    setPage(1);
+  }, [searchQuery, sortKey]);
 
   const sortedProjects = useMemo(() => {
     let result = [...projects];
@@ -112,68 +139,6 @@ const ExistingProjects: React.FC<ExistingProjectsProps> = ({
 
     return result;
   }, [projects, searchQuery, sortKey]);
-
-  useEffect(() => {
-    fetchProjects();
-
-    // Poll for updates every 3 seconds to show scraping progress
-    const interval = setInterval(() => {
-      fetchProjects(true);
-    }, 30000);
-
-    return () => clearInterval(interval);
-  }, [authKey]);
-
-  const fetchProjects = async (silent = false) => {
-    if (!authKey) {
-      setLoading(false);
-      setProjects([]);
-
-      return;
-    }
-    if (!silent) setLoading(true);
-    try {
-      const response = await fetch(`${config.serverUrl}/api/scrape/projects/`, {
-        method: "GET",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${authKey}`,
-        },
-      });
-
-      const data = await response.json();
-
-      if (!response.ok) {
-        throw new Error(data.error || t("existingProjects.fetchError"));
-      }
-
-      const ignoredProjects = [
-        "widget.events",
-        "users",
-        "user.projects",
-        "site.settings",
-        "marketer.leads",
-        "marketer.settings",
-      ];
-      const filteredProjects = (data.projects || []).filter(
-        (p: Project) => !ignoredProjects.includes(p.domain),
-      );
-
-      setProjects(filteredProjects);
-    } catch (error: any) {
-      if (!silent) {
-        addToast({
-          title: t("existingProjects.errorTitle"),
-          description: error.message || t("existingProjects.fetchError"),
-          color: "danger",
-        });
-      }
-      // Don't clear projects on error during polling
-      if (!silent) setProjects([]);
-    } finally {
-      if (!silent) setLoading(false);
-    }
-  };
 
   const handleSelectProject = (url: string) => {
     if (onSelectProject) {
@@ -308,19 +273,36 @@ const ExistingProjects: React.FC<ExistingProjectsProps> = ({
           No projects found matching &ldquo;{searchQuery}&rdquo;
         </div>
       ) : sortedProjects.length > 0 ? (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-          {sortedProjects.map((project) => (
-            <ProjectCard
-              key={project.domain}
-              project={project}
-              onDelete={isSuperAdmin ? handleDeleteProject : undefined}
-              onSelect={handleSelectProject}
-            />
-          ))}
+        <div className="flex flex-col">
+          <div className="flex flex-col border-t border-divider">
+            {sortedProjects
+              .slice((page - 1) * itemsPerPage, page * itemsPerPage)
+              .map((project) => (
+                <ProjectCard
+                  key={project.domain}
+                  project={project}
+                  onDelete={isSuperAdmin ? handleDeleteProject : undefined}
+                  onSelect={handleSelectProject}
+                />
+              ))}
+          </div>
+          {sortedProjects.length > itemsPerPage && (
+            <div className="flex justify-center w-full mt-6">
+              <Pagination
+                isCompact
+                showControls
+                showShadow
+                color="primary"
+                page={page}
+                total={Math.ceil(sortedProjects.length / itemsPerPage)}
+                onChange={(p) => setPage(p)}
+              />
+            </div>
+          )}
         </div>
       ) : projects.length > 0 ? (
         // Only show empty if no projects at all (not filtered)
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+        <div className="flex flex-col border-t border-divider">
           {/* Fallback unlikely needed due to previous check */}
         </div>
       ) : null}

@@ -80,10 +80,10 @@ export default function RegisterPage() {
     } else {
       addToast({
         title: "Welcome!",
-        description: "Account created successfully",
+        description: "Account created successfully. Please choose a plan.",
         color: "success",
       });
-      router.push("/");
+      router.push("/pricing");
     }
   };
 

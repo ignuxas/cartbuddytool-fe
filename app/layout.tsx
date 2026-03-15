@@ -29,11 +29,11 @@ export default function RootLayout({
       <head />
       <body
         className={clsx(
-          "min-h-screen text-foreground bg-background font-sans antialiased dark",
+          "min-h-screen text-foreground bg-background font-sans antialiased light",
           fontSans.variable,
         )}
       >
-        <Providers themeProps={{ attribute: "class", defaultTheme: "dark" }}>
+        <Providers themeProps={{ attribute: "class", defaultTheme: "light" }}>
           <LayoutContent>{children}</LayoutContent>
         </Providers>
       </body>

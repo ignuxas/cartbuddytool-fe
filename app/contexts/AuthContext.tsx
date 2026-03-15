@@ -25,6 +25,10 @@ export interface AppUser {
   refine_ai_remaining?: number;
   projects?: string[];
   api_key?: string;
+  plan_tier?: "free" | "growth" | "enterprise";
+  plan_status?: "active" | "trialing" | "past_due" | "canceled" | "incomplete";
+  trial_end?: string;
+  stripe_customer_id?: string;
 }
 
 interface AuthContextType {
@@ -175,6 +179,9 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     await supabase.auth.signOut();
     setSession(null);
     setUser(null);
+    if (typeof window !== "undefined") {
+      window.location.href = "/login";
+    }
   };
 
   const refreshProfile = async () => {

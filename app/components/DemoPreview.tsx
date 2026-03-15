@@ -1,5 +1,5 @@
 "use client";
-
+import { AlertTriangle } from "lucide-react";
 import { useEffect } from "react";
 import { Button } from "@heroui/button";
 import { Spinner } from "@heroui/spinner";
@@ -79,7 +79,9 @@ export default function DemoPreview({
       {error && !loading && (
         <div className="absolute inset-0 flex items-center justify-center bg-gray-50 z-10">
           <div className="text-center max-w-md p-6 bg-white rounded-lg shadow-md border border-red-100">
-            <div className="text-red-500 text-xl mb-2">⚠️</div>
+            <div className="text-red-500 flex justify-center mb-2">
+              <AlertTriangle size={32} />
+            </div>
             <h3 className="text-lg font-semibold text-gray-800 mb-2">
               Preview Unavailable
             </h3>

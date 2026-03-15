@@ -3,7 +3,7 @@
 import { usePathname } from "next/navigation";
 import { Link } from "@heroui/link";
 
-import { Navbar } from "@/components/navbar";
+import { Sidebar } from "@/components/Sidebar";
 import { useLanguage } from "@/app/contexts/LanguageContext";
 
 export function LayoutContent({ children }: { children: React.ReactNode }) {
@@ -16,24 +16,26 @@ export function LayoutContent({ children }: { children: React.ReactNode }) {
     return <>{children}</>;
   }
 
-  // Regular pages: with navbar and footer
+  // Regular pages: with sidebar and footer
   return (
-    <div className="relative flex flex-col h-screen">
-      <Navbar />
-      <main className="container mx-auto max-w-7xl pt-16 px-6 flex-grow">
-        {children}
-      </main>
-      <footer className="w-full flex items-center justify-center py-3">
-        <Link
-          isExternal
-          className="flex items-center gap-1 text-current"
-          href="https://cartbuddy.ai/"
-          title="heroui.com homepage"
-        >
-          <span className="text-default-600">{t("common.builtFor")}</span>
-          <p className="text-primary">CartBuddy.ai</p>
-        </Link>
-      </footer>
+    <div className="flex h-screen overflow-hidden">
+      <Sidebar />
+      <div className="flex-1 flex flex-col overflow-y-auto">
+        <main className="container mx-auto max-w-7xl pt-10 px-6 flex-grow">
+          {children}
+        </main>
+        <footer className="w-full flex items-center justify-center py-3">
+          <Link
+            isExternal
+            className="flex items-center gap-1 text-current"
+            href="https://cartbuddy.ai/"
+            title="heroui.com homepage"
+          >
+            <span className="text-default-600">{t("common.builtFor")}</span>
+            <p className="text-primary">CartBuddy.ai</p>
+          </Link>
+        </footer>
+      </div>
     </div>
   );
 }

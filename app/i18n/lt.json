@@ -1,6 +1,7 @@
 {
   "common": {
     "dashboard": "Skydelis",
+    "projects": "Projektai",
     "newProject": "Naujas Projektas",
     "prompts": "Instrukcijos",
     "users": "Vartotojai",
@@ -8,7 +9,7 @@
     "admin": "Admin",
     "logout": "Atsijungti",
     "builtFor": "Sukurta",
-    "appName": "CartBuddy Įrankiai",
+    "appName": "CartBuddy",
     "loading": "Kraunama...",
     "success": "Sėkmė",
     "error": "Klaida",
@@ -117,12 +118,12 @@
     "generateImprovements": "Generuoti patobulinimus",
     "manualSave": "Išsaugoti nustatymus",
     "integrationAndDemo": "Integracija ir Demo",
-    "liveChatWidget": "💬 Tiesioginio pokalbio valdiklis",
+    "liveChatWidget": "Tiesioginio pokalbio valdiklis",
     "chatWidgetReady": "Pokalbių valdiklis paruoštas!",
     "testEnvironmentDesc": "Naudokite žemiau esančius mygtukus, kad išbandytumėte asistentą realioje aplinkoje.",
     "viewWidgetLiveDemo": "Peržiūrėti gyvą demo jūsų svetainėje",
-    "embedCode": "📋 Įterpimo kodas",
-    "copyEmbedCode": "📋 Kopijuoti įterpimo kodą",
+    "embedCode": "Įterpimo kodas",
+    "copyEmbedCode": "Kopijuoti įterpimo kodą",
     "webhookSecurity": "🔒 Webhook saugumas",
     "show": "Rodyti",
     "hide": "Slėpti",
@@ -386,5 +387,199 @@
     "copyFailed": "Nepavyko nukopijuoti API rakto.",
     "generate": "Generuoti raktą",
     "noKey": "API rakto dar nėra. Spauskite Generuoti."
+  },
+  "billing": {
+    "title": "Atsiskaitymas ir Prenumerata",
+    "description": "Valdykite savo planą, atsiskaitymo informaciją ir peržiūrėkite sąskaitas faktūras per Stripe portalą.",
+    "noSubscription": "Nėra aktyvios prenumeratos. Nukreipiama į kainodarą...",
+    "portalError": "Nepavyko gauti portalo URL",
+    "currentPlan": "Dabartinis Planas",
+    "status": "Būsena",
+    "trialEnds": "Bandomasis laikotarpis baigiasi",
+    "manageBilling": "Valdyti Atsiskaitymą",
+    "viewBilling": "Peržiūrėti Atsiskaitymą",
+    "viewPlans": "Peržiūrėti Planus",
+    "active": "Aktyvus",
+    "trialing": "Bandomajame",
+    "past_due": "Pradelsta",
+    "canceled": "Atšaukta",
+    "unpaid": "Neapmokėta"
+  },
+  "pricing": {
+    "title": "Paprasta, Skaidri Kainodara",
+    "subtitle": "Pasirinkite jūsų poreikius atitinkantį planą. 14 dienų nemokamas bandomasis laikotarpis Growth planui.",
+    "mostPopular": "Populiariausias",
+    "freeTrial": "14 dienų nemokamas bandymas",
+    "getStarted": "Pradėti",
+    "startFreeTrial": "Pradėti Nemokamą Bandymą",
+    "currentPlan": "Dabartinis Planas",
+    "contactSales": "Susisiekti su Pardavimais",
+    "confirmDowngrade": "Ar tikrai norite pereiti prie Free plano? Iš karto neteksite prieigos prie premium funkcijų.",
+    "monthly": "mėn",
+    "contactNote": "Susisiekite su mumis asmeniniam pasiūlymui.",
+    "plans": {
+      "free": {
+        "name": "Nemokamas",
+        "description": "Bazinis AI pokalbis mažoms svetainėms",
+        "price": "€0"
+      },
+      "growth": {
+        "name": "Augimo",
+        "description": "Augančiam verslui",
+        "price": "€150"
+      },
+      "enterprise": {
+        "name": "Verslo",
+        "description": "Neribotas mastas ir individualus pritaikymas",
+        "price": "Sutartinė"
+      }
+    },
+    "features": {
+      "chatsPerMonth": "Pokalbiai / Mėnesį",
+      "maxPages": "Maks. Puslapių",
+      "guidedFlows": "Nukreipiami Pokalbiai",
+      "knowledgeBase": "Dokumentų Duomenų Bazė",
+      "customAI": "Pritaikomos AI Instrukcijos",
+      "branding": "Prekės Ženklas",
+      "analytics": "Analitika",
+      "support": "Palaikymas",
+      "overageRate": "Viršijimo Kaina"
+    },
+    "values": {
+      "free": {
+        "chatsPerMonth": "100",
+        "maxPages": "200",
+        "guidedFlows": "1",
+        "knowledgeBase": "Maks. 5 failai",
+        "customAI": "Standartinės",
+        "branding": "CartBuddy logotipas",
+        "analytics": "Bazinė",
+        "support": "Bendruomenės",
+        "overageRate": "Griežtas limitas"
+      },
+      "growth": {
+        "chatsPerMonth": "1,500",
+        "maxPages": "2,000",
+        "guidedFlows": "3",
+        "knowledgeBase": "Maks. 5 failai",
+        "customAI": "Pilnas Pritaikymas",
+        "branding": "Be logotipo",
+        "analytics": "Konversijų ir AOV Didinimas",
+        "support": "Prioritetinis (24h)",
+        "overageRate": "€0.10 / pok."
+      },
+      "enterprise": {
+        "chatsPerMonth": "Neribota",
+        "maxPages": "Neribota",
+        "guidedFlows": "Individualu + API ištekliai",
+        "knowledgeBase": "Maks. 5 failai",
+        "customAI": "Dedikuoti Modeliai",
+        "branding": "Be logotipo",
+        "analytics": "Premium SLA",
+        "support": "Dedikuotas Slack",
+        "overageRate": "Individuali"
+      }
+    }
+  },
+  "new": {
+    "title": "Sukurti naują projektą",
+    "subtitle": "Įveskite savo svetainės adresą, kad sukurtumėte naują projektą",
+    "backToDashboard": "Atgal į pagrindinį",
+    "invalidUrl": "Įveskite tinkamą URL (pvz.: https://example.com)",
+    "invalidUrlDomain": "Neteisingas domenas",
+    "websiteExistsTitle": "Svetainė jau egzistuoja",
+    "websiteExistsMessage": "Ši svetainė jau pridėta. Prašome valdyti ją iš pagrindinio puslapio.",
+    "scanningSitemap": "Skenuojamas svetainės medis...",
+    "foundUrls": "Rasta {{count}} URL",
+    "existingData": {
+      "title": "Rasta esamų duomenų",
+      "description": "Radome anksčiau nuskaitytų duomenų šiam domenui ({{domain}}). Ar norite juos naudoti, ar nuskaityti iš naujo?",
+      "useExisting": "Naudoti esamus",
+      "rescan": "Nuskaityti iš naujo"
+    },
+    "selection": {
+      "title": "Pasirinkite puslapius nuskaitymui",
+      "foundPages": "Rasta {{count}} puslapių per {{method}}",
+      "methodCrawling": "naršymą (crawling)",
+      "methodSitemap": "svetainės medį (sitemap)",
+      "selectedCount": "{{count}} pasirinkta",
+      "pleaseSelectUrl": "Pasirinkite bent vieną URL",
+      "urlAlreadyInList": "Šis URL jau yra sąraše",
+      "searchPlaceholder": "Ieškoti URL...",
+      "selectAll": "Pažymėti visus",
+      "deselectAll": "Atžymėti visus",
+      "selectFiltered": "Pažymėti {{count}} išfiltruotus",
+      "deselectFiltered": "Atžymėti {{count}} išfiltruotus",
+      "showBlacklist": "Rodyti blokuotųjų sąrašą ({{count}})",
+      "hideBlacklist": "Slėpti blokuotųjų sąrašą ({{count}})",
+      "urlHeader": "URL",
+      "noUrlsSearch": "Nerasta atitinkančių URL",
+      "noUrlsFound": "URL nerasta",
+      "blacklisted": "Blokuota",
+      "removeUrl": "Pašalinti iš sąrašo",
+      "showingCount": "Rodoma {{showing}} iš {{total}}",
+      "addUrlPlaceholder": "https://example.com/puslapis",
+      "add": "Pridėti URL",
+      "next": "Tęsti ({{count}} pažymėta)",
+      "tips": {
+        "title": "Patarimai atrankai:",
+        "selectMain": "Pasirinkite pagrindinius:",
+        "selectMainDesc": "Pagrindinis, Apie mus, Kontaktai, Paslaugos, DUK, ir Produktų puslapiai.",
+        "skipPosts": "Praleiskite kintančius:",
+        "skipPostsDesc": "Tinklaraščio įrašai, naujienos, ar dažnai atnaujinami puslapiai.",
+        "focusStatic": "Fokusuokitės į statinį turinį:",
+        "focusStaticDesc": "Puslapiai pateikiantys bazinę informaciją apie jūsų verslą.",
+        "useBlacklist": "Naudokite blokuotųjų sąrašą:",
+        "useBlacklistDesc": "Automatiškai atmesti URL pagal raktažodžius."
+      },
+      "pathGroups": "URL Grupės",
+      "blacklist": {
+        "title": "Blokuojami URL šablonai",
+        "description": "URL turintys šiuos raktinius žodžius bus automatiškai atmesti.",
+        "placeholder": "Šablonas (pvz. /blog/)",
+        "patternExists": "Šis šablonas jau yra sąraše",
+        "patternAdded": "Pridėta '{{pattern}}'. Atžymėta {{removed}} filtruojamų URL.",
+        "patternRemoved": "Šablonas pašalintas",
+        "quickAdd": "Greitas Pridėjimas"
+      }
+    },
+    "mainSelection": {
+      "title": "Pasirinkite Pagrindinius URL",
+      "description": "Pasirinkite iki 10 URL kaip pagrindinius. Jie bus pasiekiami agentui pagrindiniame užklausime (Prompt).",
+      "searchPlaceholder": "Ieškoti tarp pasirinktų URL...",
+      "selectAll": "Pažymėti visus",
+      "deselectAll": "Atžymėti visus",
+      "smartSelect": "Išmanus pasirinkimas",
+      "urlHeader": "URL",
+      "typeHeader": "Tipas",
+      "typeMain": "Pagrindinis",
+      "typeVectorized": "Vektorizuotas",
+      "noUrlsSearch": "Nerasta atitinkančių URL",
+      "noUrls": "Nėra pasirinktų URL",
+      "back": "Atgal",
+      "scrape": "Nuskaityti {{count}} URL",
+      "maxMainPages": "Daugiausia galima pasirinkti 10 pagrindinių puslapių.",
+      "maxMainPagesBulk": "Pridėti tik pirmieji atitinkantys, nes limitas yra 10 pagrindinių puslapių.",
+      "tips": {
+        "title": "Patarimai Pagrindiniams URL:",
+        "alwaysAvailable": "Visada pasiekiami",
+        "alwaysAvailableDesc": "Turinys agentui pateikiamas iškart be paieškos.",
+        "staticContent": "Geriausia Bazinei Info",
+        "staticContentDesc": "Pasirinkite Pagrindinį, Kontaktų, DUK ir paslaugų puslapius.",
+        "essentialPages": "Tik Svarbiausia",
+        "essentialPagesDesc": "Kiekvienas pagrindinis puslapis padidina užklausos kainą.",
+        "limitRec": "Limitai",
+        "limitRecDesc": "Rekomenduojama iki 10 pagrindinių puslapių."
+      }
+    },
+    "scrapingTips": {
+      "title": "Nuskaitymo Patarimai:",
+      "tip1": "Didelės svetainės gali užtrukti.",
+      "tip2": "Nepavykus, vėliau galėsite pakartoti iš projekto panelės.",
+      "tip3": "Įsitikinkite, kad svetainė neblokuoja robotų.",
+      "tip4": "Nereikia skenuoti viso turinio trumpalaikėms naujienoms.",
+      "tip5": "Vėliau galėsite pridėti ar trinti URL.",
+      "tip6": "Įsitikinkite API raktų teisingumu."
+    }
   }
 }

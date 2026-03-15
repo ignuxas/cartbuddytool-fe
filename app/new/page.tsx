@@ -1,5 +1,5 @@
 "use client";
-
+import { Lightbulb } from "lucide-react";
 import React, { useState, useEffect } from "react";
 import { Button } from "@heroui/button";
 import { Input } from "@heroui/input";
@@ -10,6 +10,7 @@ import { addToast } from "@heroui/toast";
 import PlaywrightSwitch from "../components/PlaywrightSwitch";
 import UrlForm from "../components/UrlForm";
 import { useAuth } from "../contexts/AuthContext";
+import { useLanguage } from "../contexts/LanguageContext";
 
 import { config } from "@/lib/config";
 
@@ -181,14 +182,15 @@ export default function NewProjectPage() {
     isLoading,
     isSuperAdmin,
   } = useAuth();
+  const { t } = useLanguage();
   const router = useRouter();
 
-  // Redirect non-admins
+  // Authentication check
   useEffect(() => {
-    if (!isLoading && isAuthenticated && !isSuperAdmin) {
-      router.replace("/");
+    if (!isLoading && !isAuthenticated) {
+      router.replace("/login");
     }
-  }, [isLoading, isAuthenticated, isSuperAdmin, router]);
+  }, [isLoading, isAuthenticated, router]);
 
   const [url, setUrl] = useState("");
 
@@ -329,7 +331,7 @@ export default function NewProjectPage() {
     let processedUrl = url.trim();
 
     if (!processedUrl) {
-      const message = "Please enter a valid URL";
+      const message = t("new.invalidUrl");
 
       addToast({ title: "Error", description: message, color: "danger" });
       setErrorMessage(message);
@@ -345,10 +347,14 @@ export default function NewProjectPage() {
 
     // Validate URL format
     try {
-      new URL(processedUrl);
+      const parsed = new URL(processedUrl);
+
+      // Ensure hostname has at least one dot (i.e. a TLD) and is not an IP-like bare hostname
+      if (!parsed.hostname.includes(".")) {
+        throw new Error("No TLD");
+      }
     } catch {
-      const message =
-        "Please enter a valid URL (including http:// or https://)";
+      const message = t("new.invalidUrlDomain");
 
       addToast({ title: "Error", description: message, color: "danger" });
       setErrorMessage(message);
@@ -379,6 +385,23 @@ export default function NewProjectPage() {
         },
         "check-existing",
       );
+
+      if (
+        (checkData.domain_taken || checkData.has_existing_data) &&
+        !isSuperAdmin
+      ) {
+        const message = t("new.websiteExistsMessage");
+
+        addToast({
+          title: t("new.websiteExistsTitle"),
+          description: message,
+          color: "danger",
+        });
+        setErrorMessage(message);
+        setLoading(false);
+
+        return;
+      }
 
       if (checkData.has_existing_data) {
         console.log(
@@ -508,7 +531,7 @@ export default function NewProjectPage() {
       .map((item) => item.url);
 
     if (selectedUrls.length === 0) {
-      const message = "Please select at least one URL to scrape.";
+      const message = t("new.selection.pleaseSelectUrl");
 
       addToast({ title: "Error", description: message, color: "danger" });
       setErrorMessage(message);
@@ -538,7 +561,7 @@ export default function NewProjectPage() {
       .map((item) => item.url);
 
     if (selectedUrls.length === 0) {
-      const message = "Please select at least one URL to scrape.";
+      const message = t("new.selection.pleaseSelectUrl");
 
       addToast({ title: "Error", description: message, color: "danger" });
       setErrorMessage(message);
@@ -716,8 +739,7 @@ export default function NewProjectPage() {
       try {
         new URL(processedUrl);
       } catch {
-        const message =
-          "Please enter a valid URL (including http:// or https://)";
+        const message = t("new.invalidUrl");
 
         addToast({ title: "Error", description: message, color: "danger" });
         setErrorMessage(message);
@@ -727,7 +749,7 @@ export default function NewProjectPage() {
 
       // Check for duplicates
       if (sitemapUrls.some((item) => item.url === processedUrl)) {
-        const message = "This URL is already in the list";
+        const message = t("new.selection.urlAlreadyInList");
 
         addToast({ title: "Error", description: message, color: "danger" });
         setErrorMessage(message);
@@ -796,7 +818,7 @@ export default function NewProjectPage() {
     if (blacklistPatterns.includes(trimmed)) {
       addToast({
         title: "Info",
-        description: "Pattern already exists",
+        description: t("new.selection.blacklist.patternExists"),
         color: "primary",
       });
 
@@ -808,7 +830,9 @@ export default function NewProjectPage() {
     setPatternInput("");
     addToast({
       title: "Success",
-      description: `Pattern "${trimmed}" added — matching URLs deselected`,
+      description: t("new.selection.blacklist.patternAdded", {
+        pattern: trimmed,
+      }),
       color: "success",
     });
   };
@@ -817,7 +841,7 @@ export default function NewProjectPage() {
     setBlacklistPatterns((prev) => prev.filter((p) => p !== pattern));
     addToast({
       title: "Success",
-      description: "Pattern removed",
+      description: t("new.selection.blacklist.patternRemoved"),
       color: "success",
     });
   };
@@ -877,7 +901,7 @@ export default function NewProjectPage() {
         const currentSelected = mainPageUrls.filter((item) => item.main).length;
 
         if (currentSelected >= 5) {
-          alert("Maximum 5 main pages allowed.");
+          alert(t("new.mainSelection.maxMainPages"));
 
           return;
         }
@@ -896,9 +920,7 @@ export default function NewProjectPage() {
   const handleSelectAllMain = (select: boolean) => {
     try {
       if (select && mainPageUrls.length > 5) {
-        alert(
-          "Cannot select all pages as main. Maximum 5 allowed. Please select individually.",
-        );
+        alert(t("new.mainSelection.maxMainPagesBulk"));
 
         return;
       }
@@ -913,7 +935,7 @@ export default function NewProjectPage() {
   if (isLoading) {
     return (
       <section className="flex flex-col items-center justify-center gap-4 py-8 md:py-10">
-        <div>Loading...</div>
+        <div>{t("common.loading")}</div>
       </section>
     );
   }
@@ -922,9 +944,11 @@ export default function NewProjectPage() {
     <>
       <section className="flex flex-col items-center justify-center gap-4 py-8 md:py-10">
         <div className="inline-block text-center justify-center">
-          <h1 className="text-3xl md:text-4xl font-bold mb-2">New Project</h1>
+          <h1 className="text-3xl md:text-4xl font-bold mb-2">
+            {t("new.title")}
+          </h1>
           <h2 className="text-lg md:text-xl text-muted-foreground">
-            Enter your website URL to get started.
+            {t("new.subtitle")}
           </h2>
           <Button
             className="mt-2"
@@ -932,7 +956,7 @@ export default function NewProjectPage() {
             variant="light"
             onPress={() => router.push("/")}
           >
-            Back to Dashboard
+            {t("new.backToDashboard")}
           </Button>
         </div>
 
@@ -947,25 +971,28 @@ export default function NewProjectPage() {
             />
 
             {sitemapProgress && (
-              <div className="w-full max-w-lg mt-4 p-4 bg-gray-50 dark:bg-zinc-800 rounded-lg border border-gray-200 dark:border-zinc-700">
+              <div className="w-full max-w-lg mt-4 p-4 bg-default-50 rounded-lg border border-default-200">
                 <div className="flex justify-between items-center mb-2">
                   <div className="flex items-center gap-2">
                     <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-primary" />
                     <span className="text-sm font-medium">
-                      Scanning Sitemap...
+                      {t("new.scanningSitemap")}
                     </span>
                   </div>
                   {sitemapProgress.scraped_pages > 0 && (
-                    <span className="text-xs text-gray-500">
-                      Found {sitemapProgress.scraped_pages} URLs
+                    <span className="text-xs text-default-500">
+                      {t("new.foundUrls", {
+                        count: sitemapProgress.scraped_pages,
+                      })}
                     </span>
                   )}
                 </div>
                 <div
-                  className="text-xs text-gray-500 truncate w-full"
+                  className="text-xs text-default-500 truncate w-full"
                   title={sitemapProgress.current_url}
                 >
-                  {sitemapProgress.current_url || "Initializing..."}
+                  {sitemapProgress.current_url ||
+                    t("scraping.status.initializing")}
                 </div>
               </div>
             )}
@@ -973,23 +1000,26 @@ export default function NewProjectPage() {
         )}
 
         {step === "existing" && existingDataInfo && (
-          <Card className="w-full max-w-2xl">
+          <Card className="w-full max-w-2xl bg-background shadow-sm border border-content2">
             <CardBody className="flex flex-col gap-4">
-              <h3 className="text-xl font-bold">Existing Data Found</h3>
+              <h3 className="text-xl font-bold">
+                {t("new.existingData.title")}
+              </h3>
               <p>
-                This website has already been scanned with{" "}
-                {existingDataInfo.count} pages.
+                {t("new.existingData.description", {
+                  count: existingDataInfo.count,
+                })}
               </p>
               <div className="flex gap-2">
                 <Button color="primary" onClick={handleUseExistingData}>
-                  Use Existing Data
+                  {t("new.existingData.useExisting")}
                 </Button>
                 <Button
                   isLoading={loading}
                   variant="bordered"
                   onClick={handleRescanWebsite}
                 >
-                  Rescan Website
+                  {t("new.existingData.rescan")}
                 </Button>
               </div>
             </CardBody>
@@ -999,33 +1029,43 @@ export default function NewProjectPage() {
         {step === "selection" && (
           <div className="w-full flex flex-col gap-4">
             <div className="flex flex-col gap-2">
-              <h3 className="text-xl font-bold">Select pages to scrape</h3>
+              <h3 className="text-xl font-bold">{t("new.selection.title")}</h3>
               {pageInfo && (
                 <div className="text-sm text-muted-foreground">
-                  Found {pageInfo.totalFound} pages using{" "}
-                  {pageInfo.methodUsed === "fallback_crawling"
-                    ? "fallback crawling"
-                    : "sitemap"}
+                  {t("new.selection.foundPages", {
+                    count: pageInfo.totalFound,
+                    method:
+                      pageInfo.methodUsed === "fallback_crawling"
+                        ? t("new.selection.methodCrawling")
+                        : t("new.selection.methodSitemap"),
+                  })}
                 </div>
               )}
 
               {/* Stats bar */}
               <div className="flex flex-wrap gap-3 text-sm">
                 <span className="px-3 py-1 rounded-full bg-primary/10 text-primary font-medium">
-                  {urlStats.selected} / {urlStats.total} selected
+                  {t("new.selection.selectedCount", {
+                    selected: urlStats.selected,
+                    total: urlStats.total,
+                  })}
                 </span>
                 {blacklistPatterns.length > 0 && (
                   <span className="px-3 py-1 rounded-full bg-danger/10 text-danger font-medium">
-                    {blacklistPatterns.length} blacklist pattern
-                    {blacklistPatterns.length !== 1 ? "s" : ""}
+                    {t(
+                      blacklistPatterns.length !== 1
+                        ? "new.selection.blacklistPatternsPlural"
+                        : "new.selection.blacklistPatterns",
+                      { count: blacklistPatterns.length },
+                    )}
                   </span>
                 )}
               </div>
 
-              <Card className="border-blue-200 dark:border-blue-800 bg-blue-50 dark:bg-blue-950/30">
+              <Card className="bg-primary/5 border-primary/20">
                 <CardBody className="py-3">
                   <div className="flex items-start gap-2">
-                    <div className="text-blue-600 dark:text-blue-400 mt-0.5">
+                    <div className="text-primary mt-0.5">
                       <svg
                         className="w-4 h-4"
                         fill="currentColor"
@@ -1039,26 +1079,30 @@ export default function NewProjectPage() {
                       </svg>
                     </div>
                     <div className="text-sm">
-                      <p className="font-medium text-blue-800 dark:text-blue-200 mb-1">
-                        💡 Page Selection Tips
+                      <p className="font-medium text-foreground mb-1">
+                        <div className="flex items-center gap-2">
+                          <Lightbulb className="text-warning" size={24} />{" "}
+                          {t("new.selection.tips.title")}
+                        </div>
                       </p>
-                      <ul className="text-blue-700 dark:text-blue-300 space-y-1 list-disc list-inside">
+                      <ul className="text-default-600 space-y-1 list-disc list-inside">
                         <li>
-                          <strong>Select main pages</strong>: Home, About,
-                          Services, Contact, FAQ
+                          <strong>{t("new.selection.tips.selectMain")}</strong>:{" "}
+                          {t("new.selection.tips.selectMainDesc")}
                         </li>
                         <li>
-                          <strong>Skip individual posts/products</strong>: The
-                          AI can access these via your website&apos;s API or
-                          search
+                          <strong>{t("new.selection.tips.skipPosts")}</strong>:{" "}
+                          {t("new.selection.tips.skipPostsDesc")}
                         </li>
                         <li>
-                          <strong>Focus on static content</strong>: Policy
-                          pages, company info, service descriptions
+                          <strong>{t("new.selection.tips.focusStatic")}</strong>
+                          : {t("new.selection.tips.focusStaticDesc")}
                         </li>
                         <li>
-                          <strong>Use blacklist patterns</strong>: Exclude
-                          entire URL groups like /blog/ or /tag/
+                          <strong>
+                            {t("new.selection.tips.useBlacklist")}
+                          </strong>
+                          : {t("new.selection.tips.useBlacklistDesc")}
                         </li>
                       </ul>
                     </div>
@@ -1070,7 +1114,7 @@ export default function NewProjectPage() {
             {/* Search bar */}
             <Input
               isClearable
-              placeholder="Search URLs..."
+              placeholder={t("new.selection.searchPlaceholder")}
               startContent={
                 <svg
                   aria-hidden="true"
@@ -1106,10 +1150,10 @@ export default function NewProjectPage() {
             {/* Action buttons */}
             <div className="flex flex-wrap gap-2">
               <Button size="sm" onClick={() => handleSelectAll(true)}>
-                Select All
+                {t("new.selection.selectAll")}
               </Button>
               <Button size="sm" onClick={() => handleSelectAll(false)}>
-                Deselect All
+                {t("new.selection.deselectAll")}
               </Button>
               {searchFilter && (
                 <>
@@ -1119,7 +1163,9 @@ export default function NewProjectPage() {
                     variant="flat"
                     onClick={() => handleSelectFiltered(true)}
                   >
-                    Select Filtered ({filteredSitemapUrls.length})
+                    {t("new.selection.selectFiltered", {
+                      count: filteredSitemapUrls.length,
+                    })}
                   </Button>
                   <Button
                     color="warning"
@@ -1127,7 +1173,9 @@ export default function NewProjectPage() {
                     variant="flat"
                     onClick={() => handleSelectFiltered(false)}
                   >
-                    Deselect Filtered ({filteredSitemapUrls.length})
+                    {t("new.selection.deselectFiltered", {
+                      count: filteredSitemapUrls.length,
+                    })}
                   </Button>
                 </>
               )}
@@ -1170,26 +1218,29 @@ export default function NewProjectPage() {
                 variant={showBlacklist ? "solid" : "bordered"}
                 onClick={() => setShowBlacklist(!showBlacklist)}
               >
-                {showBlacklist ? "Hide" : "Show"} Blacklist (
-                {blacklistPatterns.length})
+                {showBlacklist
+                  ? t("new.selection.hideBlacklist", {
+                      count: blacklistPatterns.length,
+                    })
+                  : t("new.selection.showBlacklist", {
+                      count: blacklistPatterns.length,
+                    })}
               </Button>
             </div>
 
             {/* Inline Blacklist Manager */}
             {showBlacklist && (
-              <Card className="border-danger-200 dark:border-danger-800">
+              <Card className="border-danger-200/50">
                 <CardBody className="flex flex-col gap-3">
                   <p className="text-sm font-semibold">
-                    URL Blacklist Patterns
+                    {t("new.selection.blacklist.title")}
                   </p>
                   <p className="text-xs text-default-500">
-                    Add URL patterns to exclude. Matching URLs will be
-                    auto-deselected. Patterns use simple text matching (e.g.
-                    &quot;/blog/&quot; matches any URL containing /blog/).
+                    {t("new.selection.blacklist.description")}
                   </p>
                   <div className="flex gap-2">
                     <Input
-                      placeholder="Enter pattern (e.g. /blog/, /tag/, /page/)"
+                      placeholder={t("new.selection.blacklist.placeholder")}
                       size="sm"
                       value={patternInput}
                       onChange={(e) => setPatternInput(e.target.value)}
@@ -1205,13 +1256,13 @@ export default function NewProjectPage() {
                       variant="flat"
                       onClick={() => handleAddBlacklistPattern(patternInput)}
                     >
-                      Add
+                      {t("new.selection.add")}
                     </Button>
                   </div>
                   {/* Quick-add common patterns */}
                   <div className="flex flex-wrap gap-1">
                     <span className="text-xs text-default-400 mr-1 self-center">
-                      Quick add:
+                      {t("new.selection.blacklist.quickAdd")}
                     </span>
                     {[
                       "/blog/",
@@ -1274,12 +1325,12 @@ export default function NewProjectPage() {
             {urlStats.sortedCategories.length > 1 && (
               <div className="flex flex-wrap gap-1 items-center">
                 <span className="text-xs text-default-400 mr-1">
-                  Path groups:
+                  {t("new.selection.pathGroups")}
                 </span>
                 {urlStats.sortedCategories.map(([cat, count]) => (
                   <button
                     key={cat}
-                    className="text-xs px-2 py-0.5 rounded-full bg-default-100 hover:bg-default-200 dark:bg-default-50 dark:hover:bg-default-100 transition-colors cursor-pointer"
+                    className="text-xs px-2 py-0.5 rounded-full bg-default-100 hover:bg-default-200 transition-colors cursor-pointer"
                     title={`Click to filter by ${cat}`}
                     onClick={() => setSearchFilter(cat)}
                   >
@@ -1292,7 +1343,7 @@ export default function NewProjectPage() {
             {/* URL table */}
             <div className="max-h-80 overflow-y-auto border rounded-md">
               <table className="w-full">
-                <thead className="sticky top-0 bg-gray-800 dark:bg-gray-900 border-b border-gray-600">
+                <thead className="sticky top-0 bg-content2 z-10 border-b border-content3">
                   <tr>
                     <th className="w-12 text-left">
                       <input
@@ -1312,7 +1363,9 @@ export default function NewProjectPage() {
                         }}
                       />
                     </th>
-                    <th className="text-left text-sm font-medium pl-2">URL</th>
+                    <th className="text-left text-sm font-medium pl-2">
+                      {t("new.selection.urlHeader")}
+                    </th>
                     <th className="w-10 text-center text-sm font-medium" />
                   </tr>
                 </thead>
@@ -1324,8 +1377,8 @@ export default function NewProjectPage() {
                         colSpan={3}
                       >
                         {searchFilter
-                          ? "No URLs match your search"
-                          : "No URLs found"}
+                          ? t("new.selection.noUrlsSearch")
+                          : t("new.selection.noUrlsFound")}
                       </td>
                     </tr>
                   ) : (
@@ -1337,7 +1390,7 @@ export default function NewProjectPage() {
                       return (
                         <tr
                           key={`${item.url}-${index}`}
-                          className={`border-b border-gray-600 hover:bg-gray-700 dark:hover:bg-gray-800 ${
+                          className={`border-b border-content2 hover:bg-content2/50 ${
                             isBlacklisted ? "opacity-50" : ""
                           }`}
                         >
@@ -1360,14 +1413,14 @@ export default function NewProjectPage() {
                             </span>
                             {isBlacklisted && (
                               <span className="ml-2 text-xs text-danger">
-                                blacklisted
+                                {t("new.selection.blacklisted")}
                               </span>
                             )}
                           </td>
                           <td className="text-center">
                             <button
                               className="text-default-400 hover:text-danger text-sm px-1"
-                              title="Remove URL from list"
+                              title={t("new.selection.removeUrl")}
                               onClick={() => handleRemoveUrl(item.url)}
                             >
                               ×
@@ -1384,21 +1437,23 @@ export default function NewProjectPage() {
             {/* Showing X of Y indicator */}
             {searchFilter && (
               <div className="text-xs text-default-400">
-                Showing {filteredSitemapUrls.length} of {sitemapUrls.length}{" "}
-                URLs
+                {t("new.selection.showingCount", {
+                  count: filteredSitemapUrls.length,
+                  total: sitemapUrls.length,
+                })}
               </div>
             )}
 
             {/* Add URL */}
             <div className="flex gap-2">
               <Input
-                placeholder="Add another URL (e.g. example.com/page)"
+                placeholder={t("new.selection.addUrlPlaceholder")}
                 value={newUrl}
                 onChange={(e) => setNewUrl(e.target.value)}
                 onKeyDown={(e) => e.key === "Enter" && handleAddUrl()}
               />
               <Button disabled={newUrl.trim() === ""} onClick={handleAddUrl}>
-                Add
+                {t("new.selection.add")}
               </Button>
             </div>
             <Button
@@ -1406,8 +1461,9 @@ export default function NewProjectPage() {
               disabled={loading}
               onClick={handleProceedToMainSelection}
             >
-              Next: Select Main Pages (
-              {sitemapUrls.filter((u) => u.selected).length} pages)
+              {t("new.selection.next", {
+                count: sitemapUrls.filter((u) => u.selected).length,
+              })}
             </Button>
           </div>
         )}
@@ -1415,16 +1471,16 @@ export default function NewProjectPage() {
         {step === "main_selection" && (
           <div className="w-full flex flex-col gap-4">
             <div className="flex flex-col gap-2">
-              <h3 className="text-xl font-bold">Select Main Pages</h3>
+              <h3 className="text-xl font-bold">
+                {t("new.mainSelection.title")}
+              </h3>
               <p className="text-sm text-muted-foreground">
-                Main pages will be always available to the shopping assistant as
-                context, while other pages will be vectorized for semantic
-                search.
+                {t("new.mainSelection.description")}
               </p>
               {/* Search bar for main pages */}
               <Input
                 isClearable
-                placeholder="Search selected URLs..."
+                placeholder={t("new.mainSelection.searchPlaceholder")}
                 size="sm"
                 startContent={
                   <svg
@@ -1457,10 +1513,10 @@ export default function NewProjectPage() {
                 onClear={() => setMainSearchFilter("")}
                 onValueChange={setMainSearchFilter}
               />
-              <Card className="border-green-200 dark:border-green-800 bg-green-50 dark:bg-green-950/30">
+              <Card className="bg-success/5 border-success/20">
                 <CardBody className="py-3">
                   <div className="flex items-start gap-2">
-                    <div className="text-green-600 dark:text-green-400 mt-0.5">
+                    <div className="text-success mt-0.5">
                       <svg
                         className="w-4 h-4"
                         fill="currentColor"
@@ -1474,25 +1530,36 @@ export default function NewProjectPage() {
                       </svg>
                     </div>
                     <div className="text-sm">
-                      <p className="font-medium text-green-800 dark:text-green-200 mb-1">
-                        💡 Main Pages Guidelines
+                      <p className="font-medium text-foreground mb-1">
+                        <div className="flex items-center gap-2">
+                          <Lightbulb className="text-warning" size={24} />{" "}
+                          {t("new.mainSelection.tips.title")}
+                        </div>
                       </p>
-                      <ul className="text-green-700 dark:text-green-300 space-y-1 list-disc list-inside">
+                      <ul className="text-default-600 space-y-1 list-disc list-inside">
                         <li>
-                          <strong>Always available</strong>: Main pages are
-                          always accessible to the AI as context
+                          <strong>
+                            {t("new.mainSelection.tips.alwaysAvailable")}
+                          </strong>
+                          : {t("new.mainSelection.tips.alwaysAvailableDesc")}
                         </li>
                         <li>
-                          <strong>Static content</strong>: Choose pages with
-                          core business information
+                          <strong>
+                            {t("new.mainSelection.tips.staticContent")}
+                          </strong>
+                          : {t("new.mainSelection.tips.staticContentDesc")}
                         </li>
                         <li>
-                          <strong>Essential pages</strong>: Home, About,
-                          Services, Contact, FAQ, Policies
+                          <strong>
+                            {t("new.mainSelection.tips.essentialPages")}
+                          </strong>
+                          : {t("new.mainSelection.tips.essentialPagesDesc")}
                         </li>
                         <li>
-                          <strong>Limit recommendation</strong>: Maximum 5 main
-                          pages allowed for optimal performance
+                          <strong>
+                            {t("new.mainSelection.tips.limitRec")}
+                          </strong>
+                          : {t("new.mainSelection.tips.limitRecDesc")}
                         </li>
                       </ul>
                     </div>
@@ -1502,10 +1569,10 @@ export default function NewProjectPage() {
             </div>
             <div className="flex gap-2">
               <Button size="sm" onClick={() => handleSelectAllMain(true)}>
-                Select All as Main
+                {t("new.mainSelection.selectAll")}
               </Button>
               <Button size="sm" onClick={() => handleSelectAllMain(false)}>
-                Deselect All Main
+                {t("new.mainSelection.deselectAll")}
               </Button>
               <Button
                 size="sm"
@@ -1550,12 +1617,12 @@ export default function NewProjectPage() {
                   });
                 }}
               >
-                Smart Select Main
+                {t("new.mainSelection.smartSelect")}
               </Button>
             </div>
             <div className="max-h-64 overflow-y-auto border rounded-md">
               <table className="w-full">
-                <thead className="sticky top-0 bg-gray-800 dark:bg-gray-900 border-b border-gray-600">
+                <thead className="sticky top-0 bg-content2 z-10 border-b border-content3">
                   <tr>
                     <th className="w-12 text-left">
                       <input
@@ -1569,8 +1636,12 @@ export default function NewProjectPage() {
                         onChange={(e) => handleSelectAllMain(e.target.checked)}
                       />
                     </th>
-                    <th className="text-left text-sm font-medium pl-2">URL</th>
-                    <th className="text-left text-sm font-medium pl-2">Type</th>
+                    <th className="text-left text-sm font-medium pl-2">
+                      {t("new.mainSelection.urlHeader")}
+                    </th>
+                    <th className="text-left text-sm font-medium pl-2">
+                      {t("new.mainSelection.typeHeader")}
+                    </th>
                   </tr>
                 </thead>
                 <tbody>
@@ -1581,15 +1652,15 @@ export default function NewProjectPage() {
                         colSpan={3}
                       >
                         {mainSearchFilter
-                          ? "No URLs match your search"
-                          : "No URLs"}
+                          ? t("new.mainSelection.noUrlsSearch")
+                          : t("new.mainSelection.noUrls")}
                       </td>
                     </tr>
                   ) : (
                     filteredMainPageUrls.map((item, index) => (
                       <tr
                         key={`${item.url}-${index}`}
-                        className="border-b border-gray-600 hover:bg-gray-700 dark:hover:bg-gray-800"
+                        className="border-b border-content2 hover:bg-content2/50"
                       >
                         <td>
                           <input
@@ -1607,11 +1678,13 @@ export default function NewProjectPage() {
                           <span
                             className={`px-2 py-1 rounded text-xs ${
                               item.main
-                                ? "bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200"
-                                : "bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200"
+                                ? "bg-success/20 text-success text-xs font-semibold px-2 py-0.5 rounded-full"
+                                : "bg-primary/20 text-primary text-xs font-semibold px-2 py-0.5 rounded-full"
                             }`}
                           >
-                            {item.main ? "Main" : "Vectorized"}
+                            {item.main
+                              ? t("new.mainSelection.typeMain")
+                              : t("new.mainSelection.typeVectorized")}
                           </span>
                         </td>
                       </tr>
@@ -1621,13 +1694,16 @@ export default function NewProjectPage() {
               </table>
             </div>
             <div className="flex justify-between items-center gap-4">
-              <PlaywrightSwitch
-                isSelected={usePlaywright}
-                onValueChange={setUsePlaywright}
-              />
+              <div className="flex-1">
+                <PlaywrightSwitch
+                  isDisabled={!isSuperAdmin}
+                  isSelected={usePlaywright}
+                  onValueChange={setUsePlaywright}
+                />
+              </div>
               <div className="flex gap-2">
                 <Button variant="bordered" onClick={() => setStep("selection")}>
-                  Back to Page Selection
+                  {t("new.mainSelection.back")}
                 </Button>
                 <Button
                   color="primary"
@@ -1635,9 +1711,11 @@ export default function NewProjectPage() {
                   isLoading={loading}
                   onClick={handleStartScraping}
                 >
-                  Scrape {sitemapUrls.filter((u) => u.selected).length} Pages (
-                  {mainPageUrls.filter((u) => u.main).length} main,{" "}
-                  {mainPageUrls.filter((u) => !u.main).length} vectorized)
+                  {t("new.mainSelection.scrape", {
+                    total: sitemapUrls.filter((u) => u.selected).length,
+                    main: mainPageUrls.filter((u) => u.main).length,
+                    vectorized: mainPageUrls.filter((u) => !u.main).length,
+                  })}
                 </Button>
               </div>
             </div>
@@ -1653,34 +1731,16 @@ export default function NewProjectPage() {
                 errorMessage.includes("failed to scrape")) && (
                 <Card className="mt-4">
                   <CardBody className="flex flex-col gap-3">
-                    <h4 className="text-lg font-semibold text-orange-600 dark:text-orange-400">
-                      Scraping Tips
+                    <h4 className="text-lg font-semibold text-warning">
+                      {t("new.scrapingTips.title")}
                     </h4>
                     <div className="text-sm space-y-2">
-                      <p>
-                        • Some websites block automated scraping to protect
-                        their content
-                      </p>
-                      <p>
-                        • Try selecting fewer pages (5-10 main pages) instead of
-                        all pages
-                      </p>
-                      <p>
-                        • Focus on static pages like About, Services, Contact
-                        rather than blog posts
-                      </p>
-                      <p>
-                        • Government and news websites often have stronger
-                        protection
-                      </p>
-                      <p>
-                        • Consider trying a different website that&apos;s more
-                        scraping-friendly
-                      </p>
-                      <p>
-                        • Blogs, documentation sites, and business websites
-                        typically work better
-                      </p>
+                      <p>• {t("new.scrapingTips.tip1")}</p>
+                      <p>• {t("new.scrapingTips.tip2")}</p>
+                      <p>• {t("new.scrapingTips.tip3")}</p>
+                      <p>• {t("new.scrapingTips.tip4")}</p>
+                      <p>• {t("new.scrapingTips.tip5")}</p>
+                      <p>• {t("new.scrapingTips.tip6")}</p>
                     </div>
                   </CardBody>
                 </Card>

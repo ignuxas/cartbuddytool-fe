@@ -43,6 +43,11 @@ interface UserItem {
   project_count: number;
   projects: string[];
   refine_ai_daily_limit: number;
+  plan_tier: string;
+  plan_status: string;
+  trial_end: string | null;
+  monthly_interactions: number;
+  stripe_customer_id?: string | null;
 }
 
 interface UserDetail {
@@ -54,6 +59,10 @@ interface UserDetail {
     refine_ai_daily_limit: number;
     refine_ai_count: number;
     refine_ai_last_reset: string | null;
+    plan_tier: string;
+    plan_status: string;
+    trial_end: string | null;
+    stripe_customer_id?: string | null;
   };
   projects: Array<{
     domain: string;
@@ -95,6 +104,8 @@ export default function UsersPage() {
   const [editUser, setEditUser] = useState<UserItem | null>(null);
   const [editRole, setEditRole] = useState<string>("user");
   const [editLimit, setEditLimit] = useState<number>(3);
+  const [editPlanTier, setEditPlanTier] = useState<string>("free");
+  const [editPlanStatus, setEditPlanStatus] = useState<string>("active");
 
   const [searchQuery, setSearchQuery] = useState("");
   const [sortDescriptor, setSortDescriptor] = useState({
@@ -125,6 +136,10 @@ export default function UsersPage() {
         cmp = a.projects.length - b.projects.length;
       } else if (sortDescriptor.column === "ai_limit") {
         cmp = a.refine_ai_daily_limit - b.refine_ai_daily_limit;
+      } else if (sortDescriptor.column === "interactions") {
+        cmp = (a.monthly_interactions || 0) - (b.monthly_interactions || 0);
+      } else if (sortDescriptor.column === "plan") {
+        cmp = (a.plan_tier || "").localeCompare(b.plan_tier || "");
       } else {
         cmp =
           (first as string) < (second as string)
@@ -219,6 +234,8 @@ export default function UsersPage() {
     setEditUser(user);
     setEditRole(user.role);
     setEditLimit(user.refine_ai_daily_limit);
+    setEditPlanTier(user.plan_tier || "free");
+    setEditPlanStatus(user.plan_status || "active");
     setEditModalOpen(true);
   };
 
@@ -232,6 +249,8 @@ export default function UsersPage() {
           headers: getAuthHeaders(accessToken),
           body: JSON.stringify({
             refine_ai_daily_limit: editLimit,
+            plan_tier: editPlanTier,
+            plan_status: editPlanStatus,
           }),
         },
       );
@@ -445,6 +464,12 @@ export default function UsersPage() {
               <TableColumn key="role" allowsSorting>
                 ROLE
               </TableColumn>
+              <TableColumn key="plan" allowsSorting>
+                PLAN
+              </TableColumn>
+              <TableColumn key="interactions" allowsSorting>
+                USAGE (MONTH)
+              </TableColumn>
               <TableColumn key="projects" allowsSorting>
                 PROJECTS
               </TableColumn>
@@ -477,6 +502,33 @@ export default function UsersPage() {
                     >
                       {user.role === "super_admin" ? "Admin" : "User"}
                     </Chip>
+                  </TableCell>
+                  <TableCell>
+                    <div className="flex flex-col gap-1 items-start">
+                      <Chip
+                        color={
+                          user.plan_tier === "enterprise"
+                            ? "danger"
+                            : user.plan_tier === "growth"
+                              ? "primary"
+                              : "default"
+                        }
+                        size="sm"
+                        variant="dot"
+                      >
+                        {(user.plan_tier || "free").toUpperCase()}
+                      </Chip>
+                      {user.plan_status !== "active" && (
+                        <span className="text-[10px] text-danger uppercase font-bold">
+                          {user.plan_status}
+                        </span>
+                      )}
+                    </div>
+                  </TableCell>
+                  <TableCell>
+                    <span className="text-sm font-medium">
+                      {user.monthly_interactions || 0}
+                    </span>
                   </TableCell>
                   <TableCell>
                     <div className="flex flex-wrap gap-1">
@@ -545,6 +597,24 @@ export default function UsersPage() {
                           Assign Project
                         </DropdownItem>
                         <DropdownItem
+                          key="stripe"
+                          onPress={() => {
+                            if (user.stripe_customer_id) {
+                              window.open(
+                                `https://dashboard.stripe.com/customers/${user.stripe_customer_id}`,
+                                "_blank",
+                              );
+                            } else {
+                              window.open(
+                                `https://dashboard.stripe.com/search?query=${encodeURIComponent(user.email)}`,
+                                "_blank",
+                              );
+                            }
+                          }}
+                        >
+                          View in Stripe
+                        </DropdownItem>
+                        <DropdownItem
                           key="delete"
                           className="text-danger"
                           color="danger"
@@ -592,6 +662,16 @@ export default function UsersPage() {
                       ? "Admin"
                       : "User"}
                   </Chip>
+                  {selectedUser.user.plan_tier && (
+                    <Chip color="primary" size="sm" variant="dot">
+                      {selectedUser.user.plan_tier.toUpperCase()}
+                    </Chip>
+                  )}
+                  {selectedUser.user.plan_status !== "active" && (
+                    <Chip color="danger" size="sm" variant="flat">
+                      {selectedUser.user.plan_status.toUpperCase()}
+                    </Chip>
+                  )}
                 </div>
                 <p className="text-sm text-default-500 font-normal">
                   Joined {formatDate(selectedUser.user.created_at)}
@@ -638,7 +718,7 @@ export default function UsersPage() {
                             Refine with AI Usage
                           </p>
                           <p className="text-xs text-default-500">
-                            {selectedUser.user.refine_ai_count} /{" "}
+                            {selectedUser.user.refine_ai_count} /
                             {selectedUser.user.refine_ai_daily_limit} used today
                           </p>
                         </div>
@@ -677,7 +757,7 @@ export default function UsersPage() {
                             <div>
                               <p className="font-medium text-sm">{p.domain}</p>
                               <p className="text-xs text-default-500">
-                                {p.interactions} interactions · {p.widget_opens}{" "}
+                                {p.interactions} interactions · {p.widget_opens}
                                 opens · {p.sessions} sessions
                               </p>
                             </div>
@@ -733,7 +813,45 @@ export default function UsersPage() {
           <ModalBody>
             {editUser && (
               <div className="flex flex-col gap-4">
-                <p className="text-sm text-default-500">{editUser.email}</p>
+                <p className="text-sm font-medium">{editUser.email}</p>
+
+                <div className="flex flex-col gap-2">
+                  <label className="text-sm text-foreground" htmlFor="planTier">
+                    Plan Tier
+                  </label>
+                  <select
+                    aria-label="Plan Tier"
+                    className="bg-default-100 rounded-medium px-3 py-2 text-sm text-foreground focus:outline-none"
+                    id="planTier"
+                    value={editPlanTier}
+                    onChange={(e) => setEditPlanTier(e.target.value)}
+                  >
+                    <option value="free">Free</option>
+                    <option value="growth">Growth</option>
+                    <option value="enterprise">Enterprise</option>
+                  </select>
+                </div>
+
+                <div className="flex flex-col gap-2">
+                  <label
+                    className="text-sm text-foreground"
+                    htmlFor="planStatus"
+                  >
+                    Plan Status
+                  </label>
+                  <select
+                    aria-label="Plan Status"
+                    className="bg-default-100 rounded-medium px-3 py-2 text-sm text-foreground focus:outline-none"
+                    id="planStatus"
+                    value={editPlanStatus}
+                    onChange={(e) => setEditPlanStatus(e.target.value)}
+                  >
+                    <option value="active">Active</option>
+                    <option value="trialing">Trialing</option>
+                    <option value="past_due">Past Due</option>
+                    <option value="canceled">Canceled</option>
+                  </select>
+                </div>
 
                 {editRole === "user" && (
                   <Input

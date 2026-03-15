@@ -471,7 +471,7 @@ export default function ProjectPage() {
                   router.push(demoUrl);
                 }}
               >
-                <CardBody className="gap-2 p-6">
+                <CardBody className="flex flex-col justify-center px-6 py-5 gap-2">
                   <h3 className="font-bold text-lg">
                     {t("project.viewLiveDemo")}
                   </h3>
@@ -485,7 +485,7 @@ export default function ProjectPage() {
                 className="hover:scale-[1.02] transition-transform cursor-pointer border-primary/20 bg-primary/10"
                 onPress={() => router.push(`/project/${domain}/scraping`)}
               >
-                <CardBody className="gap-2 p-6">
+                <CardBody className="flex flex-col justify-center px-6 py-5 gap-2">
                   <h3 className="font-bold text-lg">
                     {t("project.scrapingSettings")}
                   </h3>

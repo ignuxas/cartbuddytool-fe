@@ -339,7 +339,7 @@ export const KnowledgeBase: React.FC<KnowledgeBaseProps> = ({
               <TableColumn align="center">{t("project.actions")}</TableColumn>
             </TableHeader>
             <TableBody>
-              {files.map((file) => (
+              {files.map((file: KnowledgeFile) => (
                 <TableRow key={file.id}>
                   <TableCell>
                     <div className="flex items-center gap-2">

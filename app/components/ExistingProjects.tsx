@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useEffect, useState, useMemo } from "react";
+import { useRouter } from "next/navigation";
 import { Card, CardBody, CardHeader } from "@heroui/card";
 import { Button } from "@heroui/button";
 import { Input } from "@heroui/input";
@@ -76,10 +77,14 @@ const ExistingProjects: React.FC<ExistingProjectsProps> = ({
   const [sortKey, setSortKey] = useState<string>("updated_desc");
   const [page, setPage] = useState(1);
   const itemsPerPage = 6;
+  const router = useRouter();
   const { t } = useLanguage();
 
-  const { projects: rawProjects, isLoading: loading } =
-    useProjectsList(authKey);
+  const {
+    projects: rawProjects,
+    isLoading: loading,
+    revalidate,
+  } = useProjectsList(authKey);
 
   const projects = useMemo(() => {
     if (!rawProjects) return [];
@@ -175,7 +180,9 @@ const ExistingProjects: React.FC<ExistingProjectsProps> = ({
       });
 
       // Refresh projects list
-      fetchProjects();
+      if (revalidate) {
+        revalidate();
+      }
     } catch (error: any) {
       addToast({
         title: t("existingProjects.errorTitle"),
@@ -202,14 +209,34 @@ const ExistingProjects: React.FC<ExistingProjectsProps> = ({
 
   if (projects.length === 0) {
     return (
-      <div className="w-full text-center py-16">
+      <div className="w-full text-center py-16 flex flex-col items-center">
         <EmptyStateIcon />
         <h3 className="text-xl font-semibold mt-4">
           {t("existingProjects.noProjects")}
         </h3>
-        <p className="text-gray-500 mt-2">
+        <p className="text-gray-500 mt-2 mb-6">
           {t("existingProjects.startScraping")}
         </p>
+        <Button
+          color="primary"
+          startContent={
+            <svg
+              fill="none"
+              height="20"
+              stroke="currentColor"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              strokeWidth="2"
+              viewBox="0 0 24 24"
+              width="20"
+            >
+              <path d="M5 12h14m-7-7v14" />
+            </svg>
+          }
+          onPress={() => router.push("/new")}
+        >
+          {t("dashboard.newProject") || "New Project"}
+        </Button>
       </div>
     );
   }

@@ -557,7 +557,7 @@ export default function SiteSettingsPage() {
                 onChange={(e) => setDefaultModel(e.target.value)}
               >
                 {allModels.map((m: any) => (
-                  <SelectItem key={m.id} value={m.id}>
+                  <SelectItem key={m.id}>
                     {m.name} ({m.provider || "gemini"})
                   </SelectItem>
                 ))}
